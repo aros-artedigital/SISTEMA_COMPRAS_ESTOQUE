@@ -1,0 +1,19 @@
+# Apache: todas as rotas vão para index.php, exceto os arquivos de atualização.
+Options -Indexes
+RewriteEngine On
+
+# Repassa o cabeçalho Authorization para o PHP (algumas hospedagens o descartam).
+RewriteCond %{HTTP:Authorization} .
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+RewriteCond %{REQUEST_URI} !/atualizacoes/
+RewriteCond %{REQUEST_URI} !index\.php$
+RewriteRule ^ index.php [L,QSA]
+
+# Arquivos internos nunca são servidos diretamente.
+<FilesMatch "^(config(\.exemplo)?\.php|README\.md)$">
+    Require all denied
+</FilesMatch>
+<IfModule mod_alias.c>
+    RedirectMatch 404 /(src|dados)/
+</IfModule>

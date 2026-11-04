@@ -1,4 +1,4 @@
-import type { ArgsDe, ErroSerializado, NomeCanal, Resposta, RetornoDe } from '@shared/api'
+import type { ArgsDe, ErroSerializado, Eventos, NomeCanal, Resposta, RetornoDe } from '@shared/api'
 
 /** Erro devolvido pelo processo principal (regra de negócio, validação ou permissão). */
 export class ErroApp extends Error {
@@ -20,4 +20,10 @@ export async function chamar<C extends NomeCanal>(canal: C, ...args: ArgsDe<C>):
   const r = (await window.api.invoke(canal, ...args)) as Resposta<RetornoDe<C>>
   if (!r.ok) throw new ErroApp(r.erro)
   return r.dados
+}
+
+/** Escuta um evento enviado pelo processo principal. Retorna a função que cancela. */
+export function aoEvento<E extends keyof Eventos>(evento: E, callback: (dados: Eventos[E]) => void): () => void {
+  if (!window.api) return () => undefined
+  return window.api.aoEvento(evento, (d) => callback(d as Eventos[E]))
 }

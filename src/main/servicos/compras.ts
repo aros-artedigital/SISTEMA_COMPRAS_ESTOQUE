@@ -6,6 +6,7 @@ import { ErroNegocio } from '../erros'
 import { lerConfiguracoes } from './dados'
 import { lancarMovimentacao } from './estoque'
 import * as map from './mapeadores'
+import { lerConfig } from './sync/config'
 
 type DadosCompra = z.output<typeof compraEntradaSchema>
 
@@ -18,12 +19,13 @@ function buscar(id: number): Compra {
 }
 
 function proximoNumero(): string {
-  const { prefixoCompra } = lerConfiguracoes()
+  // Com sincronização, o código do terminal entra no número (C-A0008) para não colidir com outros terminais.
+  const prefixo = `${lerConfiguracoes().prefixoCompra}${lerConfig().codigo}`
   const { n } = banco().prepare('SELECT COALESCE(MAX(id), 0) + 1 AS n FROM compras').get() as { n: number }
-  let numero = `${prefixoCompra}${String(n).padStart(4, '0')}`
+  let numero = `${prefixo}${String(n).padStart(4, '0')}`
   // Se o prefixo mudou e colidiu com um número antigo, avança até achar um livre.
   for (let i = n + 1; banco().prepare('SELECT 1 FROM compras WHERE numero = ?').get(numero); i++) {
-    numero = `${prefixoCompra}${String(i).padStart(4, '0')}`
+    numero = `${prefixo}${String(i).padStart(4, '0')}`
   }
   return numero
 }

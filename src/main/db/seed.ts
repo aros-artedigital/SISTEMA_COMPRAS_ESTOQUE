@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3'
 import type { Configuracoes } from '@shared/tipos'
 import { gerarHash } from '../seguranca'
 import * as demo from './dadosDemo'
+import { reconciliarSaldos } from './migracao2'
 
 export const configuracoesPadrao: Configuracoes = {
   nomeEmpresa: 'Minha Empresa',
@@ -86,5 +87,7 @@ export function popular(db: Database.Database, comDemo: boolean): void {
     for (const m of comSaldo) insMov.run(m.id, m.data, m.produtoId, m.tipo, m.quantidade, m.saldoApos, m.motivo, m.usuarioId, m.compraId ?? null)
 
     insConfig.run(JSON.stringify(demo.configuracoes))
+    // Os saldos de demonstração passam a bater com a soma das movimentações.
+    reconciliarSaldos(db, 'Saldo inicial')
   })()
 }

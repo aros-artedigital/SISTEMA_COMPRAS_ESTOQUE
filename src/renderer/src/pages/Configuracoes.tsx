@@ -5,6 +5,8 @@ import { chamar } from '@/data/api'
 import type { InfoBackup, InfoSistema } from '@shared/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { ConfirmDialog } from '@/components/Modal'
+import { SecaoSincronizacao } from '@/components/SecaoSincronizacao'
+import { useEstadoSync } from '@/data/sync'
 import { useToast } from '@/contexts/ToastContext'
 import { PageHeader } from '@/components/PageHeader'
 import { Badge, Button, Card, CardHeader, Checkbox, Input } from '@/components/ui'
@@ -15,7 +17,8 @@ import * as fmt from '@shared/format'
 
 export default function Configuracoes() {
   const { configuracoes, compras } = useDb()
-  const proximaCompra = String(compras.reduce((m, c) => Math.max(m, c.id), 0) + 1).padStart(4, '0')
+  const terminal = useEstadoSync()?.codigo ?? ''
+  const proximaCompra = terminal + String(compras.reduce((m, c) => Math.max(m, c.id), 0) + 1).padStart(4, '0')
   const notificar = useToast()
   const form = useForm({ ...configuracoes, estoqueMinimoPadrao: String(configuracoes.estoqueMinimoPadrao) }, configuracoesSchema)
 
@@ -66,6 +69,7 @@ export default function Configuracoes() {
           </div>
         </Card>
 
+        <SecaoSincronizacao />
         <SecaoBackup info={info} />
       </div>
     </>
@@ -115,7 +119,7 @@ function SecaoBackup({ info }: { info: InfoSistema | null }) {
       <CardHeader titulo="Banco de dados e backup" />
       <div className="grid gap-6 p-5 lg:grid-cols-5">
         <div className="space-y-3 text-sm text-slate-600 lg:col-span-2">
-          <p>Os dados ficam em um banco SQLite neste computador e o sistema funciona sem internet.</p>
+          <p>Os dados ficam em um banco SQLite neste computador e o sistema funciona sem internet, mesmo quando sincronizado com o servidor.</p>
           <p>
             Um <strong>backup automático</strong> é feito uma vez por dia ao abrir o sistema (os 7 mais recentes são mantidos). Para proteção contra
             perda do computador, salve backups manuais também em um pendrive ou na nuvem.
@@ -156,7 +160,15 @@ function SecaoBackup({ info }: { info: InfoSistema | null }) {
                         <p className="truncate text-xs text-slate-400" title={b.nome}>{b.nome}</p>
                       </td>
                       <td className="px-3 py-2">
-                        {b.automatico ? <Badge>Automático</Badge> : b.nome.startsWith('antes-da-restauracao') ? <Badge cor="amarelo">Antes de restaurar</Badge> : <Badge cor="azul">Manual</Badge>}
+                        {b.automatico ? (
+                          <Badge>Automático</Badge>
+                        ) : b.nome.startsWith('antes-da-restauracao') ? (
+                          <Badge cor="amarelo">Antes de restaurar</Badge>
+                        ) : b.nome.startsWith('antes-da-sincronizacao') ? (
+                          <Badge cor="amarelo">Antes de sincronizar</Badge>
+                        ) : (
+                          <Badge cor="azul">Manual</Badge>
+                        )}
                       </td>
                       <td className="px-3 py-2 text-right text-xs tabular-nums text-slate-500">{tamanho(b.tamanho)}</td>
                       <td className="px-3 py-2 text-right">

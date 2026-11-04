@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import type { Recurso } from '@shared/permissoes'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
+import { AvisoAtualizacao } from './AvisoAtualizacao'
 
 export function AppLayout() {
   const { usuario } = useAuth()
@@ -13,6 +14,7 @@ export function AppLayout() {
     <div className="flex h-screen overflow-hidden bg-slate-100">
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
+        <AvisoAtualizacao />
         <Topbar />
         <main className="flex-1 overflow-y-auto px-8 py-7">
           <div className="mx-auto max-w-7xl">

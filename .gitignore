@@ -5,3 +5,8 @@ dist/
 *.sqlite
 *.db
 .DS_Store
+tools/
+servidor/dados/
+servidor/config.php
+servidor/atualizacoes/*
+!servidor/atualizacoes/LEIA-ME.txt

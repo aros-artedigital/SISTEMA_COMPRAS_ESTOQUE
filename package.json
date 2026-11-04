@@ -1,6 +1,6 @@
 {
   "name": "gestor-estoque-compras",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Sistema desktop de estoque e compras (Electron + React + TypeScript)",
   "main": "./out/main/index.js",
   "author": "arosartedigital",
@@ -13,7 +13,9 @@
     "test:smoke": "electron-vite build && node scripts/smoke.mjs",
     "postinstall": "electron-rebuild -f -w better-sqlite3",
     "dist": "npm run build && electron-builder --win --x64",
-    "icone": "node scripts/gerar-icone.mjs"
+    "icone": "node scripts/gerar-icone.mjs",
+    "test:api": "node scripts/api-teste.mjs",
+    "test:sync": "electron-vite build && node scripts/sync-teste.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^11.5.0"
@@ -28,6 +30,7 @@
     "autoprefixer": "10.4.20",
     "electron": "31.7.7",
     "electron-builder": "^25.1.8",
+    "electron-updater": "^6.3.9",
     "electron-vite": "2.3.0",
     "exceljs": "^4.4.0",
     "jsbarcode": "^3.11.6",
@@ -78,6 +81,12 @@
       "language": "1046",
       "deleteAppDataOnUninstall": false,
       "artifactName": "Gestor-Estoque-Compras-Setup-${version}.${ext}"
-    }
+    },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "http://localhost/estoque-api/atualizacoes"
+      }
+    ]
   }
 }

@@ -95,6 +95,18 @@ export interface Canais {
   'backup:restaurar': Canal<[caminho: string | null], boolean>
   'backup:abrirPasta': Canal<[], void>
   'arquivo:mostrar': Canal<[caminho: string], void>
+
+  'sync:estado': Canal<[], EstadoSync>
+  'sync:conectar': Canal<[dados: DadosConexao], { estado: EstadoSync; precisaEntrar: boolean }>
+  'sync:sincronizar': Canal<[], ResultadoSync>
+  'sync:configurar': Canal<[opcoes: { ativo: boolean; intervalo: number }], EstadoSync>
+  'sync:desconectar': Canal<[], EstadoSync>
+  'sync:conflitos': Canal<[], ConflitoSync[]>
+  'sync:resolverConflito': Canal<[id: number], void>
+
+  'atualizacao:estado': Canal<[], EstadoAtualizacao>
+  'atualizacao:verificar': Canal<[], EstadoAtualizacao>
+  'atualizacao:instalar': Canal<[], void>
 }
 
 export type NomeCanal = keyof Canais
@@ -163,4 +175,60 @@ export interface InfoBackup {
   tamanho: number
   data: string
   automatico: boolean
+}
+
+// ---------- Fase 4: sincronização e atualização ----------
+
+export interface EstadoSync {
+  configurado: boolean
+  ativo: boolean
+  url: string
+  nome: string
+  codigo: string
+  /** Intervalo da sincronização automática, em minutos. */
+  intervalo: number
+  ultimaSync: string | null
+  ultimoErro: string | null
+  sincronizando: boolean
+  /** Registros alterados neste terminal que ainda não foram enviados. */
+  pendentes: number
+  conflitos: number
+}
+
+export interface DadosConexao {
+  url: string
+  chave: string
+  nome: string
+  codigo: string
+  /** enviar: este terminal manda seus dados; substituir: apaga os dados locais e baixa os do servidor. */
+  modo: 'enviar' | 'substituir'
+}
+
+export interface ResultadoSync {
+  enviados: number
+  recebidos: number
+  rejeitados: number
+}
+
+export interface ConflitoSync {
+  id: number
+  tabela: string
+  descricao: string
+  motivo: string
+  em: string
+}
+
+export interface EstadoAtualizacao {
+  status: 'desativada' | 'verificando' | 'atualizado' | 'disponivel' | 'baixando' | 'pronta' | 'erro'
+  versaoAtual: string
+  novaVersao?: string
+  progresso?: number
+  mensagem?: string
+}
+
+/** Eventos que o processo principal envia para a interface sem ser chamado. */
+export interface Eventos {
+  'sync:estado': EstadoSync
+  'dados:alterados': { precisaEntrar: boolean }
+  'atualizacao:estado': EstadoAtualizacao
 }

@@ -16,6 +16,8 @@ import * as estoque from './servicos/estoque'
 import * as produtos from './servicos/produtos'
 import { exigir, usuarioLogado } from './servicos/sessao'
 import * as usuarios from './servicos/usuarios'
+import * as sync from './servicos/sync/motor'
+import * as atualizacao from './atualizacao'
 
 type Handler<C extends NomeCanal> = (...args: ArgsDe<C>) => RetornoDe<C> | Promise<RetornoDe<C>>
 
@@ -200,5 +202,58 @@ export function registrarCanais(): void {
   canal('arquivo:mostrar', (caminho) => {
     usuarioLogado()
     shell.showItemInFolder(z.string().min(1).parse(caminho))
+  })
+
+  // ---------- Sincronização ----------
+  const conexao = z.object({
+    url: z.string().trim().min(1, 'Informe o endereço do servidor').max(300),
+    chave: z.string().min(1, 'Informe a chave de cadastro').max(300),
+    nome: z.string().trim().min(1, 'Informe o nome deste terminal').max(100),
+    codigo: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^[A-Z0-9]{1,6}$/, 'Use de 1 a 6 letras ou números'),
+    modo: z.enum(['enviar', 'substituir'])
+  })
+
+  canal('sync:estado', () => {
+    usuarioLogado()
+    return sync.estado()
+  })
+  canal('sync:conectar', (d) => {
+    exigir('configuracoes')
+    return sync.conectar(conexao.parse(d))
+  })
+  canal('sync:sincronizar', () => {
+    usuarioLogado()
+    return sync.sincronizar()
+  })
+  canal('sync:configurar', (o) => {
+    exigir('configuracoes')
+    return sync.configurar(z.object({ ativo: z.boolean(), intervalo: z.number().int().min(1).max(240) }).parse(o))
+  })
+  canal('sync:desconectar', () => {
+    exigir('configuracoes')
+    return sync.desconectar()
+  })
+  canal('sync:conflitos', () => {
+    usuarioLogado()
+    return sync.listarConflitos()
+  })
+  canal('sync:resolverConflito', (i) => {
+    usuarioLogado()
+    sync.resolverConflito(id(i))
+  })
+
+  // ---------- Atualização do aplicativo ----------
+  canal('atualizacao:estado', () => atualizacao.estado())
+  canal('atualizacao:verificar', () => {
+    usuarioLogado()
+    return atualizacao.verificar()
+  })
+  canal('atualizacao:instalar', () => {
+    usuarioLogado()
+    atualizacao.instalar()
   })
 }

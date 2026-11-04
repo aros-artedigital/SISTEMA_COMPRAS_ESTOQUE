@@ -1,6 +1,7 @@
 # Gestor de Estoque e Compras
 
-Sistema desktop de estoque e compras — Electron + React + TypeScript + Tailwind + SQLite.
+Sistema desktop de estoque e compras — Electron + React + TypeScript + Tailwind + SQLite,
+com sincronização entre terminais por uma API PHP + MySQL (pasta [`servidor/`](servidor/README.md)).
 
 ## Como rodar
 
@@ -9,6 +10,8 @@ npm install          # instala e compila o SQLite (better-sqlite3) para o Electr
 npm run dev          # abre o app em modo desenvolvimento
 npm run build        # typecheck + build de produção (pasta out/)
 npm run test:smoke   # abre o app de verdade com um banco temporário e testa os fluxos principais
+npm run test:api     # testa a API PHP direto (usa o PHP portátil em tools/php)
+npm run test:sync    # dois terminais reais + API PHP: envio, recebimento, conflitos, sem internet
 npm run dist         # gera o instalador Windows em dist/ (Gestor-Estoque-Compras-Setup-<versão>.exe)
 npm run icone        # regenera build/icon.png a partir de build/icon.svg
 ```
@@ -22,6 +25,29 @@ apaga o banco nem os backups em `%APPDATA%\gestor-estoque-compras`.
 O instalador não tem assinatura digital, então o Windows SmartScreen mostra "O Windows protegeu o computador"
 na primeira execução (clique em **Mais informações → Executar assim mesmo**). Para remover o aviso é preciso
 um certificado de assinatura de código (configurável em `build.win` no `package.json`).
+
+### Sincronização entre terminais
+
+1. Instale a pasta [`servidor/`](servidor/README.md) numa hospedagem com PHP 8.1+ e MySQL e crie o `config.php`.
+2. No **primeiro** terminal: Configurações → Sincronização → informe endereço, chave de cadastro, nome e código
+   do terminal, e escolha **Enviar os dados deste terminal**.
+3. Nos **demais**: o mesmo, escolhendo **Substituir pelos dados do servidor** (os dados locais são apagados,
+   com backup antes, e os do servidor são baixados).
+
+Cada terminal funciona sem internet e sincroniza sozinho (ao abrir e a cada 5 minutos, configurável). A barra
+superior mostra a situação: sincronizado, pendentes, sem conexão ou conflitos. Detalhes do funcionamento,
+das regras de conflito e da API estão em [`servidor/README.md`](servidor/README.md).
+
+Para testar localmente sem hospedagem: `tools/php/php.exe -S 127.0.0.1:8099 -t servidor servidor/index.php`
+(SQLite em `servidor/dados/`, chave de cadastro `teste-local`) e use `http://127.0.0.1:8099` como endereço.
+A pasta `tools/` não vai para o git: baixe o PHP 8.3 x64 NTS de windows.php.net e descompacte em `tools/php`
+(com um `php.ini` habilitando `pdo_sqlite`, `pdo_mysql` e `mbstring`).
+
+### Atualização automática
+
+O app instalado procura novas versões em `<endereço do servidor>/atualizacoes` ao abrir e a cada 6 horas,
+baixa em segundo plano e oferece "Reiniciar e atualizar". Para publicar: suba a versão em `package.json`, rode
+`npm run dist` e envie `latest.yml`, o `.exe` e o `.blockmap` de `dist/` para `servidor/atualizacoes/` na hospedagem.
 
 ### Banco de dados
 
@@ -54,6 +80,8 @@ Usuários de demonstração (só em desenvolvimento):
 - **Excel**: exportação das listas e importação de produtos, fornecedores e clientes com modelo pronto e
   prévia linha a linha antes de gravar. A planilha exportada de Produtos pode ser editada e importada de volta.
 - **Painel**: indicadores, entradas × saídas, compras por mês, produtos com mais saídas e valor por categoria.
+- **Sincronização** entre vários terminais, com funcionamento offline, fila de envio, tratamento de conflitos
+  e atualização automática do aplicativo.
 
 ## Arquitetura
 
@@ -66,6 +94,8 @@ src/
     servicos/backup.ts  backup online do SQLite, automático diário e restauração validada
     servicos/excel.ts   exportação e importação (prévia numa transação desfeita no fim)
     servicos/impressao.ts  PDF e impressão via janela oculta do Chromium
+    servicos/sync/      sincronização: config do terminal, mapeamento local ↔ servidor, motor (envio/recebimento)
+    atualizacao.ts      atualização automática (electron-updater, provedor genérico)
     seguranca.ts        hash de senha (scrypt)
   preload/              ponte segura: expõe só window.api.invoke
   shared/               código usado pelos dois lados: tipos, schemas, permissões, contrato IPC (api.ts)
@@ -74,6 +104,7 @@ src/
     components/ pages/  interface
 scripts/smoke.mjs       teste automatizado com Playwright
 build/                  ícone do app e recursos do instalador
+servidor/               API PHP + MySQL de sincronização (index.php, src/, README.md)
 ```
 
 Fluxo de uma alteração: a tela valida o formulário → `alterar('produtos:salvar', ...)` → IPC →
@@ -82,7 +113,8 @@ numa transação SQLite → a tela recarrega os dados.
 
 Regras garantidas pelo banco/main (não só pela tela):
 
-- Estoque só muda por movimentação; saída não deixa saldo negativo; cada movimentação guarda o saldo após.
+- Estoque só muda por movimentação e é sempre a soma delas; saída feita no terminal não deixa saldo negativo
+  (depois de sincronizar vendas simultâneas de dois terminais, o saldo pode ficar negativo — e aparece como sem estoque).
 - Receber compra dá entrada de todos os itens de uma vez (transação). Só compras com status "Pedido enviado".
 - Compras recebidas não podem ser alteradas nem excluídas.
 - Itens com histórico (produto, fornecedor, usuário) não podem ser excluídos; inative-os.
@@ -96,5 +128,5 @@ Regras garantidas pelo banco/main (não só pela tela):
       regras de negócio e permissões no main, teste automatizado.
 - [x] **Fase 3 — Recursos avançados**: relatórios, PDF, impressão, etiquetas, código de
       barras, Excel, backup/restauração, painel avançado e instalador Windows.
-- [ ] **Fase 4 — Sincronização** com API PHP + MySQL e atualização automática do app
-      (a atualização depende de um servidor para publicar as novas versões).
+- [x] **Fase 4 — Sincronização** com API PHP + MySQL, funcionamento offline, conflitos e
+      atualização automática do app.

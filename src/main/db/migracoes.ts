@@ -1,8 +1,10 @@
 import type Database from 'better-sqlite3'
+import { migracao2 } from './migracao2'
 
 // Cada item é uma versão do schema. Nunca altere uma migração já publicada:
 // adicione uma nova no fim da lista. A versão atual fica em PRAGMA user_version.
-const migracoes: string[] = [
+// Uma migração é SQL puro ou uma função (quando precisa de lógica, como gerar uuids).
+const migracoes: (string | ((db: Database.Database) => void))[] = [
   /* 1 — schema inicial */ `
   CREATE TABLE usuarios (
     id            INTEGER PRIMARY KEY,
@@ -111,7 +113,8 @@ const migracoes: string[] = [
     id    INTEGER PRIMARY KEY CHECK (id = 1),
     dados TEXT    NOT NULL
   );
-  `
+  `,
+  /* 2 — sincronização entre terminais (uuid, fila, estoque derivado) */ migracao2
 ]
 
 /** Versão de schema que este build do app conhece. */
@@ -119,11 +122,23 @@ export const VERSAO_SCHEMA = migracoes.length
 
 export function migrar(db: Database.Database): number {
   const atual = db.pragma('user_version', { simple: true }) as number
-  for (let versao = atual; versao < migracoes.length; versao++) {
-    db.transaction(() => {
-      db.exec(migracoes[versao])
-      db.pragma(`user_version = ${versao + 1}`)
-    })()
+  if (atual >= migracoes.length) return atual
+  // Reconstruir tabelas exige as chaves estrangeiras desligadas (fora da transação);
+  // a integridade é conferida com foreign_key_check antes de cada commit.
+  db.pragma('foreign_keys = OFF')
+  try {
+    for (let versao = atual; versao < migracoes.length; versao++) {
+      db.transaction(() => {
+        const m = migracoes[versao]
+        if (typeof m === 'string') db.exec(m)
+        else m(db)
+        const violacoes = db.pragma('foreign_key_check') as unknown[]
+        if (violacoes.length) throw new Error(`Migração ${versao + 1} deixou ${violacoes.length} referência(s) inválida(s)`)
+        db.pragma(`user_version = ${versao + 1}`)
+      })()
+    }
+  } finally {
+    db.pragma('foreign_keys = ON')
   }
   return migracoes.length
 }

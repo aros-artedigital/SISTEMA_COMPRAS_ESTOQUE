@@ -1,0 +1,1 @@
+Coloque aqui latest.yml, o instalador .exe e o .blockmap gerados por "npm run dist".

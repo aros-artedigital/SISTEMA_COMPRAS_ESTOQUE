@@ -39,14 +39,18 @@ export function GraficoBarras({ series, dados, formatar, formatarEixo = formatar
   const [largura, setLargura] = useState(600)
   const [hover, setHover] = useState<number | null>(null)
 
+  const maximo = Math.max(0, ...dados.flatMap((d) => d.valores))
+  const vazio = maximo === 0
+
+  // Observa o contêiner do gráfico (que troca quando o gráfico sai do estado vazio).
   useEffect(() => {
     if (!ref.current) return
     const obs = new ResizeObserver(([e]) => setLargura(Math.max(280, e.contentRect.width)))
     obs.observe(ref.current)
     return () => obs.disconnect()
-  }, [])
+  }, [vazio])
 
-  const ticks = escalaBonita(Math.max(0, ...dados.flatMap((d) => d.valores)))
+  const ticks = escalaBonita(maximo)
   const topoEscala = ticks[ticks.length - 1]
   const areaL = largura - M.esquerda - M.direita
   const areaA = altura - M.topo - M.base
@@ -55,6 +59,14 @@ export function GraficoBarras({ series, dados, formatar, formatarEixo = formatar
   const grupo = areaL / Math.max(1, dados.length)
   const larguraBarra = Math.min(28, (grupo * 0.6) / series.length)
   const gap = 2
+
+  if (vazio) {
+    return (
+      <div className="flex items-center justify-center rounded-lg border border-dashed border-slate-200 text-sm text-slate-500" style={{ height: altura }}>
+        Sem movimentações no período.
+      </div>
+    )
+  }
 
   return (
     <div>

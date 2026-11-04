@@ -4,6 +4,8 @@ import { abrirBanco, fecharBanco } from './db/conexao'
 import { registrarCanais } from './ipc'
 import { definirJanelaPrincipal } from './janela'
 import { backupAutomatico, configurarPastaBackups } from './servicos/backup'
+import { iniciarAgendador } from './servicos/sync/motor'
+import { iniciarAtualizacoes } from './atualizacao'
 
 // Banco em %APPDATA%/gestor-estoque-compras. ESTOQUE_DB_PATH permite apontar outro arquivo (usado nos testes).
 const caminhoBanco = process.env['ESTOQUE_DB_PATH'] || join(app.getPath('userData'), 'estoque.sqlite')
@@ -58,6 +60,8 @@ app.whenReady().then(() => {
   registrarCanais()
   createWindow()
   void backupAutomatico()
+  iniciarAgendador()
+  iniciarAtualizacoes()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

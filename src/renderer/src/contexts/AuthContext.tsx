@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, type ReactNode } from 'react'
-import { chamar, ErroApp } from '@/data/api'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { aoEvento, chamar, ErroApp } from '@/data/api'
 import { limpar, recarregar, useDb } from '@/data/store'
 import { pode as podePerfil, type Recurso } from '@shared/permissoes'
 import type { Usuario } from '@shared/tipos'
@@ -19,6 +19,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { usuarios } = useDb()
   // Lê do store para refletir edições no próprio perfil; a sessão real fica no processo principal.
   const usuario = logado ? (usuarios.find((u) => u.id === logado.id) ?? logado) : null
+
+  // Alterações vindas de outros terminais (sincronização): recarrega a tela, ou pede novo login
+  // quando os dados foram substituídos ou o usuário perdeu o acesso.
+  useEffect(
+    () =>
+      aoEvento('dados:alterados', ({ precisaEntrar }) => {
+        if (!logado) return
+        if (precisaEntrar) return void sair()
+        recarregar().catch((e) => {
+          if (e instanceof ErroApp && e.tipo === 'permissao') void sair()
+        })
+      }),
+    [logado] // eslint-disable-line react-hooks/exhaustive-deps
+  )
 
   async function entrar(login: string, senha: string): Promise<string | null> {
     try {
