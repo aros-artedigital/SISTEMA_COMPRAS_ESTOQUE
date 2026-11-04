@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { Boxes, Eye, EyeOff, LogIn } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button, Input } from '@/components/ui'
+import { RecuperarSenhaModal } from '@/components/RecuperarSenhaModal'
 
 export default function Login() {
   const { usuario, entrar } = useAuth()
@@ -12,6 +13,7 @@ export default function Login() {
   const [verSenha, setVerSenha] = useState(false)
   const [erro, setErro] = useState('')
   const [entrando, setEntrando] = useState(false)
+  const [recuperando, setRecuperando] = useState(false)
 
   if (usuario) return <Navigate to="/" replace />
 
@@ -47,7 +49,7 @@ export default function Login() {
             Produtos, fornecedores, pedidos de compra e movimentações em um só lugar, funcionando direto no seu computador.
           </p>
         </div>
-        <p className="text-xs text-slate-400">Sistema de Estoque e Compras · v0.4.0</p>
+        <p className="text-xs text-slate-400">Sistema de Estoque e Compras · v0.4.1</p>
       </div>
 
       <div className="flex flex-1 items-center justify-center bg-slate-50 p-8">
@@ -81,6 +83,9 @@ export default function Login() {
             <Button type="submit" className="w-full" icone={<LogIn size={16} />} disabled={entrando}>
               {entrando ? 'Entrando...' : 'Entrar'}
             </Button>
+            <button type="button" onClick={() => setRecuperando(true)} className="block w-full text-center text-sm text-blue-600 hover:underline">
+              Esqueci minha senha
+            </button>
           </div>
 
           {/* Só em desenvolvimento: o app instalado não tem os usuários de demonstração. */}
@@ -91,6 +96,15 @@ export default function Login() {
             </div>
           )}
         </form>
+        <RecuperarSenhaModal
+          aberto={recuperando}
+          onFechar={() => setRecuperando(false)}
+          onRecuperado={(l) => {
+            setLogin(l)
+            setSenha('')
+            setErro('')
+          }}
+        />
       </div>
     </div>
   )

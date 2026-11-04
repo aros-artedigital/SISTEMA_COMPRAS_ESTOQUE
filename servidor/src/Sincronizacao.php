@@ -4,7 +4,7 @@ declare(strict_types=1);
 /** Aplica as alterações enviadas pelos terminais e devolve as alterações dos outros. */
 final class Sincronizacao
 {
-    private const UUID = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$|^configuracoes$/';
+    private const UUID = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$|^(configuracoes|recuperacao)$/';
     private const DATA = '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/';
 
     public function __construct(private PDO $pdo, private int $dispositivoId)

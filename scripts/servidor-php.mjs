@@ -7,7 +7,15 @@ import { join, resolve } from 'path'
 
 const raiz = resolve(import.meta.dirname, '..')
 
-export async function iniciarServidor({ porta = 8099, banco, chave = 'chave-teste' }) {
+// Porta própria dos testes (a 8099 fica livre para o servidor de testes manuais).
+export async function iniciarServidor({ porta = 8097, banco, chave = 'chave-teste' }) {
+  const url = `http://127.0.0.1:${porta}`
+  const ocupada = await fetch(`${url}/status`).then(
+    () => true,
+    () => false
+  )
+  if (ocupada) throw new Error(`A porta ${porta} já está em uso por outro servidor. Feche-o antes de rodar os testes.`)
+
   const local = join(raiz, 'tools', 'php', 'php.exe')
   const php = existsSync(local) ? local : 'php'
   const args = existsSync(local) ? ['-c', join(raiz, 'tools', 'php', 'php.ini')] : []
@@ -17,7 +25,6 @@ export async function iniciarServidor({ porta = 8099, banco, chave = 'chave-test
   })
   let log = ''
   proc.stderr.on('data', (d) => (log += d))
-  const url = `http://127.0.0.1:${porta}`
   for (let i = 0; i < 50; i++) {
     try {
       if ((await fetch(`${url}/status`)).ok) return { url, parar: () => proc.kill(), log: () => log }

@@ -17,6 +17,7 @@ export type TabelaSync =
   | 'compras'
   | 'movimentacoes'
   | 'configuracoes'
+  | 'recuperacao'
 
 type Dados = Record<string, unknown>
 type Linha = Record<string, unknown>
@@ -47,6 +48,10 @@ const bool = (v: unknown): number => (v ? 1 : 0)
 /** Estado atual do registro para envio, ou null se ele foi excluído. */
 export function montarDados(tabela: TabelaSync, uuid: string): Dados | null {
   if (tabela === 'configuracoes') return { ...lerConfiguracoes() }
+  if (tabela === 'recuperacao') {
+    const r = db().prepare('SELECT codigo_hash, criado_em FROM recuperacao WHERE id = 1').get() as Linha | undefined
+    return r ? { codigoHash: r.codigo_hash, criadoEm: r.criado_em } : null
+  }
   const r = linhaPorUuid(tabela, uuid)
   if (!r) return null
   switch (tabela) {
@@ -99,7 +104,7 @@ export function montarDados(tabela: TabelaSync, uuid: string): Dados | null {
 
 /** Texto curto para identificar o registro na lista de conflitos. */
 export function descrever(tabela: string, uuid: string, dados?: Dados | null): string {
-  const r = (dados ?? (tabela === 'configuracoes' ? null : montarDados(tabela as TabelaSync, uuid))) as Dados | null
+  const r = (dados ?? (tabela === 'configuracoes' || tabela === 'recuperacao' ? {} : montarDados(tabela as TabelaSync, uuid))) as Dados | null
   if (!r) return `${tabela} ${uuid.slice(0, 8)}`
   const nomes: Record<string, string> = {
     usuarios: `Usuário ${txt(r.login)}`,
@@ -110,7 +115,8 @@ export function descrever(tabela: string, uuid: string, dados?: Dados | null): s
     produtos: `Produto ${txt(r.codigo)} — ${txt(r.nome)}`,
     compras: `Compra ${txt(r.numero)}`,
     movimentacoes: `Movimentação: ${txt(r.motivo)}`,
-    configuracoes: 'Configurações da empresa'
+    configuracoes: 'Configurações da empresa',
+    recuperacao: 'Código de recuperação do administrador'
   }
   return nomes[tabela] ?? tabela
 }
@@ -194,6 +200,14 @@ function upsert(tabela: string, uuid: string, colunas: Record<string, unknown>, 
 export function aplicarRemoto(tabela: TabelaSync, uuid: string, operacao: 'salvar' | 'excluir', d: Dados | null): ConflitoLocal | null {
   if (tabela === 'configuracoes') {
     if (operacao === 'salvar' && d) salvarConfiguracoes({ ...configuracoesPadrao, ...(d as Partial<Configuracoes>) })
+    return null
+  }
+  if (tabela === 'recuperacao') {
+    if (operacao === 'excluir') db().prepare('DELETE FROM recuperacao WHERE id = 1').run()
+    else if (d)
+      db()
+        .prepare('INSERT INTO recuperacao (id, codigo_hash, criado_em) VALUES (1, ?, ?) ON CONFLICT (id) DO UPDATE SET codigo_hash = excluded.codigo_hash, criado_em = excluded.criado_em')
+        .run(txt(d.codigoHash), txt(d.criadoEm))
     return null
   }
 

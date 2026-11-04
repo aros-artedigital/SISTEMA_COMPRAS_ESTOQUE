@@ -206,6 +206,26 @@ try {
   dA = await A.dados()
   verificar(dA.compras.some((c) => c.numero === nova.numero), 'compra de B chega em A')
 
+  // ---------- Recuperação de acesso entre terminais ----------
+  console.log('Recuperação de acesso')
+  const codigo = await A.ok('recuperacao:gerar')
+  await A.sync()
+  await B.sync()
+  verificar((await B.ok('recuperacao:estado')).existe, 'código de recuperação gerado em A chega em B')
+  await B.ok('auth:sair')
+  await B.ok('auth:recuperar', 'admin', codigo, 'senha-recuperada')
+  await B.ok('auth:entrar', 'admin', 'senha-recuperada')
+  await B.sync()
+  await A.sync()
+  await A.ok('auth:sair')
+  r = await A.ipc('auth:entrar', 'admin', 'senha-recuperada')
+  verificar(r.ok, 'senha redefinida em B passa a valer em A')
+  verificar(!(await A.ok('recuperacao:estado')).existe, 'código usado em B também deixa de valer em A')
+  // volta à senha de demonstração para as telas abaixo
+  await A.ok('auth:trocarSenha', 'senha-recuperada', 'admin123')
+  await A.sync()
+  await B.sync()
+
   // ---------- Telas ----------
   if (saida) {
     await A.page.reload()

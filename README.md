@@ -61,6 +61,17 @@ baixa em segundo plano e oferece "Reiniciar e atualizar". Para publicar: suba a 
   mais recentes). Em **Configurações** dá para fazer backup manual, restaurar e abrir a pasta. Restaurar guarda
   antes uma cópia do estado atual (`antes-da-restauracao_*.sqlite`) e encerra a sessão.
 
+### Usuários, senhas e recuperação de acesso
+
+- O administrador cria logins em **Cadastros → Usuários** (perfil Administrador, Gerente ou Operador) e pode
+  definir uma nova senha para quem esqueceu. Cada um troca a própria senha em **Meu perfil**.
+- Uma faixa de aviso aparece enquanto alguém usa a senha padrão `admin123` ou enquanto não existe código de
+  recuperação.
+- **Código de recuperação** (Configurações → Recuperação de acesso): mostrado uma única vez, para imprimir ou salvar
+  em PDF e guardar fora do computador. Na tela de login, **Esqueci minha senha** + login de administrador + código
+  redefine a senha. O código vale uma vez, em todos os terminais sincronizados, e é guardado só como hash; depois de
+  5 tentativas erradas, a tela bloqueia por um tempo crescente.
+
 Usuários de demonstração (só em desenvolvimento):
 
 | Login | Senha | Perfil |

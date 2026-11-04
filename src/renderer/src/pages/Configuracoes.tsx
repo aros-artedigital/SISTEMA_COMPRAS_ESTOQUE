@@ -6,6 +6,7 @@ import type { InfoBackup, InfoSistema } from '@shared/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { ConfirmDialog } from '@/components/Modal'
 import { SecaoSincronizacao } from '@/components/SecaoSincronizacao'
+import { SecaoRecuperacao } from '@/components/SecaoRecuperacao'
 import { useEstadoSync } from '@/data/sync'
 import { useToast } from '@/contexts/ToastContext'
 import { PageHeader } from '@/components/PageHeader'
@@ -69,6 +70,7 @@ export default function Configuracoes() {
           </div>
         </Card>
 
+        <SecaoRecuperacao />
         <SecaoSincronizacao />
         <SecaoBackup info={info} />
       </div>

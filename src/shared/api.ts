@@ -56,6 +56,12 @@ export interface Canais {
   'auth:sair': Canal<[], void>
   'auth:trocarSenha': Canal<[atual: string, nova: string], void>
   'auth:atualizarPerfil': Canal<[dados: Entrada<typeof perfilSchema>], void>
+  'auth:avisos': Canal<[], AvisosSeguranca>
+  /** Pela tela de login, sem sessão: redefine a senha de um administrador com o código de recuperação. */
+  'auth:recuperar': Canal<[login: string, codigo: string, novaSenha: string], void>
+  'recuperacao:estado': Canal<[], EstadoRecuperacao>
+  /** Gera um novo código; o texto só é devolvido nesta chamada. */
+  'recuperacao:gerar': Canal<[], string>
 
   'dados:carregar': Canal<[], Snapshot>
   'sistema:info': Canal<[], InfoSistema>
@@ -231,4 +237,18 @@ export interface Eventos {
   'sync:estado': EstadoSync
   'dados:alterados': { precisaEntrar: boolean }
   'atualizacao:estado': EstadoAtualizacao
+}
+
+// ---------- Recuperação de acesso ----------
+
+export interface EstadoRecuperacao {
+  existe: boolean
+  criadoEm: string | null
+}
+
+export interface AvisosSeguranca {
+  /** O usuário logado ainda usa a senha padrão de instalação. */
+  senhaPadrao: boolean
+  /** Administrador e o sistema ainda não tem código de recuperação. */
+  semCodigoRecuperacao: boolean
 }

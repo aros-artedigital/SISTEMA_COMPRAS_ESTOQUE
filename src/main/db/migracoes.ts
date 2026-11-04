@@ -114,7 +114,23 @@ const migracoes: (string | ((db: Database.Database) => void))[] = [
     dados TEXT    NOT NULL
   );
   `,
-  /* 2 — sincronização entre terminais (uuid, fila, estoque derivado) */ migracao2
+  /* 2 — sincronização entre terminais (uuid, fila, estoque derivado) */ migracao2,
+  /* 3 — código de recuperação do administrador (só o hash; sincronizado entre terminais) */ `
+  CREATE TABLE recuperacao (
+    id          INTEGER PRIMARY KEY CHECK (id = 1),
+    codigo_hash TEXT NOT NULL,
+    criado_em   TEXT NOT NULL
+  );
+  CREATE TRIGGER sync_recuperacao_ai AFTER INSERT ON recuperacao WHEN (SELECT aplicando FROM sync_controle WHERE id = 1) = 0 BEGIN
+    INSERT INTO sync_fila (tabela, uuid, operacao, alterado_em) VALUES ('recuperacao', 'recuperacao', 'salvar', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+  END;
+  CREATE TRIGGER sync_recuperacao_au AFTER UPDATE ON recuperacao WHEN (SELECT aplicando FROM sync_controle WHERE id = 1) = 0 BEGIN
+    INSERT INTO sync_fila (tabela, uuid, operacao, alterado_em) VALUES ('recuperacao', 'recuperacao', 'salvar', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+  END;
+  CREATE TRIGGER sync_recuperacao_ad AFTER DELETE ON recuperacao WHEN (SELECT aplicando FROM sync_controle WHERE id = 1) = 0 BEGIN
+    INSERT INTO sync_fila (tabela, uuid, operacao, alterado_em) VALUES ('recuperacao', 'recuperacao', 'excluir', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+  END;
+  `
 ]
 
 /** Versão de schema que este build do app conhece. */

@@ -325,6 +325,7 @@ async function substituirPeloServidor(cfg: ConfigSync, token: string): Promise<v
     // Apaga na ordem inversa das dependências.
     db.prepare('DELETE FROM compra_itens').run()
     for (const t of [...TABELAS_SYNC].reverse()) db.prepare(`DELETE FROM ${t}`).run()
+    db.prepare('DELETE FROM recuperacao').run()
     db.prepare('DELETE FROM sync_fila').run()
     db.prepare('DELETE FROM sync_conflitos').run()
     aplicarLote(todas)

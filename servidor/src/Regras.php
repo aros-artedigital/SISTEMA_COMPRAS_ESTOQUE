@@ -17,6 +17,7 @@ final class Regras
         'compras' => ['numero', 'fornecedor', 'data', 'status', 'itens'],
         'movimentacoes' => ['data', 'produto', 'tipo', 'quantidade', 'usuario'],
         'configuracoes' => ['nomeEmpresa'],
+        'recuperacao' => ['codigoHash'],
     ];
 
     public static function tabelaValida(string $tabela): bool

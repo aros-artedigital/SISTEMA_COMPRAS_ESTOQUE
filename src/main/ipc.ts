@@ -18,6 +18,7 @@ import { exigir, usuarioLogado } from './servicos/sessao'
 import * as usuarios from './servicos/usuarios'
 import * as sync from './servicos/sync/motor'
 import * as atualizacao from './atualizacao'
+import * as recuperacao from './servicos/recuperacao'
 
 type Handler<C extends NomeCanal> = (...args: ArgsDe<C>) => RetornoDe<C> | Promise<RetornoDe<C>>
 
@@ -67,6 +68,22 @@ export function registrarCanais(): void {
     usuarios.trocarSenha(usuarioLogado().id, d.atual, d.nova)
   })
   canal('auth:atualizarPerfil', (d) => usuarios.atualizarPerfil(usuarioLogado().id, s.perfilSchema.parse(d)))
+
+  canal('auth:avisos', () => {
+    const u = usuarioLogado()
+    return recuperacao.avisos(u.id, u.perfil)
+  })
+  canal('auth:recuperar', (login, codigo, nova) =>
+    recuperacao.recuperar(z.string().max(100).parse(login), z.string().max(100).parse(codigo), z.string().max(200).parse(nova))
+  )
+  canal('recuperacao:estado', () => {
+    exigir('configuracoes')
+    return recuperacao.estado()
+  })
+  canal('recuperacao:gerar', () => {
+    exigir('configuracoes')
+    return recuperacao.gerar()
+  })
 
   canal('dados:carregar', () => {
     usuarioLogado()
