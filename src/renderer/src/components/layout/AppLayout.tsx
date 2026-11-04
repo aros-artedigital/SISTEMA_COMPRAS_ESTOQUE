@@ -1,7 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { ShieldOff } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
-import type { Recurso } from '@/lib/permissoes'
+import type { Recurso } from '@shared/permissoes'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 

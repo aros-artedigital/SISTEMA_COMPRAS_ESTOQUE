@@ -1,41 +1,34 @@
 import { KeyRound, Save } from 'lucide-react'
-import { db } from '@/data/store'
+import { alterar } from '@/data/store'
+import { chamar } from '@/data/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import { PageHeader } from '@/components/PageHeader'
 import { Badge, Button, Card, CardHeader, Input } from '@/components/ui'
-import { nomePerfil } from '@/lib/permissoes'
-import { senhaSchema } from '@/lib/schemas'
+import { nomePerfil } from '@shared/permissoes'
+import { perfilSchema, senhaSchema } from '@shared/schemas'
 import { useForm } from '@/lib/useForm'
-import { z } from 'zod'
-
-const dadosSchema = z.object({
-  nome: z.string().trim().min(1, 'Nome é obrigatório'),
-  email: z.string().trim().email('E-mail inválido')
-})
+import { executar } from '@/lib/executar'
 
 export default function Perfil() {
   const { usuario } = useAuth()
   const notificar = useToast()
-  const dados = useForm({ nome: usuario?.nome ?? '', email: usuario?.email ?? '' }, dadosSchema)
+  const dados = useForm({ nome: usuario?.nome ?? '', email: usuario?.email ?? '' }, perfilSchema)
   const senha = useForm({ atual: '', nova: '', confirmar: '' }, senhaSchema)
 
   if (!usuario) return null
 
-  function salvarDados(): void {
+  async function salvarDados(): Promise<void> {
     const v = dados.validate()
-    if (!v || !usuario) return
-    db.atualizar('usuarios', usuario.id, v)
-    notificar('sucesso', 'Dados atualizados.')
+    if (!v) return
+    await executar(() => alterar('auth:atualizarPerfil', v), { notificar, form: dados, sucesso: 'Dados atualizados.' })
   }
 
-  function trocarSenha(): void {
+  async function trocarSenha(): Promise<void> {
     const v = senha.validate()
-    if (!v || !usuario) return
-    if (v.atual !== usuario.senha) return senha.setError('atual', 'Senha atual incorreta')
-    db.atualizar('usuarios', usuario.id, { senha: v.nova })
-    senha.reset({ atual: '', nova: '', confirmar: '' })
-    notificar('sucesso', 'Senha alterada.')
+    if (!v) return
+    const ok = await executar(() => chamar('auth:trocarSenha', v.atual, v.nova), { notificar, form: senha, sucesso: 'Senha alterada.' })
+    if (ok) senha.reset({ atual: '', nova: '', confirmar: '' })
   }
 
   return (

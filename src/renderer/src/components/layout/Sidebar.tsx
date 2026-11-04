@@ -43,7 +43,7 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="border-t border-sidebar-border px-5 py-3 text-[11px] text-slate-400">Versão 0.1.0 · dados fictícios</div>
+      <div className="border-t border-sidebar-border px-5 py-3 text-[11px] text-slate-400">Versão 0.2.0 · banco local</div>
     </aside>
   )
 }

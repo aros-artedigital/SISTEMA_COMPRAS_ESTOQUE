@@ -106,3 +106,32 @@ export const senhaSchema = z
     confirmar: z.string()
   })
   .refine((s) => s.nova === s.confirmar, { path: ['confirmar'], message: 'As senhas não conferem' })
+
+export const perfilSchema = z.object({
+  nome: obrigatorio('Nome'),
+  email: z.string().trim().email('E-mail inválido')
+})
+
+// ---------- Validação das chamadas IPC (processo principal) ----------
+
+export const idSchema = z.number().int().positive()
+export const idOuNovoSchema = idSchema.nullable()
+
+export const itemCompraSchema = z.object({
+  produtoId: idSchema,
+  quantidade: z.number().int('Quantidades devem ser inteiras').positive('Quantidade deve ser maior que zero'),
+  valorUnitario: z.number().min(0, 'Valor unitário não pode ser negativo')
+})
+
+export const compraEntradaSchema = compraSchema.extend({
+  status: z.enum(['rascunho', 'pedido', 'cancelada']),
+  itens: z
+    .array(itemCompraSchema)
+    .min(1, 'Adicione ao menos um produto')
+    .refine((itens) => new Set(itens.map((i) => i.produtoId)).size === itens.length, 'O mesmo produto aparece em mais de uma linha')
+})
+
+export const trocaSenhaSchema = z.object({
+  atual: z.string().min(1, 'Senha atual é obrigatória'),
+  nova: z.string().min(6, 'Mínimo de 6 caracteres')
+})

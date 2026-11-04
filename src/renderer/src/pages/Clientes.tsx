@@ -1,16 +1,17 @@
 import { useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
-import { db, useDb } from '@/data/store'
+import { alterar, useDb } from '@/data/store'
 import { useToast } from '@/contexts/ToastContext'
 import { Filtros, PageHeader } from '@/components/PageHeader'
 import { AcoesLinha, DataTable, type Coluna } from '@/components/DataTable'
 import { ConfirmDialog, Modal } from '@/components/Modal'
 import { Badge, Button, Checkbox, Input, SearchInput, Select } from '@/components/ui'
-import { UFS } from '@/lib/dominio'
-import { clienteSchema } from '@/lib/schemas'
+import { UFS } from '@shared/dominio'
+import { clienteSchema } from '@shared/schemas'
 import { useForm } from '@/lib/useForm'
-import * as fmt from '@/lib/format'
-import type { Cliente } from '@/types'
+import { executar } from '@/lib/executar'
+import * as fmt from '@shared/format'
+import type { Cliente } from '@shared/tipos'
 
 const vazio = { nome: '', tipo: 'PF' as Cliente['tipo'], documento: '', telefone: '', email: '', cidade: '', uf: '', ativo: true }
 
@@ -40,23 +41,22 @@ export default function Clientes() {
     setAberto(true)
   }
 
-  function salvar(): void {
+  async function salvar(): Promise<void> {
     const dados = form.validate()
     if (!dados) return
-    if (clientes.some((c) => fmt.somenteDigitos(c.documento) === fmt.somenteDigitos(dados.documento) && c.id !== editando?.id)) {
-      return form.setError('documento', 'Documento já cadastrado')
-    }
-    if (editando) db.atualizar('clientes', editando.id, dados)
-    else db.criar('clientes', dados)
-    notificar('sucesso', editando ? 'Cliente atualizado.' : 'Cliente cadastrado.')
-    setAberto(false)
+    const ok = await executar(() => alterar('clientes:salvar', editando?.id ?? null, dados), {
+      notificar,
+      form,
+      sucesso: editando ? 'Cliente atualizado.' : 'Cliente cadastrado.'
+    })
+    if (ok) setAberto(false)
   }
 
-  function excluir(): void {
+  async function excluir(): Promise<void> {
     if (!excluindo) return
-    db.excluir('clientes', excluindo.id)
-    notificar('sucesso', 'Cliente excluído.')
+    const alvo = excluindo
     setExcluindo(null)
+    await executar(() => alterar('clientes:excluir', alvo.id), { notificar, sucesso: 'Cliente excluído.' })
   }
 
   const pf = form.values.tipo === 'PF'

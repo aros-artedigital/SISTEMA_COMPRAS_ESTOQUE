@@ -1,17 +1,17 @@
 import { useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
-import { db, RegraNegocioError, useDb } from '@/data/store'
-import { useAuth } from '@/contexts/AuthContext'
+import { alterar, useDb } from '@/data/store'
 import { useToast } from '@/contexts/ToastContext'
 import { Filtros, PageHeader } from '@/components/PageHeader'
 import { DataTable, type Coluna } from '@/components/DataTable'
 import { Modal } from '@/components/Modal'
 import { Badge, Button, Input, SearchInput, Select } from '@/components/ui'
-import { corTipoMov, rotuloTipoMov } from '@/lib/dominio'
-import { movimentacaoSchema } from '@/lib/schemas'
+import { corTipoMov, rotuloTipoMov } from '@shared/dominio'
+import { movimentacaoSchema } from '@shared/schemas'
 import { useForm } from '@/lib/useForm'
-import * as fmt from '@/lib/format'
-import type { Movimentacao, TipoMovimentacao } from '@/types'
+import { executar } from '@/lib/executar'
+import * as fmt from '@shared/format'
+import type { Movimentacao, TipoMovimentacao } from '@shared/tipos'
 
 const vazio = { produtoId: '', tipo: 'saida' as TipoMovimentacao, quantidade: '', motivo: '' }
 
@@ -23,7 +23,6 @@ const dicaTipo: Record<TipoMovimentacao, string> = {
 
 export default function Movimentacoes() {
   const { movimentacoes, produtos, usuarios } = useDb()
-  const { usuario } = useAuth()
   const notificar = useToast()
 
   const [busca, setBusca] = useState('')
@@ -53,18 +52,12 @@ export default function Movimentacoes() {
 
   const selecionado = produto(Number(form.values.produtoId))
 
-  function salvar(): void {
+  async function salvar(): Promise<void> {
     const dados = form.validate()
-    if (!dados || !usuario) return
+    if (!dados) return
     if (dados.tipo !== 'ajuste' && dados.quantidade < 0) return form.setError('quantidade', 'Informe uma quantidade positiva')
-    try {
-      db.movimentar({ ...dados, usuarioId: usuario.id })
-      notificar('sucesso', 'Movimentação registrada.')
-      setAberto(false)
-    } catch (e) {
-      if (e instanceof RegraNegocioError) form.setError('quantidade', e.message)
-      else throw e
-    }
+    const ok = await executar(() => alterar('estoque:movimentar', dados), { notificar, form, sucesso: 'Movimentação registrada.' })
+    if (ok) setAberto(false)
   }
 
   const colunas: Coluna<Movimentacao>[] = [
@@ -98,6 +91,7 @@ export default function Movimentacoes() {
         )
       }
     },
+    { chave: 'saldo', titulo: 'Saldo', alinhar: 'direita', render: (m) => <span className="tabular-nums text-slate-500">{fmt.numero(m.saldoApos)}</span> },
     { chave: 'motivo', titulo: 'Motivo', render: (m) => m.motivo },
     { chave: 'usuario', titulo: 'Usuário', render: (m) => <span className="text-slate-500">{usuarios.find((u) => u.id === m.usuarioId)?.nome ?? '—'}</span> }
   ]

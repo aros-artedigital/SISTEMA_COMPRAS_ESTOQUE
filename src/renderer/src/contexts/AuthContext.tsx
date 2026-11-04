@@ -1,36 +1,46 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
-import { getDb, useDb } from '@/data/store'
-import { pode as podePerfil, type Recurso } from '@/lib/permissoes'
-import type { Usuario } from '@/types'
+import { chamar, ErroApp } from '@/data/api'
+import { limpar, recarregar, useDb } from '@/data/store'
+import { pode as podePerfil, type Recurso } from '@shared/permissoes'
+import type { Usuario } from '@shared/tipos'
 
 interface AuthValue {
   usuario: Usuario | null
-  entrar: (login: string, senha: string) => string | null
-  sair: () => void
+  /** Retorna mensagem de erro ou null em caso de sucesso. */
+  entrar: (login: string, senha: string) => Promise<string | null>
+  sair: () => Promise<void>
   pode: (recurso: Recurso) => boolean
 }
 
 const AuthContext = createContext<AuthValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [usuarioId, setUsuarioId] = useState<number | null>(null)
+  const [logado, setLogado] = useState<Usuario | null>(null)
   const { usuarios } = useDb()
-  // Sempre lê do store para refletir edições no próprio perfil.
-  const usuario = usuarios.find((u) => u.id === usuarioId && u.ativo) ?? null
+  // Lê do store para refletir edições no próprio perfil; a sessão real fica no processo principal.
+  const usuario = logado ? (usuarios.find((u) => u.id === logado.id) ?? logado) : null
 
-  /** Retorna mensagem de erro ou null em caso de sucesso. */
-  function entrar(login: string, senha: string): string | null {
-    const u = getDb().usuarios.find((x) => x.login === login.trim().toLowerCase())
-    if (!u || u.senha !== senha) return 'Login ou senha inválidos.'
-    if (!u.ativo) return 'Usuário inativo. Procure o administrador.'
-    setUsuarioId(u.id)
-    return null
+  async function entrar(login: string, senha: string): Promise<string | null> {
+    try {
+      const u = await chamar('auth:entrar', login, senha)
+      await recarregar()
+      setLogado(u)
+      return null
+    } catch (e) {
+      return e instanceof ErroApp ? e.message : 'Não foi possível entrar. Tente novamente.'
+    }
+  }
+
+  async function sair(): Promise<void> {
+    await chamar('auth:sair').catch(() => undefined)
+    setLogado(null)
+    limpar()
   }
 
   const value: AuthValue = {
     usuario,
     entrar,
-    sair: () => setUsuarioId(null),
+    sair,
     pode: (recurso) => (usuario ? podePerfil(usuario.perfil, recurso) : false)
   }
 

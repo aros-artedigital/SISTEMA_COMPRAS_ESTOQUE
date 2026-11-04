@@ -8,11 +8,11 @@ import type {
   Produto,
   Unidade,
   Usuario
-} from '@/types'
+} from '@shared/tipos'
 
-// Dados fictícios da fase 1. Credenciais de demonstração:
-//   admin / admin123 · gerente / gerente123 · operador / operador123
-export const usuarios: Usuario[] = [
+// Dados de demonstração gravados no banco na primeira execução em desenvolvimento.
+// Credenciais: admin / admin123 · gerente / gerente123 · operador / operador123
+export const usuarios: (Usuario & { senha: string })[] = [
   { id: 1, nome: 'Administrador', email: 'admin@empresa.local', login: 'admin', senha: 'admin123', perfil: 'admin', ativo: true },
   { id: 2, nome: 'Marina Souza', email: 'marina@empresa.local', login: 'gerente', senha: 'gerente123', perfil: 'gerente', ativo: true },
   { id: 3, nome: 'Carlos Lima', email: 'carlos@empresa.local', login: 'operador', senha: 'operador123', perfil: 'operador', ativo: true },
@@ -72,7 +72,7 @@ export const compras: Compra[] = [
   { id: 7, numero: 'C-0007', fornecedorId: 3, data: '2026-11-02', status: 'rascunho', observacao: '', itens: [{ produtoId: 8, quantidade: 20, valorUnitario: 22 }] }
 ]
 
-export const movimentacoes: Movimentacao[] = [
+export const movimentacoes: Omit<Movimentacao, 'saldoApos'>[] = [
   { id: 1, data: '2026-06-12T10:15:00', produtoId: 1, tipo: 'entrada', quantidade: 20, motivo: 'Compra C-0001', usuarioId: 2, compraId: 1 },
   { id: 2, data: '2026-06-12T10:15:00', produtoId: 2, tipo: 'entrada', quantidade: 10, motivo: 'Compra C-0001', usuarioId: 2, compraId: 1 },
   { id: 3, data: '2026-06-25T15:40:00', produtoId: 1, tipo: 'saida', quantidade: 6, motivo: 'Venda balcão', usuarioId: 3 },

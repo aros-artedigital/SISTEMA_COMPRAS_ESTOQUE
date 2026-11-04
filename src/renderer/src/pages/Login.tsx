@@ -11,16 +11,19 @@ export default function Login() {
   const [senha, setSenha] = useState('')
   const [verSenha, setVerSenha] = useState(false)
   const [erro, setErro] = useState('')
+  const [entrando, setEntrando] = useState(false)
 
   if (usuario) return <Navigate to="/" replace />
 
-  function enviar(e: FormEvent): void {
+  async function enviar(e: FormEvent): Promise<void> {
     e.preventDefault()
     if (!login.trim() || !senha) {
       setErro('Informe login e senha.')
       return
     }
-    const falha = entrar(login, senha)
+    setEntrando(true)
+    const falha = await entrar(login, senha)
+    setEntrando(false)
     if (falha) setErro(falha)
     else navigate('/', { replace: true })
   }
@@ -44,7 +47,7 @@ export default function Login() {
             Produtos, fornecedores, pedidos de compra e movimentações em um só lugar, funcionando direto no seu computador.
           </p>
         </div>
-        <p className="text-xs text-slate-400">Sistema de Estoque e Compras · v0.1.0</p>
+        <p className="text-xs text-slate-400">Sistema de Estoque e Compras · v0.2.0</p>
       </div>
 
       <div className="flex flex-1 items-center justify-center bg-slate-50 p-8">
@@ -75,15 +78,18 @@ export default function Login() {
 
             {erro && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
 
-            <Button type="submit" className="w-full" icone={<LogIn size={16} />}>
-              Entrar
+            <Button type="submit" className="w-full" icone={<LogIn size={16} />} disabled={entrando}>
+              {entrando ? 'Entrando...' : 'Entrar'}
             </Button>
           </div>
 
-          <div className="mt-8 rounded-lg border border-dashed border-slate-300 bg-white p-3 text-xs text-slate-500">
-            <p className="mb-1 font-semibold text-slate-600">Usuários de demonstração</p>
-            <p>admin / admin123 · gerente / gerente123 · operador / operador123</p>
-          </div>
+          {/* Só em desenvolvimento: o app instalado não tem os usuários de demonstração. */}
+          {import.meta.env.DEV && (
+            <div className="mt-8 rounded-lg border border-dashed border-slate-300 bg-white p-3 text-xs text-slate-500">
+              <p className="mb-1 font-semibold text-slate-600">Usuários de demonstração</p>
+              <p>admin / admin123 · gerente / gerente123 · operador / operador123</p>
+            </div>
+          )}
         </form>
       </div>
     </div>

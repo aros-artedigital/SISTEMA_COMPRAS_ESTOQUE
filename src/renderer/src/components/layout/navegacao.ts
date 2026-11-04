@@ -11,7 +11,7 @@ import {
   Users,
   type LucideIcon
 } from 'lucide-react'
-import type { Recurso } from '@/lib/permissoes'
+import type { Recurso } from '@shared/permissoes'
 
 export interface ItemMenu {
   caminho: string

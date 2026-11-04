@@ -7,8 +7,8 @@ import { PageHeader } from '@/components/PageHeader'
 import { StatCard } from '@/components/StatCard'
 import { Badge, Card, CardHeader } from '@/components/ui'
 import { GraficoBarras } from '@/components/GraficoBarras'
-import { corStatusCompra, rotuloStatusCompra, situacaoEstoque, totalCompra } from '@/lib/dominio'
-import * as fmt from '@/lib/format'
+import { corStatusCompra, rotuloStatusCompra, situacaoEstoque, totalCompra } from '@shared/dominio'
+import * as fmt from '@shared/format'
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 const compacto = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 })

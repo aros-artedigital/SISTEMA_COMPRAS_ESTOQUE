@@ -1,17 +1,17 @@
 import { useMemo, useState } from 'react'
 import { PackageCheck, Plus, Trash2 } from 'lucide-react'
-import { db, RegraNegocioError, useDb } from '@/data/store'
-import { useAuth } from '@/contexts/AuthContext'
+import { alterar, useDb } from '@/data/store'
 import { useToast } from '@/contexts/ToastContext'
 import { Filtros, PageHeader } from '@/components/PageHeader'
 import { AcoesLinha, DataTable, type Coluna } from '@/components/DataTable'
 import { ConfirmDialog, Modal } from '@/components/Modal'
 import { Badge, Button, Input, SearchInput, Select, Textarea } from '@/components/ui'
-import { corStatusCompra, rotuloStatusCompra, totalCompra } from '@/lib/dominio'
-import { compraSchema } from '@/lib/schemas'
+import { corStatusCompra, rotuloStatusCompra, totalCompra } from '@shared/dominio'
+import { compraSchema } from '@shared/schemas'
 import { useForm } from '@/lib/useForm'
-import * as fmt from '@/lib/format'
-import type { Compra, ItemCompra, StatusCompra } from '@/types'
+import { executar } from '@/lib/executar'
+import * as fmt from '@shared/format'
+import type { Compra, ItemCompra, StatusCompra } from '@shared/tipos'
 
 interface LinhaItem {
   chave: number
@@ -25,7 +25,6 @@ const novaLinha = (): LinhaItem => ({ chave: chaveLinha++, produtoId: '', quanti
 
 export default function Compras() {
   const { compras, fornecedores, produtos } = useDb()
-  const { usuario } = useAuth()
   const notificar = useToast()
 
   const [busca, setBusca] = useState('')
@@ -112,42 +111,41 @@ export default function Compras() {
     return convertidos
   }
 
-  function salvar(): void {
+  async function salvar(): Promise<void> {
     const cabecalho = form.validate()
     const itensValidos = validarItens()
     if (!cabecalho || !itensValidos) return
-    const dados = { ...cabecalho, itens: itensValidos, status: statusForm === 'recebida' ? 'pedido' : statusForm }
-    if (editando) {
-      db.atualizar('compras', editando.id, dados)
-      notificar('sucesso', `Compra ${editando.numero} atualizada.`)
-    } else {
-      const nova = db.criar('compras', { ...dados, numero: db.proximoNumeroCompra() })
-      notificar('sucesso', `Compra ${nova.numero} cadastrada.`)
+    // Compras recebidas ficam somente leitura, então o status aqui nunca é "recebida".
+    const dados = { ...cabecalho, itens: itensValidos, status: statusForm as Exclude<StatusCompra, 'recebida'> }
+    let numero = editando?.numero
+    const ok = await executar(
+      async () => {
+        const salva = await alterar('compras:salvar', editando?.id ?? null, dados)
+        numero = salva.numero
+      },
+      { notificar, form }
+    )
+    if (ok) {
+      notificar('sucesso', `Compra ${numero} ${editando ? 'atualizada' : 'cadastrada'}.`)
+      setAberto(false)
     }
-    setAberto(false)
   }
 
-  function receber(): void {
-    if (!recebendo || !usuario) return
-    try {
-      db.receberCompra(recebendo.id, usuario.id)
-      notificar('sucesso', `Compra ${recebendo.numero} recebida. Estoque atualizado.`)
-    } catch (e) {
-      if (e instanceof RegraNegocioError) notificar('erro', e.message)
-      else throw e
-    }
+  async function receber(): Promise<void> {
+    if (!recebendo) return
+    const alvo = recebendo
     setRecebendo(null)
+    await executar(() => alterar('compras:receber', alvo.id), {
+      notificar,
+      sucesso: `Compra ${alvo.numero} recebida. Estoque atualizado.`
+    })
   }
 
-  function excluir(): void {
+  async function excluir(): Promise<void> {
     if (!excluindo) return
-    if (excluindo.status === 'recebida') {
-      notificar('aviso', 'Compras recebidas não podem ser excluídas, pois já geraram movimentação de estoque.')
-    } else {
-      db.excluir('compras', excluindo.id)
-      notificar('sucesso', `Compra ${excluindo.numero} excluída.`)
-    }
+    const alvo = excluindo
     setExcluindo(null)
+    await executar(() => alterar('compras:excluir', alvo.id), { notificar, sucesso: `Compra ${alvo.numero} excluída.` })
   }
 
   const totalForm = itens.reduce((s, l) => s + (Number(l.quantidade) || 0) * (Number(l.valorUnitario) || 0), 0)

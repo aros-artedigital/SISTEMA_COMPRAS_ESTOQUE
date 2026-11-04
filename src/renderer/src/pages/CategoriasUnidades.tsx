@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
-import { db, useDb } from '@/data/store'
+import { alterar, useDb } from '@/data/store'
 import { useToast } from '@/contexts/ToastContext'
 import { PageHeader } from '@/components/PageHeader'
 import { AcoesLinha, DataTable } from '@/components/DataTable'
 import { ConfirmDialog, Modal } from '@/components/Modal'
 import { Button, Input } from '@/components/ui'
-import { categoriaSchema, unidadeSchema } from '@/lib/schemas'
+import { categoriaSchema, unidadeSchema } from '@shared/schemas'
 import { useForm } from '@/lib/useForm'
-import type { Categoria, Unidade } from '@/types'
+import { executar } from '@/lib/executar'
+import type { Categoria, Unidade } from '@shared/tipos'
 
 export default function CategoriasUnidades() {
   return (
@@ -38,26 +39,22 @@ function SecaoCategorias() {
     setAberto(true)
   }
 
-  function salvar(): void {
+  async function salvar(): Promise<void> {
     const dados = form.validate()
     if (!dados) return
-    if (categorias.some((c) => c.nome.toLowerCase() === dados.nome.toLowerCase() && c.id !== editando?.id)) {
-      return form.setError('nome', 'Categoria já cadastrada')
-    }
-    if (editando) db.atualizar('categorias', editando.id, dados)
-    else db.criar('categorias', dados)
-    notificar('sucesso', editando ? 'Categoria atualizada.' : 'Categoria cadastrada.')
-    setAberto(false)
+    const ok = await executar(() => alterar('categorias:salvar', editando?.id ?? null, dados), {
+      notificar,
+      form,
+      sucesso: editando ? 'Categoria atualizada.' : 'Categoria cadastrada.'
+    })
+    if (ok) setAberto(false)
   }
 
-  function excluir(): void {
+  async function excluir(): Promise<void> {
     if (!excluindo) return
-    if (qtdProdutos(excluindo.id) > 0) notificar('aviso', 'Categoria em uso por produtos. Mova os produtos antes de excluir.')
-    else {
-      db.excluir('categorias', excluindo.id)
-      notificar('sucesso', 'Categoria excluída.')
-    }
+    const alvo = excluindo
     setExcluindo(null)
+    await executar(() => alterar('categorias:excluir', alvo.id), { notificar, sucesso: 'Categoria excluída.' })
   }
 
   return (
@@ -106,14 +103,12 @@ function SecaoCategorias() {
 }
 
 function SecaoUnidades() {
-  const { unidades, produtos } = useDb()
+  const { unidades } = useDb()
   const notificar = useToast()
   const [editando, setEditando] = useState<Unidade | null>(null)
   const [aberto, setAberto] = useState(false)
   const [excluindo, setExcluindo] = useState<Unidade | null>(null)
   const form = useForm({ sigla: '', nome: '' }, unidadeSchema)
-
-  const emUso = (id: number): boolean => produtos.some((p) => p.unidadeId === id)
 
   function abrir(u: Unidade | null): void {
     form.reset(u ? { sigla: u.sigla, nome: u.nome } : { sigla: '', nome: '' })
@@ -121,24 +116,22 @@ function SecaoUnidades() {
     setAberto(true)
   }
 
-  function salvar(): void {
+  async function salvar(): Promise<void> {
     const dados = form.validate()
     if (!dados) return
-    if (unidades.some((u) => u.sigla === dados.sigla && u.id !== editando?.id)) return form.setError('sigla', 'Sigla já cadastrada')
-    if (editando) db.atualizar('unidades', editando.id, dados)
-    else db.criar('unidades', dados)
-    notificar('sucesso', editando ? 'Unidade atualizada.' : 'Unidade cadastrada.')
-    setAberto(false)
+    const ok = await executar(() => alterar('unidades:salvar', editando?.id ?? null, dados), {
+      notificar,
+      form,
+      sucesso: editando ? 'Unidade atualizada.' : 'Unidade cadastrada.'
+    })
+    if (ok) setAberto(false)
   }
 
-  function excluir(): void {
+  async function excluir(): Promise<void> {
     if (!excluindo) return
-    if (emUso(excluindo.id)) notificar('aviso', 'Unidade em uso por produtos.')
-    else {
-      db.excluir('unidades', excluindo.id)
-      notificar('sucesso', 'Unidade excluída.')
-    }
+    const alvo = excluindo
     setExcluindo(null)
+    await executar(() => alterar('unidades:excluir', alvo.id), { notificar, sucesso: 'Unidade excluída.' })
   }
 
   return (

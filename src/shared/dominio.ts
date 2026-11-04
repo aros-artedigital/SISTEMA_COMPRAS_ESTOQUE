@@ -1,4 +1,4 @@
-import type { Compra, Produto, StatusCompra, TipoMovimentacao } from '@/types'
+import type { Compra, Produto, StatusCompra, TipoMovimentacao } from '@shared/tipos'
 
 // Regras e rótulos do domínio compartilhados entre telas.
 

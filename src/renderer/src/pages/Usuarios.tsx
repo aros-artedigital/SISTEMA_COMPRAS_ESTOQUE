@@ -1,16 +1,17 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
-import { db, useDb } from '@/data/store'
+import { alterar, useDb } from '@/data/store'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import { PageHeader } from '@/components/PageHeader'
 import { AcoesLinha, DataTable, type Coluna } from '@/components/DataTable'
 import { ConfirmDialog, Modal } from '@/components/Modal'
 import { Badge, Button, Checkbox, Input, Select } from '@/components/ui'
-import { nomePerfil, pode, type Recurso } from '@/lib/permissoes'
-import { usuarioSchema } from '@/lib/schemas'
+import { nomePerfil, pode, type Recurso } from '@shared/permissoes'
+import { usuarioSchema } from '@shared/schemas'
 import { useForm } from '@/lib/useForm'
-import type { Perfil, Usuario } from '@/types'
+import { executar } from '@/lib/executar'
+import type { Perfil, Usuario } from '@shared/tipos'
 
 const vazio = { nome: '', email: '', login: '', senha: '', perfil: 'operador' as Perfil, ativo: true }
 const corPerfil = { admin: 'roxo', gerente: 'azul', operador: 'cinza' } as const
@@ -43,34 +44,22 @@ export default function Usuarios() {
     setAberto(true)
   }
 
-  function salvar(): void {
+  async function salvar(): Promise<void> {
     const dados = form.validate()
     if (!dados) return
-    if (usuarios.some((u) => u.login === dados.login && u.id !== editando?.id)) return form.setError('login', 'Login já em uso')
-    if (!editando && dados.senha.length < 6) return form.setError('senha', 'Mínimo de 6 caracteres')
-    if (editando && dados.senha && dados.senha.length < 6) return form.setError('senha', 'Mínimo de 6 caracteres')
-    if (editando?.id === logado?.id && (!dados.ativo || dados.perfil !== 'admin')) {
-      return form.setError('perfil', 'Você não pode remover o próprio acesso de administrador')
-    }
-
-    if (editando) {
-      db.atualizar('usuarios', editando.id, { ...dados, senha: dados.senha || editando.senha })
-      notificar('sucesso', 'Usuário atualizado.')
-    } else {
-      db.criar('usuarios', dados)
-      notificar('sucesso', 'Usuário cadastrado.')
-    }
-    setAberto(false)
+    const ok = await executar(() => alterar('usuarios:salvar', editando?.id ?? null, dados), {
+      notificar,
+      form,
+      sucesso: editando ? 'Usuário atualizado.' : 'Usuário cadastrado.'
+    })
+    if (ok) setAberto(false)
   }
 
-  function excluir(): void {
+  async function excluir(): Promise<void> {
     if (!excluindo) return
-    if (excluindo.id === logado?.id) notificar('erro', 'Você não pode excluir o próprio usuário.')
-    else {
-      db.excluir('usuarios', excluindo.id)
-      notificar('sucesso', 'Usuário excluído.')
-    }
+    const alvo = excluindo
     setExcluindo(null)
+    await executar(() => alterar('usuarios:excluir', alvo.id), { notificar, sucesso: 'Usuário excluído.' })
   }
 
   const colunas: Coluna<Usuario>[] = [

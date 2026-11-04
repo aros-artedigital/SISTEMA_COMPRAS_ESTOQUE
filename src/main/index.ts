@@ -1,5 +1,12 @@
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, dialog, shell } from 'electron'
 import { join } from 'path'
+import { abrirBanco, fecharBanco } from './db/conexao'
+import { registrarCanais } from './ipc'
+
+// Banco em %APPDATA%/gestor-estoque-compras. ESTOQUE_DB_PATH permite apontar outro arquivo (usado nos testes).
+const caminhoBanco = process.env['ESTOQUE_DB_PATH'] || join(app.getPath('userData'), 'estoque.sqlite')
+// Dados de demonstração só em desenvolvimento; o app instalado começa só com o administrador.
+const comDemo = !app.isPackaged || process.env['ESTOQUE_DEMO'] === '1'
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -35,12 +42,22 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  try {
+    abrirBanco(caminhoBanco, comDemo)
+  } catch (e) {
+    dialog.showErrorBox('Erro ao abrir o banco de dados', `${caminhoBanco}\n\n${(e as Error).message}`)
+    app.quit()
+    return
+  }
+  registrarCanais()
   createWindow()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
+
+app.on('will-quit', fecharBanco)
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()

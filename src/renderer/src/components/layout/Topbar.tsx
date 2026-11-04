@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { ChevronDown, LogOut, UserCircle } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useDb } from '@/data/store'
-import { nomePerfil } from '@/lib/permissoes'
+import { nomePerfil } from '@shared/permissoes'
 import { titulos } from './navegacao'
 
 export function Topbar() {

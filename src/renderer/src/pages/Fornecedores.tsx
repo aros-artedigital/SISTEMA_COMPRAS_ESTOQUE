@@ -1,16 +1,17 @@
 import { useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
-import { db, useDb } from '@/data/store'
+import { alterar, useDb } from '@/data/store'
 import { useToast } from '@/contexts/ToastContext'
 import { Filtros, PageHeader } from '@/components/PageHeader'
 import { AcoesLinha, DataTable, type Coluna } from '@/components/DataTable'
 import { ConfirmDialog, Modal } from '@/components/Modal'
 import { Badge, Button, Checkbox, Input, SearchInput, Select } from '@/components/ui'
-import { UFS } from '@/lib/dominio'
-import { fornecedorSchema } from '@/lib/schemas'
+import { UFS } from '@shared/dominio'
+import { fornecedorSchema } from '@shared/schemas'
 import { useForm } from '@/lib/useForm'
-import * as fmt from '@/lib/format'
-import type { Fornecedor } from '@/types'
+import { executar } from '@/lib/executar'
+import * as fmt from '@shared/format'
+import type { Fornecedor } from '@shared/tipos'
 
 const vazio = { razaoSocial: '', nomeFantasia: '', cnpj: '', telefone: '', email: '', cidade: '', uf: '', ativo: true }
 
@@ -37,27 +38,22 @@ export default function Fornecedores() {
     setAberto(true)
   }
 
-  function salvar(): void {
+  async function salvar(): Promise<void> {
     const dados = form.validate()
     if (!dados) return
-    if (fornecedores.some((f) => fmt.somenteDigitos(f.cnpj) === fmt.somenteDigitos(dados.cnpj) && f.id !== editando?.id)) {
-      return form.setError('cnpj', 'CNPJ já cadastrado')
-    }
-    if (editando) db.atualizar('fornecedores', editando.id, dados)
-    else db.criar('fornecedores', dados)
-    notificar('sucesso', editando ? 'Fornecedor atualizado.' : 'Fornecedor cadastrado.')
-    setAberto(false)
+    const ok = await executar(() => alterar('fornecedores:salvar', editando?.id ?? null, dados), {
+      notificar,
+      form,
+      sucesso: editando ? 'Fornecedor atualizado.' : 'Fornecedor cadastrado.'
+    })
+    if (ok) setAberto(false)
   }
 
-  function excluir(): void {
+  async function excluir(): Promise<void> {
     if (!excluindo) return
-    if (compras.some((c) => c.fornecedorId === excluindo.id)) {
-      notificar('aviso', 'Fornecedor possui compras registradas. Inative-o em vez de excluir.')
-    } else {
-      db.excluir('fornecedores', excluindo.id)
-      notificar('sucesso', 'Fornecedor excluído.')
-    }
+    const alvo = excluindo
     setExcluindo(null)
+    await executar(() => alterar('fornecedores:excluir', alvo.id), { notificar, sucesso: 'Fornecedor excluído.' })
   }
 
   const colunas: Coluna<Fornecedor>[] = [

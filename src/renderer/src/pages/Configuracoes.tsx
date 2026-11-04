@@ -1,11 +1,15 @@
+import { useEffect, useState } from 'react'
 import { Save } from 'lucide-react'
-import { db, useDb } from '@/data/store'
+import { alterar, useDb } from '@/data/store'
+import { chamar } from '@/data/api'
+import type { InfoSistema } from '@shared/api'
 import { useToast } from '@/contexts/ToastContext'
 import { PageHeader } from '@/components/PageHeader'
 import { Button, Card, CardHeader, Checkbox, Input } from '@/components/ui'
-import { configuracoesSchema } from '@/lib/schemas'
+import { configuracoesSchema } from '@shared/schemas'
 import { useForm } from '@/lib/useForm'
-import * as fmt from '@/lib/format'
+import { executar } from '@/lib/executar'
+import * as fmt from '@shared/format'
 
 export default function Configuracoes() {
   const { configuracoes, compras } = useDb()
@@ -13,11 +17,16 @@ export default function Configuracoes() {
   const notificar = useToast()
   const form = useForm({ ...configuracoes, estoqueMinimoPadrao: String(configuracoes.estoqueMinimoPadrao) }, configuracoesSchema)
 
-  function salvar(): void {
+  const [info, setInfo] = useState<InfoSistema | null>(null)
+
+  useEffect(() => {
+    chamar('sistema:info').then(setInfo, () => setInfo(null))
+  }, [])
+
+  async function salvar(): Promise<void> {
     const dados = form.validate()
     if (!dados) return
-    db.salvarConfiguracoes(dados)
-    notificar('sucesso', 'Configurações salvas.')
+    await executar(() => alterar('configuracoes:salvar', dados), { notificar, form, sucesso: 'Configurações salvas.' })
   }
 
   return (
@@ -56,16 +65,21 @@ export default function Configuracoes() {
         </Card>
 
         <Card className="xl:col-span-2">
-          <CardHeader titulo="Banco de dados e sincronização" />
-          <div className="p-5 text-sm text-slate-600">
+          <CardHeader titulo="Banco de dados" />
+          <div className="space-y-2 p-5 text-sm text-slate-600">
             <p>
-              Nesta versão os dados são fictícios e ficam apenas na memória (são reiniciados ao fechar o app). O banco local SQLite, backup/restauração e a
-              sincronização com o servidor serão configurados aqui nas próximas fases.
+              Os dados ficam em um banco SQLite local, neste computador. Backup/restauração e a sincronização com o servidor serão configurados
+              aqui nas próximas fases.
             </p>
-            {window.api && (
-              <p className="mt-3 text-xs text-slate-400">
-                Electron {window.api.versions.electron} · Chrome {window.api.versions.chrome} · Node {window.api.versions.node}
-              </p>
+            {info && (
+              <>
+                <p>
+                  Arquivo: <code className="select-all rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-700">{info.caminhoBanco}</code>
+                </p>
+                <p className="text-xs text-slate-400">
+                  Versão {info.versao} · SQLite {info.sqlite} · Electron {info.electron} · Node {info.node}
+                </p>
+              </>
             )}
           </div>
         </Card>

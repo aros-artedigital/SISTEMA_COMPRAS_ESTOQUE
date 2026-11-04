@@ -1,4 +1,4 @@
-import type { Perfil } from '@/types'
+import type { Perfil } from '@shared/tipos'
 
 export type Recurso =
   | 'dashboard'

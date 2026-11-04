@@ -1,13 +1,14 @@
-// Modelos do domínio. Os campos já seguem o formato das futuras tabelas SQLite.
+// Modelos do domínio, compartilhados entre o processo principal e a interface.
+// No banco as colunas usam snake_case; os mapeamentos ficam em src/main/servicos.
 
 export type Perfil = 'admin' | 'gerente' | 'operador'
 
+/** Usuário como a interface enxerga: o hash da senha nunca sai do processo principal. */
 export interface Usuario {
   id: number
   nome: string
   email: string
   login: string
-  senha: string // fase 1: texto puro só para demonstração; na fase 2 vira hash
   perfil: Perfil
   ativo: boolean
 }
@@ -88,6 +89,7 @@ export interface Movimentacao {
   produtoId: number
   tipo: TipoMovimentacao
   quantidade: number // ajuste: diferença aplicada (pode ser negativa)
+  saldoApos: number
   motivo: string
   usuarioId: number
   compraId?: number

@@ -1,18 +1,18 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
-import { db, useDb } from '@/data/store'
-import { useAuth } from '@/contexts/AuthContext'
+import { alterar, useDb } from '@/data/store'
 import { useToast } from '@/contexts/ToastContext'
 import { Filtros, PageHeader } from '@/components/PageHeader'
 import { AcoesLinha, DataTable, type Coluna } from '@/components/DataTable'
 import { ConfirmDialog, Modal } from '@/components/Modal'
 import { Badge, Button, Checkbox, Input, SearchInput, Select } from '@/components/ui'
-import { situacaoEstoque } from '@/lib/dominio'
-import { produtoSchema } from '@/lib/schemas'
+import { situacaoEstoque } from '@shared/dominio'
+import { produtoSchema } from '@shared/schemas'
 import { useForm } from '@/lib/useForm'
-import * as fmt from '@/lib/format'
-import type { Produto } from '@/types'
+import { executar } from '@/lib/executar'
+import * as fmt from '@shared/format'
+import type { Produto } from '@shared/tipos'
 
 const vazio = {
   codigo: '',
@@ -28,8 +28,7 @@ const vazio = {
 }
 
 export default function Produtos() {
-  const { produtos, categorias, unidades, movimentacoes, compras, configuracoes } = useDb()
-  const { usuario } = useAuth()
+  const { produtos, categorias, unidades, configuracoes } = useDb()
   const notificar = useToast()
   const [params, setParams] = useSearchParams()
 
@@ -58,7 +57,7 @@ export default function Produtos() {
   )
 
   function abrirNovo(): void {
-    const proximo = `P${String(produtos.length + 1).padStart(4, '0')}`
+    const proximo = `P${String(produtos.reduce((m, p) => Math.max(m, p.id), 0) + 1).padStart(4, '0')}`
     form.reset({ ...vazio, codigo: proximo, estoqueMinimo: String(configuracoes.estoqueMinimoPadrao) })
     setEditando(null)
     setModalAberto(true)
@@ -81,37 +80,23 @@ export default function Produtos() {
     setModalAberto(true)
   }
 
-  function salvar(): void {
+  async function salvar(): Promise<void> {
     const dados = form.validate()
     if (!dados) return
-    const duplicado = produtos.find((p) => p.codigo.toLowerCase() === dados.codigo.toLowerCase() && p.id !== editando?.id)
-    if (duplicado) return form.setError('codigo', 'Já existe um produto com este código')
-
-    if (editando) {
-      // O saldo só muda por movimentação; aqui ele é ignorado.
-      db.atualizar('produtos', editando.id, { ...dados, estoque: editando.estoque })
-      notificar('sucesso', 'Produto atualizado.')
-    } else {
-      const novo = db.criar('produtos', { ...dados, estoque: 0 })
-      if (dados.estoque > 0 && usuario) {
-        db.movimentar({ produtoId: novo.id, tipo: 'entrada', quantidade: dados.estoque, motivo: 'Estoque inicial', usuarioId: usuario.id })
-      }
-      notificar('sucesso', 'Produto cadastrado.')
-    }
-    setModalAberto(false)
+    // Na edição o saldo é ignorado pelo banco: só muda por movimentação.
+    const ok = await executar(() => alterar('produtos:salvar', editando?.id ?? null, dados), {
+      notificar,
+      form,
+      sucesso: editando ? 'Produto atualizado.' : 'Produto cadastrado.'
+    })
+    if (ok) setModalAberto(false)
   }
 
-  function excluir(): void {
+  async function excluir(): Promise<void> {
     if (!excluindo) return
-    const emUso =
-      movimentacoes.some((m) => m.produtoId === excluindo.id) || compras.some((c) => c.itens.some((i) => i.produtoId === excluindo.id))
-    if (emUso) {
-      notificar('aviso', `"${excluindo.nome}" possui histórico de compras ou movimentações. Inative o produto em vez de excluir.`)
-    } else {
-      db.excluir('produtos', excluindo.id)
-      notificar('sucesso', 'Produto excluído.')
-    }
+    const alvo = excluindo
     setExcluindo(null)
+    await executar(() => alterar('produtos:excluir', alvo.id), { notificar, sucesso: 'Produto excluído.' })
   }
 
   const colunas: Coluna<Produto>[] = [

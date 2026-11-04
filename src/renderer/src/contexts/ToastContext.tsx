@@ -9,7 +9,7 @@ interface Toast {
   mensagem: string
 }
 
-type Notificar = (tipo: TipoToast, mensagem: string) => void
+export type Notificar = (tipo: TipoToast, mensagem: string) => void
 
 const ToastContext = createContext<Notificar | null>(null)
 
