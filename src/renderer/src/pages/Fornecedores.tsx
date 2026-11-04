@@ -1,0 +1,143 @@
+import { useMemo, useState } from 'react'
+import { Plus } from 'lucide-react'
+import { db, useDb } from '@/data/store'
+import { useToast } from '@/contexts/ToastContext'
+import { Filtros, PageHeader } from '@/components/PageHeader'
+import { AcoesLinha, DataTable, type Coluna } from '@/components/DataTable'
+import { ConfirmDialog, Modal } from '@/components/Modal'
+import { Badge, Button, Checkbox, Input, SearchInput, Select } from '@/components/ui'
+import { UFS } from '@/lib/dominio'
+import { fornecedorSchema } from '@/lib/schemas'
+import { useForm } from '@/lib/useForm'
+import * as fmt from '@/lib/format'
+import type { Fornecedor } from '@/types'
+
+const vazio = { razaoSocial: '', nomeFantasia: '', cnpj: '', telefone: '', email: '', cidade: '', uf: '', ativo: true }
+
+export default function Fornecedores() {
+  const { fornecedores, compras } = useDb()
+  const notificar = useToast()
+  const [busca, setBusca] = useState('')
+  const [editando, setEditando] = useState<Fornecedor | null>(null)
+  const [aberto, setAberto] = useState(false)
+  const [excluindo, setExcluindo] = useState<Fornecedor | null>(null)
+  const form = useForm(vazio, fornecedorSchema)
+
+  const lista = useMemo(
+    () =>
+      fornecedores.filter(
+        (f) => !busca || fmt.contem(f.razaoSocial, busca) || fmt.contem(f.nomeFantasia, busca) || fmt.somenteDigitos(f.cnpj).includes(fmt.somenteDigitos(busca) || '#')
+      ),
+    [fornecedores, busca]
+  )
+
+  function abrir(f: Fornecedor | null): void {
+    form.reset(f ? { ...f } : vazio)
+    setEditando(f)
+    setAberto(true)
+  }
+
+  function salvar(): void {
+    const dados = form.validate()
+    if (!dados) return
+    if (fornecedores.some((f) => fmt.somenteDigitos(f.cnpj) === fmt.somenteDigitos(dados.cnpj) && f.id !== editando?.id)) {
+      return form.setError('cnpj', 'CNPJ já cadastrado')
+    }
+    if (editando) db.atualizar('fornecedores', editando.id, dados)
+    else db.criar('fornecedores', dados)
+    notificar('sucesso', editando ? 'Fornecedor atualizado.' : 'Fornecedor cadastrado.')
+    setAberto(false)
+  }
+
+  function excluir(): void {
+    if (!excluindo) return
+    if (compras.some((c) => c.fornecedorId === excluindo.id)) {
+      notificar('aviso', 'Fornecedor possui compras registradas. Inative-o em vez de excluir.')
+    } else {
+      db.excluir('fornecedores', excluindo.id)
+      notificar('sucesso', 'Fornecedor excluído.')
+    }
+    setExcluindo(null)
+  }
+
+  const colunas: Coluna<Fornecedor>[] = [
+    {
+      chave: 'nome',
+      titulo: 'Fornecedor',
+      render: (f) => (
+        <div>
+          <p className="flex items-center gap-2 font-medium text-slate-800">
+            {f.nomeFantasia || f.razaoSocial} {!f.ativo && <Badge>Inativo</Badge>}
+          </p>
+          {f.nomeFantasia && <p className="text-xs text-slate-500">{f.razaoSocial}</p>}
+        </div>
+      )
+    },
+    { chave: 'cnpj', titulo: 'CNPJ', render: (f) => <span className="tabular-nums">{f.cnpj}</span> },
+    { chave: 'contato', titulo: 'Contato', render: (f) => <div className="text-xs"><p>{f.telefone}</p><p className="text-slate-500">{f.email}</p></div> },
+    { chave: 'cidade', titulo: 'Cidade', render: (f) => (f.cidade ? `${f.cidade}/${f.uf}` : '—') },
+    { chave: 'compras', titulo: 'Compras', alinhar: 'direita', render: (f) => compras.filter((c) => c.fornecedorId === f.id).length },
+    { chave: 'acoes', titulo: 'Ações', alinhar: 'direita', render: (f) => <AcoesLinha onEditar={() => abrir(f)} onExcluir={() => setExcluindo(f)} /> }
+  ]
+
+  return (
+    <>
+      <PageHeader
+        titulo="Fornecedores"
+        subtitulo="Empresas das quais você compra mercadorias"
+        acoes={<Button icone={<Plus size={16} />} onClick={() => abrir(null)}>Novo Fornecedor</Button>}
+      />
+      <Filtros>
+        <SearchInput className="w-80" placeholder="Pesquisar por nome ou CNPJ..." value={busca} onChange={(e) => setBusca(e.target.value)} />
+        <span className="ml-auto text-sm text-slate-500">{lista.length} fornecedor(es)</span>
+      </Filtros>
+      <DataTable colunas={colunas} dados={lista} chave={(f) => f.id} />
+
+      <Modal
+        aberto={aberto}
+        titulo={editando ? 'Editar fornecedor' : 'Novo fornecedor'}
+        onFechar={() => setAberto(false)}
+        tamanho="lg"
+        rodape={
+          <>
+            <Button variante="secundario" onClick={() => setAberto(false)}>Cancelar</Button>
+            <Button onClick={salvar}>Salvar</Button>
+          </>
+        }
+      >
+        <div className="grid grid-cols-6 gap-4">
+          <Input label="Razão social" obrigatorio wrapperClassName="col-span-4" {...form.bind('razaoSocial')} />
+          <Input
+            label="CNPJ"
+            obrigatorio
+            wrapperClassName="col-span-2"
+            placeholder="00.000.000/0000-00"
+            {...form.bind('cnpj')}
+            onChange={(e) => form.set('cnpj', fmt.mascaraCnpj(e.target.value))}
+          />
+          <Input label="Nome fantasia" wrapperClassName="col-span-3" {...form.bind('nomeFantasia')} />
+          <Input
+            label="Telefone"
+            wrapperClassName="col-span-3"
+            placeholder="(00) 0000-0000"
+            {...form.bind('telefone')}
+            onChange={(e) => form.set('telefone', fmt.mascaraTelefone(e.target.value))}
+          />
+          <Input label="E-mail" type="email" wrapperClassName="col-span-6" {...form.bind('email')} />
+          <Input label="Cidade" wrapperClassName="col-span-4" {...form.bind('cidade')} />
+          <Select label="UF" wrapperClassName="col-span-2" placeholder="—" opcoes={UFS.map((u) => ({ value: u, label: u }))} {...form.bind('uf')} />
+          <div className="col-span-6">
+            <Checkbox label="Fornecedor ativo" checked={form.values.ativo} onChange={(v) => form.set('ativo', v)} />
+          </div>
+        </div>
+      </Modal>
+
+      <ConfirmDialog
+        aberto={!!excluindo}
+        mensagem={<>Excluir o fornecedor <strong>{excluindo?.nomeFantasia || excluindo?.razaoSocial}</strong>?</>}
+        onConfirmar={excluir}
+        onCancelar={() => setExcluindo(null)}
+      />
+    </>
+  )
+}
