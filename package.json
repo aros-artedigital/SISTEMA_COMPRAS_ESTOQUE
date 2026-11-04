@@ -1,6 +1,6 @@
 {
   "name": "gestor-estoque-compras",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Sistema desktop de estoque e compras (Electron + React + TypeScript)",
   "main": "./out/main/index.js",
   "author": "arosartedigital",
@@ -11,15 +11,12 @@
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit",
     "test:smoke": "electron-vite build && node scripts/smoke.mjs",
-    "postinstall": "electron-rebuild -f -w better-sqlite3"
+    "postinstall": "electron-rebuild -f -w better-sqlite3",
+    "dist": "npm run build && electron-builder --win --x64",
+    "icone": "node scripts/gerar-icone.mjs"
   },
   "dependencies": {
-    "better-sqlite3": "^11.5.0",
-    "lucide-react": "0.460.0",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
-    "react-router-dom": "6.28.0",
-    "zod": "3.23.8"
+    "better-sqlite3": "^11.5.0"
   },
   "devDependencies": {
     "@electron/rebuild": "^3.7.1",
@@ -30,11 +27,57 @@
     "@vitejs/plugin-react": "4.3.4",
     "autoprefixer": "10.4.20",
     "electron": "31.7.7",
+    "electron-builder": "^25.1.8",
     "electron-vite": "2.3.0",
+    "exceljs": "^4.4.0",
+    "jsbarcode": "^3.11.6",
+    "lucide-react": "0.460.0",
     "playwright-core": "^1.48.2",
     "postcss": "8.4.49",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-router-dom": "6.28.0",
     "tailwindcss": "3.4.15",
     "typescript": "5.6.3",
-    "vite": "5.4.11"
+    "vite": "5.4.11",
+    "zod": "3.23.8"
+  },
+  "build": {
+    "appId": "br.com.gestorestoque.app",
+    "productName": "Gestor de Estoque e Compras",
+    "copyright": "© 2026 arosartedigital",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Gestor de Estoque e Compras",
+      "installerLanguages": [
+        "pt_BR"
+      ],
+      "language": "1046",
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "Gestor-Estoque-Compras-Setup-${version}.${ext}"
+    }
   }
 }

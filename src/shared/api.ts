@@ -80,6 +80,21 @@ export interface Canais {
   'estoque:movimentar': Canal<[dados: Entrada<typeof movimentacaoSchema>], void>
 
   'configuracoes:salvar': Canal<[dados: Entrada<typeof configuracoesSchema>], void>
+
+  // Os canais abaixo abrem diálogos de arquivo; retornam null quando o usuário cancela.
+  'relatorio:pdf': Canal<[html: string, nomeArquivo: string, pagina: OpcoesPagina], string | null>
+  'relatorio:imprimir': Canal<[html: string, pagina: OpcoesPagina], boolean>
+
+  'excel:exportar': Canal<[planilha: Planilha, nomeArquivo: string], string | null>
+  'excel:modelo': Canal<[tipo: TipoImportacao], string | null>
+  'excel:previa': Canal<[tipo: TipoImportacao], PreviaImportacao | null>
+  'excel:importar': Canal<[token: string], ResultadoImportacao>
+
+  'backup:criar': Canal<[], string | null>
+  'backup:listar': Canal<[], InfoBackup[]>
+  'backup:restaurar': Canal<[caminho: string | null], boolean>
+  'backup:abrirPasta': Canal<[], void>
+  'arquivo:mostrar': Canal<[caminho: string], void>
 }
 
 export type NomeCanal = keyof Canais
@@ -94,3 +109,58 @@ export interface ErroSerializado {
 }
 
 export type Resposta<T> = { ok: true; dados: T } | { ok: false; erro: ErroSerializado }
+
+// ---------- Fase 3: relatórios, Excel e backup ----------
+
+export interface OpcoesPagina {
+  paisagem?: boolean
+  numerarPaginas?: boolean
+}
+
+export type FormatoColuna = 'texto' | 'numero' | 'moeda' | 'data' | 'dataHora'
+
+export interface ColunaPlanilha {
+  titulo: string
+  formato?: FormatoColuna
+  largura?: number
+}
+
+export interface Planilha {
+  nome: string
+  colunas: ColunaPlanilha[]
+  linhas: (string | number | boolean | null)[][]
+}
+
+export type TipoImportacao = 'produtos' | 'fornecedores' | 'clientes'
+
+export interface LinhaImportacao {
+  linha: number
+  descricao: string
+  acao: 'criar' | 'atualizar' | 'erro'
+  erro?: string
+  avisos: string[]
+}
+
+export interface PreviaImportacao {
+  token: string
+  arquivo: string
+  tipo: TipoImportacao
+  linhas: LinhaImportacao[]
+  criar: number
+  atualizar: number
+  erros: number
+}
+
+export interface ResultadoImportacao {
+  criados: number
+  atualizados: number
+  ignorados: number
+}
+
+export interface InfoBackup {
+  nome: string
+  caminho: string
+  tamanho: number
+  data: string
+  automatico: boolean
+}

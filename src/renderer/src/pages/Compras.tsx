@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { PackageCheck, Plus, Trash2 } from 'lucide-react'
+import { FileSpreadsheet, PackageCheck, Plus, Tags, Trash2 } from 'lucide-react'
 import { alterar, useDb } from '@/data/store'
 import { useToast } from '@/contexts/ToastContext'
 import { Filtros, PageHeader } from '@/components/PageHeader'
@@ -10,6 +10,9 @@ import { corStatusCompra, rotuloStatusCompra, totalCompra } from '@shared/domini
 import { compraSchema } from '@shared/schemas'
 import { useForm } from '@/lib/useForm'
 import { executar } from '@/lib/executar'
+import { exportarExcel } from '@/lib/saida'
+import { EtiquetasModal, type ItemEtiqueta } from '@/components/EtiquetasModal'
+import { LeitorCodigo } from '@/components/LeitorCodigo'
 import * as fmt from '@shared/format'
 import type { Compra, ItemCompra, StatusCompra } from '@shared/tipos'
 
@@ -38,6 +41,7 @@ export default function Compras() {
   const [statusForm, setStatusForm] = useState<StatusCompra>('rascunho')
   const [excluindo, setExcluindo] = useState<Compra | null>(null)
   const [recebendo, setRecebendo] = useState<Compra | null>(null)
+  const [etiquetas, setEtiquetas] = useState<{ numero: string; itens: ItemEtiqueta[] } | null>(null)
   const form = useForm({ fornecedorId: '', data: fmt.hojeIso(), observacao: '' }, compraSchema)
 
   const nomeFornecedor = (id: number): string => fornecedores.find((f) => f.id === id)?.nomeFantasia || fornecedores.find((f) => f.id === id)?.razaoSocial || '—'
@@ -86,6 +90,18 @@ export default function Compras() {
         return nova
       })
     )
+  }
+
+  /** Leitor de código: adiciona o produto ou soma 1 na quantidade se ele já estiver na compra. */
+  function adicionarPorCodigo(p: { id: number; precoCusto: number }): void {
+    setErroItens('')
+    setItens((lista) => {
+      const existente = lista.find((l) => l.produtoId === String(p.id))
+      if (existente) return lista.map((l) => (l === existente ? { ...l, quantidade: String((Number(l.quantidade) || 0) + 1) } : l))
+      const nova = { produtoId: String(p.id), quantidade: '1', valorUnitario: String(p.precoCusto) }
+      const vazia = lista.find((l) => !l.produtoId)
+      return vazia ? lista.map((l) => (l === vazia ? { ...l, ...nova } : l)) : [...lista, { ...novaLinha(), ...nova }]
+    })
   }
 
   function validarItens(): ItemCompra[] | null {
@@ -148,6 +164,26 @@ export default function Compras() {
     await executar(() => alterar('compras:excluir', alvo.id), { notificar, sucesso: `Compra ${alvo.numero} excluída.` })
   }
 
+  function exportar(): void {
+    void exportarExcel(
+      {
+        nome: 'Compras',
+        colunas: [
+          { titulo: 'Número' },
+          { titulo: 'Data', formato: 'data' },
+          { titulo: 'Fornecedor' },
+          { titulo: 'Status' },
+          { titulo: 'Itens', formato: 'numero' },
+          { titulo: 'Total', formato: 'moeda' },
+          { titulo: 'Observação' }
+        ],
+        linhas: lista.map((c) => [c.numero, c.data, nomeFornecedor(c.fornecedorId), rotuloStatusCompra[c.status], c.itens.length, totalCompra(c), c.observacao])
+      },
+      `compras_${fmt.hojeIso()}`,
+      notificar
+    )
+  }
+
   const totalForm = itens.reduce((s, l) => s + (Number(l.quantidade) || 0) * (Number(l.valorUnitario) || 0), 0)
 
   const colunas: Coluna<Compra>[] = [
@@ -164,13 +200,23 @@ export default function Compras() {
       render: (c) => (
         <AcoesLinha
           extra={
-            c.status === 'pedido' && (
+            c.status === 'pedido' ? (
               <button
                 onClick={() => setRecebendo(c)}
                 className="inline-flex items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
               >
                 <PackageCheck size={14} /> Receber
               </button>
+            ) : (
+              c.status === 'recebida' && (
+                <button
+                  onClick={() => setEtiquetas({ numero: c.numero, itens: c.itens.map((i) => ({ produtoId: i.produtoId, quantidade: i.quantidade })) })}
+                  className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  title="Etiquetas dos itens recebidos"
+                >
+                  <Tags size={14} /> Etiquetas
+                </button>
+              )
             )
           }
           onEditar={() => abrir(c)}
@@ -185,7 +231,14 @@ export default function Compras() {
       <PageHeader
         titulo="Compras"
         subtitulo="Pedidos de compra e recebimento de mercadorias"
-        acoes={<Button icone={<Plus size={16} />} onClick={() => abrir(null)}>Nova Compra</Button>}
+        acoes={
+          <>
+            <Button variante="secundario" icone={<FileSpreadsheet size={16} />} onClick={exportar}>
+              Excel
+            </Button>
+            <Button icone={<Plus size={16} />} onClick={() => abrir(null)}>Nova Compra</Button>
+          </>
+        }
       />
 
       <Filtros>
@@ -266,6 +319,11 @@ export default function Compras() {
                 </Button>
               )}
             </div>
+            {!somenteLeitura && (
+              <div className="mb-2">
+                <LeitorCodigo onEncontrar={adicionarPorCodigo} placeholder="Leia o código de barras para adicionar o item (soma 1 se já estiver na lista)" />
+              </div>
+            )}
             <div className="overflow-hidden rounded-lg border border-slate-200">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 text-slate-600">
@@ -328,6 +386,13 @@ export default function Compras() {
           <Textarea label="Observação" {...form.bind('observacao')} />
         </fieldset>
       </Modal>
+
+      <EtiquetasModal
+        aberto={etiquetas !== null}
+        titulo={`Etiquetas da compra ${etiquetas?.numero ?? ''}`}
+        inicial={etiquetas?.itens ?? []}
+        onFechar={() => setEtiquetas(null)}
+      />
 
       <ConfirmDialog
         aberto={!!recebendo}

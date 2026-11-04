@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus } from 'lucide-react'
+import { FileSpreadsheet, Plus, Tags, Upload } from 'lucide-react'
 import { alterar, useDb } from '@/data/store'
 import { useToast } from '@/contexts/ToastContext'
 import { Filtros, PageHeader } from '@/components/PageHeader'
@@ -11,6 +11,10 @@ import { situacaoEstoque } from '@shared/dominio'
 import { produtoSchema } from '@shared/schemas'
 import { useForm } from '@/lib/useForm'
 import { executar } from '@/lib/executar'
+import { exportarExcel } from '@/lib/saida'
+import { EtiquetasModal } from '@/components/EtiquetasModal'
+import { ImportarModal } from '@/components/ImportarModal'
+import { buscarPorCodigo } from '@/components/LeitorCodigo'
 import * as fmt from '@shared/format'
 import type { Produto } from '@shared/tipos'
 
@@ -39,6 +43,8 @@ export default function Produtos() {
   const [editando, setEditando] = useState<Produto | null>(null)
   const [modalAberto, setModalAberto] = useState(false)
   const [excluindo, setExcluindo] = useState<Produto | null>(null)
+  const [importando, setImportando] = useState(false)
+  const [etiquetas, setEtiquetas] = useState<{ produtoId: number; quantidade: number }[] | null>(null)
   const form = useForm(vazio, produtoSchema)
 
   const nomeCategoria = (id: number): string => categorias.find((c) => c.id === id)?.nome ?? '—'
@@ -55,6 +61,36 @@ export default function Produtos() {
       ),
     [produtos, busca, categoria, filtroEstoque]
   )
+
+  // Mesmas colunas do modelo de importação: dá para exportar, editar no Excel e importar de volta.
+  function exportar(): void {
+    void exportarExcel(
+      {
+        nome: 'Produtos',
+        colunas: [
+          { titulo: 'Código' },
+          { titulo: 'Nome' },
+          { titulo: 'Código de barras' },
+          { titulo: 'Categoria' },
+          { titulo: 'Unidade' },
+          { titulo: 'Preço de custo', formato: 'moeda' },
+          { titulo: 'Preço de venda', formato: 'moeda' },
+          { titulo: 'Estoque mínimo', formato: 'numero' },
+          { titulo: 'Estoque', formato: 'numero' },
+          { titulo: 'Ativo' }
+        ],
+        linhas: lista.map((p) => [p.codigo, p.nome, p.codigoBarras, nomeCategoria(p.categoriaId), siglaUnidade(p.unidadeId), p.precoCusto, p.precoVenda, p.estoqueMinimo, p.estoque, p.ativo ? 'Sim' : 'Não'])
+      },
+      `produtos_${fmt.hojeIso()}`,
+      notificar
+    )
+  }
+
+  function abrirEtiquetas(): void {
+    // Com filtro ativo, já traz os produtos filtrados (1 etiqueta de cada).
+    const filtrado = busca || categoria || filtroEstoque
+    setEtiquetas(filtrado && lista.length <= 100 ? lista.filter((p) => p.ativo).map((p) => ({ produtoId: p.id, quantidade: 1 })) : [])
+  }
 
   function abrirNovo(): void {
     const proximo = `P${String(produtos.reduce((m, p) => Math.max(m, p.id), 0) + 1).padStart(4, '0')}`
@@ -148,11 +184,31 @@ export default function Produtos() {
       <PageHeader
         titulo="Produtos"
         subtitulo="Listagem de produtos cadastrados"
-        acoes={<Button icone={<Plus size={16} />} onClick={abrirNovo}>Novo Produto</Button>}
+        acoes={
+          <>
+            <Button variante="secundario" icone={<Upload size={16} />} onClick={() => setImportando(true)}>Importar</Button>
+            <Button variante="secundario" icone={<FileSpreadsheet size={16} />} onClick={exportar}>Excel</Button>
+            <Button variante="secundario" icone={<Tags size={16} />} onClick={abrirEtiquetas}>Etiquetas</Button>
+            <Button icone={<Plus size={16} />} onClick={abrirNovo}>Novo Produto</Button>
+          </>
+        }
       />
 
       <Filtros>
-        <SearchInput className="w-80" placeholder="Pesquisar por nome, código ou código de barras..." value={busca} onChange={(e) => setBusca(e.target.value)} />
+        <SearchInput
+          className="w-80"
+          placeholder="Pesquisar por nome, código ou código de barras..."
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          onKeyDown={(e) => {
+            // Leitor de código de barras: código exato + Enter abre o produto.
+            const p = e.key === 'Enter' ? buscarPorCodigo(produtos, busca) : undefined
+            if (p) {
+              setBusca('')
+              abrirEdicao(p)
+            }
+          }}
+        />
         <Select
           className="w-48"
           placeholder="Todas as categorias"
@@ -240,6 +296,9 @@ export default function Produtos() {
           </div>
         </div>
       </Modal>
+
+      <ImportarModal tipo="produtos" aberto={importando} onFechar={() => setImportando(false)} />
+      <EtiquetasModal aberto={etiquetas !== null} inicial={etiquetas ?? []} onFechar={() => setEtiquetas(null)} />
 
       <ConfirmDialog
         aberto={!!excluindo}

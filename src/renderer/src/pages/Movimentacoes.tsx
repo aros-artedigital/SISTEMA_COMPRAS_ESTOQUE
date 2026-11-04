@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Plus } from 'lucide-react'
+import { FileSpreadsheet, Plus } from 'lucide-react'
 import { alterar, useDb } from '@/data/store'
 import { useToast } from '@/contexts/ToastContext'
 import { Filtros, PageHeader } from '@/components/PageHeader'
@@ -10,6 +10,8 @@ import { corTipoMov, rotuloTipoMov } from '@shared/dominio'
 import { movimentacaoSchema } from '@shared/schemas'
 import { useForm } from '@/lib/useForm'
 import { executar } from '@/lib/executar'
+import { exportarExcel } from '@/lib/saida'
+import { LeitorCodigo } from '@/components/LeitorCodigo'
 import * as fmt from '@shared/format'
 import type { Movimentacao, TipoMovimentacao } from '@shared/tipos'
 
@@ -60,6 +62,36 @@ export default function Movimentacoes() {
     if (ok) setAberto(false)
   }
 
+  function exportar(): void {
+    void exportarExcel(
+      {
+        nome: 'Movimentações',
+        colunas: [
+          { titulo: 'Data', formato: 'dataHora' },
+          { titulo: 'Código' },
+          { titulo: 'Produto' },
+          { titulo: 'Tipo' },
+          { titulo: 'Quantidade', formato: 'numero' },
+          { titulo: 'Saldo após', formato: 'numero' },
+          { titulo: 'Motivo' },
+          { titulo: 'Usuário' }
+        ],
+        linhas: lista.map((m) => [
+          m.data,
+          produto(m.produtoId)?.codigo ?? '',
+          produto(m.produtoId)?.nome ?? '',
+          rotuloTipoMov[m.tipo],
+          m.tipo === 'saida' ? -m.quantidade : m.quantidade,
+          m.saldoApos,
+          m.motivo,
+          usuarios.find((u) => u.id === m.usuarioId)?.nome ?? ''
+        ])
+      },
+      `movimentacoes_${fmt.hojeIso()}`,
+      notificar
+    )
+  }
+
   const colunas: Coluna<Movimentacao>[] = [
     { chave: 'data', titulo: 'Data', largura: '150px', render: (m) => <span className="tabular-nums text-slate-600">{fmt.dataHora(m.data)}</span> },
     {
@@ -102,15 +134,20 @@ export default function Movimentacoes() {
         titulo="Movimentações de Estoque"
         subtitulo="Histórico de entradas, saídas e ajustes de inventário"
         acoes={
-          <Button
-            icone={<Plus size={16} />}
-            onClick={() => {
-              form.reset(vazio)
-              setAberto(true)
-            }}
-          >
-            Nova movimentação
-          </Button>
+          <>
+            <Button variante="secundario" icone={<FileSpreadsheet size={16} />} onClick={exportar}>
+              Excel
+            </Button>
+            <Button
+              icone={<Plus size={16} />}
+              onClick={() => {
+                form.reset(vazio)
+                setAberto(true)
+              }}
+            >
+              Nova movimentação
+            </Button>
+          </>
         }
       />
 
@@ -146,6 +183,9 @@ export default function Movimentacoes() {
         }
       >
         <div className="grid grid-cols-2 gap-4">
+          <div className="col-span-2">
+            <LeitorCodigo autoFocus onEncontrar={(p) => form.set('produtoId', String(p.id))} />
+          </div>
           <Select
             label="Produto"
             obrigatorio

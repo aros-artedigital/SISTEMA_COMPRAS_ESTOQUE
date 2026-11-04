@@ -114,6 +114,9 @@ const migracoes: string[] = [
   `
 ]
 
+/** Versão de schema que este build do app conhece. */
+export const VERSAO_SCHEMA = migracoes.length
+
 export function migrar(db: Database.Database): number {
   const atual = db.pragma('user_version', { simple: true }) as number
   for (let versao = atual; versao < migracoes.length; versao++) {

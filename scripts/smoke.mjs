@@ -3,9 +3,10 @@
 // Uso: npm run test:smoke   (SMOKE_OUT=<pasta> salva screenshots)
 
 import { _electron as electron } from 'playwright-core'
-import { mkdtempSync, rmSync } from 'fs'
+import ExcelJS from 'exceljs'
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
-import { join } from 'path'
+import { basename, join } from 'path'
 
 const pasta = mkdtempSync(join(tmpdir(), 'estoque-smoke-'))
 const ESTOQUE_DB_PATH = join(pasta, 'teste.sqlite')
@@ -17,8 +18,12 @@ function verificar(cond, descricao) {
   if (!cond) falhas++
 }
 
+// SMOKE_EXE=<caminho do .exe> testa o app empacotado (ex.: dist/win-unpacked/Gestor de Estoque e Compras.exe).
+const exe = process.env.SMOKE_EXE
+
 async function abrir() {
-  const app = await electron.launch({ args: ['.'], env: { ...process.env, ESTOQUE_DB_PATH } })
+  const env = { ...process.env, ESTOQUE_DB_PATH, ESTOQUE_DEMO: '1' }
+  const app = await electron.launch(exe ? { executablePath: exe, args: [], env } : { args: ['.'], env })
   const page = await app.firstWindow()
   await page.waitForSelector('input[placeholder="seu.login"]')
   return { app, page }
@@ -32,6 +37,33 @@ async function entrar(page, login, senha) {
 
 /** Chama um canal IPC direto, como a interface faz. */
 const ipc = (page, canal, ...args) => page.evaluate(([c, a]) => window.api.invoke(c, ...a), [canal, args])
+
+/** Substitui os diálogos de arquivo do processo principal por um caminho fixo (o teste não tem quem clique). */
+const aoSalvar = (caminho) =>
+  app.evaluate(({ dialog }, c) => {
+    dialog.showSaveDialog = async () => ({ canceled: false, filePath: c })
+  }, caminho)
+const aoAbrir = (caminho) =>
+  app.evaluate(({ dialog }, c) => {
+    dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [c] })
+  }, caminho)
+function ehPdf(caminho) {
+  const ok = existsSync(caminho) && readFileSync(caminho).subarray(0, 4).toString() === '%PDF'
+  if (ok && saida) copyFileSync(caminho, join(saida, basename(caminho)))
+  return ok
+}
+
+/** Espera um arquivo aparecer (geração de PDF/Excel é assíncrona). */
+async function esperarArquivo(caminho, ms = 20000) {
+  for (const fim = Date.now() + ms; Date.now() < fim; await new Promise((r) => setTimeout(r, 200))) {
+    if (existsSync(caminho)) {
+      await new Promise((r) => setTimeout(r, 300)) // termina de gravar
+      return true
+    }
+  }
+  await foto(page, `falha-${basename(caminho)}`)
+  return false
+}
 
 async function foto(page, nome) {
   if (saida) await page.screenshot({ path: join(saida, `${nome}.png`) })
@@ -108,6 +140,101 @@ try {
   r = await ipc(page, 'usuarios:salvar', 1, { nome: 'Administrador', email: 'admin@empresa.local', login: 'admin', senha: '', perfil: 'operador', ativo: true })
   verificar(!r.ok && r.erro.campo === 'perfil', 'administrador não pode rebaixar o próprio perfil')
 
+  // ---------- Fase 3: relatórios, etiquetas, Excel e backup ----------
+  console.log('Relatórios, etiquetas, Excel e backup')
+  const arq = (nome) => join(pasta, nome)
+  // As chamadas IPC diretas acima não atualizam a cópia de dados da tela: recarrega e entra de novo.
+  await page.reload()
+  await page.waitForSelector('input[placeholder="seu.login"]')
+  await entrar(page, 'admin', 'admin123')
+  await page.getByText('Olá, Administrador').waitFor()
+
+  await page.getByRole('link', { name: 'Relatórios' }).click()
+  await page.getByText('Valor a preço de custo').waitFor()
+  await foto(page, '4-relatorio')
+  await aoSalvar(arq('posicao.pdf'))
+  await page.getByRole('button', { name: 'PDF' }).click()
+  verificar((await esperarArquivo(arq('posicao.pdf'))) && ehPdf(arq('posicao.pdf')), 'relatório de posição de estoque salvo em PDF')
+
+  await page.getByRole('tab', { name: /Sugestão de compra/ }).click()
+  await page.getByText('Investimento estimado').waitFor()
+  verificar(await page.getByRole('cell', { name: 'Pendrive 64GB' }).count() === 0, 'sugestão de compra não lista produto já reposto (pendrive)')
+
+  await page.getByRole('link', { name: 'Produtos' }).click()
+  await page.getByRole('button', { name: 'Etiquetas' }).click()
+  const leitor = page.getByRole('dialog').getByLabel('Código de barras')
+  await leitor.fill('7891000100011')
+  await leitor.press('Enter')
+  await leitor.fill('7891000100011')
+  await leitor.press('Enter')
+  await page.getByRole('dialog').getByText('2 etiqueta(s)').waitFor()
+  verificar(true, 'leitor de código de barras adiciona produto (2 leituras = 2 etiquetas)')
+  await foto(page, '5-etiquetas')
+  await aoSalvar(arq('etiquetas.pdf'))
+  await page.getByRole('button', { name: 'Salvar PDF' }).click()
+  verificar((await esperarArquivo(arq('etiquetas.pdf'))) && ehPdf(arq('etiquetas.pdf')), 'etiquetas com código de barras salvas em PDF')
+  await page.keyboard.press('Escape')
+
+  await aoSalvar(arq('produtos.xlsx'))
+  await page.getByRole('button', { name: 'Excel' }).click()
+  await esperarArquivo(arq('produtos.xlsx'))
+  const wbExp = new ExcelJS.Workbook()
+  await wbExp.xlsx.readFile(arq('produtos.xlsx'))
+  verificar(wbExp.worksheets[0].rowCount === 12, `Excel exportado com cabeçalho + 11 produtos (${wbExp.worksheets[0].rowCount} linhas)`)
+
+  await aoSalvar(arq('modelo.xlsx'))
+  r = await ipc(page, 'excel:modelo', 'produtos')
+  verificar(r.ok && existsSync(arq('modelo.xlsx')), 'modelo de importação gerado')
+
+  // Planilha de importação: 1 novo (com categoria nova), 1 atualização, 1 inválido.
+  const wbImp = new ExcelJS.Workbook()
+  const ws = wbImp.addWorksheet('Produtos')
+  ws.addRow(['Código *', 'Nome *', 'Categoria *', 'Unidade *', 'Preço de custo *', 'Preço de venda *', 'Estoque inicial'])
+  ws.addRow(['P0900', 'Cadeira gamer', 'Móveis', 'UN', '500,00', 899.9, 3])
+  ws.addRow(['p0001', 'Mouse USB Óptico', 'Periféricos', 'un', 28.5, 54.9, 99])
+  ws.addRow(['P0901', 'Item com unidade errada', 'Periféricos', 'XX', 1, 2, null])
+  await wbImp.xlsx.writeFile(arq('importar.xlsx'))
+  await aoAbrir(arq('importar.xlsx'))
+  r = await ipc(page, 'excel:previa', 'produtos')
+  const prev = r.dados
+  verificar(r.ok && prev.criar === 1 && prev.atualizar === 1 && prev.erros === 1, `prévia: 1 novo, 1 atualização, 1 erro (${prev && [prev.criar, prev.atualizar, prev.erros]})`)
+  verificar(prev?.linhas.find((l) => l.linha === 4)?.erro?.includes('XX'), 'prévia explica o erro da linha 4')
+  dados = (await ipc(page, 'dados:carregar')).dados
+  verificar(!dados.produtos.some((p) => p.codigo === 'P0900'), 'prévia não grava nada no banco')
+  r = await ipc(page, 'excel:importar', prev.token)
+  verificar(r.ok && r.dados.criados === 1 && r.dados.atualizados === 1 && r.dados.ignorados === 1, 'importação grava as linhas válidas')
+  dados = (await ipc(page, 'dados:carregar')).dados
+  const cadeira = dados.produtos.find((p) => p.codigo === 'P0900')
+  const mouse = dados.produtos.find((p) => p.id === 1)
+  verificar(cadeira?.estoque === 3 && dados.categorias.some((c) => c.nome === 'Móveis'), 'produto novo com estoque inicial e categoria criada')
+  verificar(mouse?.nome === 'Mouse USB Óptico' && mouse?.estoque === 18, 'produto existente atualizado sem mexer no estoque')
+  r = await ipc(page, 'excel:importar', prev.token)
+  verificar(!r.ok, 'a mesma prévia não pode ser importada duas vezes')
+
+  // Backup e restauração
+  r = await ipc(page, 'backup:listar')
+  verificar(r.ok && r.dados.some((b) => b.automatico), 'backup automático criado ao abrir o app')
+  await aoSalvar(arq('manual.sqlite'))
+  r = await ipc(page, 'backup:criar')
+  verificar(r.ok && existsSync(arq('manual.sqlite')), 'backup manual salvo')
+  await ipc(page, 'categorias:salvar', null, { nome: 'Depois do backup', descricao: '' })
+  writeFileSync(arq('lixo.sqlite'), 'isto não é um banco')
+  await aoAbrir(arq('lixo.sqlite'))
+  r = await ipc(page, 'backup:restaurar', null)
+  verificar(!r.ok && r.erro.tipo === 'negocio', 'arquivo inválido é recusado na restauração')
+  r = await ipc(page, 'backup:restaurar', arq('lixo.sqlite'))
+  verificar(!r.ok, 'caminho fora da pasta de backups é recusado')
+  await aoAbrir(arq('manual.sqlite'))
+  r = await ipc(page, 'backup:restaurar', null)
+  verificar(r.ok && r.dados === true, 'backup restaurado')
+  r = await ipc(page, 'dados:carregar')
+  verificar(!r.ok && r.erro.tipo === 'permissao', 'restauração encerra a sessão')
+  await ipc(page, 'auth:entrar', 'admin', 'admin123')
+  dados = (await ipc(page, 'dados:carregar')).dados
+  verificar(!dados.categorias.some((c) => c.nome === 'Depois do backup') && dados.produtos.some((p) => p.codigo === 'P0900'), 'dados voltaram ao estado do backup')
+  r = await ipc(page, 'backup:listar')
+  verificar(r.dados.some((b) => b.nome.startsWith('antes-da-restauracao')), 'cópia de segurança feita antes de restaurar')
+
   // Permissões checadas no processo principal
   await ipc(page, 'auth:sair')
   r = await ipc(page, 'dados:carregar')
@@ -127,7 +254,7 @@ try {
   dados = (await ipc(page, 'dados:carregar')).dados
   verificar(dados.produtos.some((p) => p.nome === 'Hub USB 4 portas'), 'produto criado continua após reiniciar')
   verificar(dados.compras.find((c) => c.id === 6)?.status === 'recebida', 'compra recebida continua recebida')
-  verificar(dados.produtos.length === 11, 'seed não roda de novo em banco existente')
+  verificar(dados.produtos.length === 12, 'seed não roda de novo em banco existente')
   await page.getByRole('link', { name: 'Movimentações' }).click()
   await page.getByText('Compra C-0006').first().waitFor()
   await foto(page, '3-movimentacoes')

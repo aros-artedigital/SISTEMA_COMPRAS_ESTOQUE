@@ -14,7 +14,7 @@ const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'O
 const compacto = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 })
 
 export default function Dashboard() {
-  const { produtos, compras, movimentacoes, fornecedores, configuracoes } = useDb()
+  const { produtos, compras, movimentacoes, fornecedores, categorias, configuracoes } = useDb()
   const { usuario, pode } = useAuth()
 
   const indicadores = useMemo(() => {
@@ -46,6 +46,45 @@ export default function Dashboard() {
       return { rotulo, valores: [soma('entrada'), soma('saida')] }
     })
   }, [produtos, movimentacoes])
+
+  const meses6 = useMemo(() => {
+    const hoje = new Date()
+    return Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(hoje.getFullYear(), hoje.getMonth() - 5 + i, 1)
+      return { chave: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, rotulo: MESES[d.getMonth()] }
+    })
+  }, [])
+
+  // Valor comprado por mês (compras não canceladas, pela data da compra).
+  const comprasPorMes = useMemo(
+    () =>
+      meses6.map(({ chave, rotulo }) => ({
+        rotulo,
+        valores: [compras.filter((c) => c.status !== 'cancelada' && c.data.startsWith(chave)).reduce((s, c) => s + totalCompra(c), 0)]
+      })),
+    [compras, meses6]
+  )
+
+  // Produtos com mais saídas nos últimos 90 dias.
+  const maisSaidas = useMemo(() => {
+    const limite = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    const total = new Map<number, number>()
+    for (const m of movimentacoes) if (m.tipo === 'saida' && m.data.slice(0, 10) >= limite) total.set(m.produtoId, (total.get(m.produtoId) ?? 0) + m.quantidade)
+    return [...total.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([id, qtd]) => ({ rotulo: produtos.find((p) => p.id === id)?.nome ?? '—', valor: qtd, texto: `${fmt.numero(qtd)} un.` }))
+  }, [movimentacoes, produtos])
+
+  const porCategoria = useMemo(() => {
+    const total = new Map<number, number>()
+    for (const p of produtos) if (p.ativo) total.set(p.categoriaId, (total.get(p.categoriaId) ?? 0) + p.estoque * p.precoCusto)
+    return [...total.entries()]
+      .filter(([, v]) => v > 0)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([id, v]) => ({ rotulo: categorias.find((c) => c.id === id)?.nome ?? '—', valor: v, texto: fmt.moeda(v) }))
+  }, [produtos, categorias])
 
   const alertas = produtos
     .filter((p) => p.ativo && situacaoEstoque(p) !== 'ok')
@@ -119,6 +158,29 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      <div className="mt-6 grid gap-6 xl:grid-cols-3">
+        <Card>
+          <CardHeader titulo="Compras por mês (R$)" />
+          <div className="p-5">
+            <GraficoBarras
+              series={[{ nome: 'Compras', cor: '#2a78d6' }]}
+              dados={comprasPorMes}
+              formatar={fmt.moeda}
+              formatarEixo={(v) => `R$ ${compacto.format(v)}`}
+              altura={200}
+            />
+          </div>
+        </Card>
+        <Card>
+          <CardHeader titulo="Mais saídas (últimos 90 dias)" />
+          <BarrasHorizontais itens={maisSaidas} vazio="Nenhuma saída nos últimos 90 dias." />
+        </Card>
+        <Card>
+          <CardHeader titulo="Valor em estoque por categoria" />
+          <BarrasHorizontais itens={porCategoria} vazio="Sem estoque valorizado." />
+        </Card>
+      </div>
+
       <Card className="mt-6">
         <CardHeader
           titulo="Últimas compras"
@@ -139,5 +201,26 @@ export default function Dashboard() {
         </table>
       </Card>
     </>
+  )
+}
+
+/** Ranking simples em barras horizontais; o valor fica em texto ao lado (a cor não carrega informação sozinha). */
+function BarrasHorizontais({ itens, vazio }: { itens: { rotulo: string; valor: number; texto: string }[]; vazio: string }) {
+  if (itens.length === 0) return <p className="p-5 text-sm text-slate-500">{vazio}</p>
+  const max = Math.max(...itens.map((i) => i.valor))
+  return (
+    <ul className="space-y-3 p-5">
+      {itens.map((i) => (
+        <li key={i.rotulo}>
+          <div className="mb-1 flex justify-between gap-3 text-sm">
+            <span className="truncate text-slate-700">{i.rotulo}</span>
+            <span className="shrink-0 font-medium tabular-nums text-slate-900">{i.texto}</span>
+          </div>
+          <div className="h-2 rounded-full bg-slate-100">
+            <div className="h-2 rounded-full" style={{ width: `${Math.max(2, (i.valor / max) * 100)}%`, background: '#2a78d6' }} />
+          </div>
+        </li>
+      ))}
+    </ul>
   )
 }

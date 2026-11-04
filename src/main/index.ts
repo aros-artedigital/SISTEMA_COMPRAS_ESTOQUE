@@ -1,7 +1,9 @@
 import { app, BrowserWindow, dialog, shell } from 'electron'
-import { join } from 'path'
+import { dirname, join } from 'path'
 import { abrirBanco, fecharBanco } from './db/conexao'
 import { registrarCanais } from './ipc'
+import { definirJanelaPrincipal } from './janela'
+import { backupAutomatico, configurarPastaBackups } from './servicos/backup'
 
 // Banco em %APPDATA%/gestor-estoque-compras. ESTOQUE_DB_PATH permite apontar outro arquivo (usado nos testes).
 const caminhoBanco = process.env['ESTOQUE_DB_PATH'] || join(app.getPath('userData'), 'estoque.sqlite')
@@ -26,6 +28,8 @@ function createWindow(): void {
     }
   })
 
+  definirJanelaPrincipal(win)
+  win.on('closed', () => definirJanelaPrincipal(null))
   win.once('ready-to-show', () => win.show())
 
   // Links externos abrem no navegador padrão, nunca dentro do app.
@@ -49,8 +53,11 @@ app.whenReady().then(() => {
     app.quit()
     return
   }
+  // Backups ficam ao lado do banco, na subpasta "backups".
+  configurarPastaBackups(join(dirname(caminhoBanco), 'backups'))
   registrarCanais()
   createWindow()
+  void backupAutomatico()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

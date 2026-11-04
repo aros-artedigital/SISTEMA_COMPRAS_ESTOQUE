@@ -11,6 +11,7 @@ import Compras from '@/pages/Compras'
 import Fornecedores from '@/pages/Fornecedores'
 import Clientes from '@/pages/Clientes'
 import Usuarios from '@/pages/Usuarios'
+import Relatorios from '@/pages/Relatorios'
 import Configuracoes from '@/pages/Configuracoes'
 import Perfil from '@/pages/Perfil'
 
@@ -30,6 +31,7 @@ export default function App() {
               <Route path="compras" element={<Protegido recurso="compras"><Compras /></Protegido>} />
               <Route path="fornecedores" element={<Protegido recurso="fornecedores"><Fornecedores /></Protegido>} />
               <Route path="clientes" element={<Protegido recurso="clientes"><Clientes /></Protegido>} />
+              <Route path="relatorios" element={<Protegido recurso="relatorios"><Relatorios /></Protegido>} />
               <Route path="usuarios" element={<Protegido recurso="usuarios"><Usuarios /></Protegido>} />
               <Route path="configuracoes" element={<Protegido recurso="configuracoes"><Configuracoes /></Protegido>} />
               <Route path="perfil" element={<Perfil />} />

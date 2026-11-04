@@ -98,8 +98,8 @@ export const bool = (v: boolean): number => (v ? 1 : 0)
 /** Arredonda valores monetários para centavos antes de gravar. */
 export const dinheiro = (v: number): number => Math.round(v * 100) / 100
 
-export function agoraIso(): string {
-  const d = new Date()
+/** Data/hora local no formato ISO sem fuso ("2026-11-04T10:15:00"). */
+export function agoraIso(d = new Date()): string {
   const pad = (n: number): string => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }

@@ -1,6 +1,7 @@
 import {
   ArrowLeftRight,
   Boxes,
+  FileBarChart,
   LayoutDashboard,
   Package,
   Settings,
@@ -53,7 +54,10 @@ export const menu: GrupoMenu[] = [
   },
   {
     titulo: 'Sistema',
-    itens: [{ caminho: '/configuracoes', titulo: 'Configurações', icone: Settings, recurso: 'configuracoes' }]
+    itens: [
+      { caminho: '/relatorios', titulo: 'Relatórios', icone: FileBarChart, recurso: 'relatorios' },
+      { caminho: '/configuracoes', titulo: 'Configurações', icone: Settings, recurso: 'configuracoes' }
+    ]
   }
 ]
 
@@ -69,6 +73,7 @@ export const titulos: Record<string, string> = {
   '/fornecedores': 'Fornecedores',
   '/clientes': 'Clientes',
   '/usuarios': 'Usuários',
+  '/relatorios': 'Relatórios',
   '/configuracoes': 'Configurações',
   '/perfil': 'Meu Perfil'
 }

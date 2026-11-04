@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Plus } from 'lucide-react'
+import { FileSpreadsheet, Plus, Upload } from 'lucide-react'
 import { alterar, useDb } from '@/data/store'
 import { useToast } from '@/contexts/ToastContext'
 import { Filtros, PageHeader } from '@/components/PageHeader'
@@ -10,6 +10,8 @@ import { UFS } from '@shared/dominio'
 import { clienteSchema } from '@shared/schemas'
 import { useForm } from '@/lib/useForm'
 import { executar } from '@/lib/executar'
+import { exportarExcel } from '@/lib/saida'
+import { ImportarModal } from '@/components/ImportarModal'
 import * as fmt from '@shared/format'
 import type { Cliente } from '@shared/tipos'
 
@@ -22,6 +24,7 @@ export default function Clientes() {
   const [tipo, setTipo] = useState('')
   const [editando, setEditando] = useState<Cliente | null>(null)
   const [aberto, setAberto] = useState(false)
+  const [importando, setImportando] = useState(false)
   const [excluindo, setExcluindo] = useState<Cliente | null>(null)
   const form = useForm(vazio, clienteSchema)
 
@@ -83,7 +86,21 @@ export default function Clientes() {
       <PageHeader
         titulo="Clientes"
         subtitulo="Pessoas e empresas atendidas"
-        acoes={<Button icone={<Plus size={16} />} onClick={() => abrir(null)}>Novo Cliente</Button>}
+        acoes={
+          <>
+            <Button variante="secundario" icone={<Upload size={16} />} onClick={() => setImportando(true)}>Importar</Button>
+            <Button
+              variante="secundario"
+              icone={<FileSpreadsheet size={16} />}
+              onClick={() =>
+                exportarExcel({ nome: 'Clientes', colunas: [{ titulo: 'Nome' }, { titulo: 'Tipo (PF/PJ)' }, { titulo: 'CPF/CNPJ' }, { titulo: 'Telefone' }, { titulo: 'E-mail' }, { titulo: 'Cidade' }, { titulo: 'UF' }, { titulo: 'Ativo' }], linhas: lista.map((c) => [c.nome, c.tipo, c.documento, c.telefone, c.email, c.cidade, c.uf, c.ativo ? 'Sim' : 'Não']) }, `clientes_${fmt.hojeIso()}`, notificar)
+              }
+            >
+              Excel
+            </Button>
+            <Button icone={<Plus size={16} />} onClick={() => abrir(null)}>Novo Cliente</Button>
+          </>
+        }
       />
       <Filtros>
         <SearchInput className="w-80" placeholder="Pesquisar por nome, e-mail ou documento..." value={busca} onChange={(e) => setBusca(e.target.value)} />
@@ -150,6 +167,8 @@ export default function Clientes() {
           </div>
         </div>
       </Modal>
+
+      <ImportarModal tipo="clientes" aberto={importando} onFechar={() => setImportando(false)} />
 
       <ConfirmDialog
         aberto={!!excluindo}

@@ -24,6 +24,7 @@ const recursos: { recurso: Recurso; nome: string }[] = [
   { recurso: 'compras', nome: 'Compras' },
   { recurso: 'fornecedores', nome: 'Fornecedores' },
   { recurso: 'clientes', nome: 'Clientes' },
+  { recurso: 'relatorios', nome: 'Relatórios' },
   { recurso: 'usuarios', nome: 'Usuários' },
   { recurso: 'configuracoes', nome: 'Configurações' }
 ]

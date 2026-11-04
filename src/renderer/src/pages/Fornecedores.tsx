@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Plus } from 'lucide-react'
+import { FileSpreadsheet, Plus, Upload } from 'lucide-react'
 import { alterar, useDb } from '@/data/store'
 import { useToast } from '@/contexts/ToastContext'
 import { Filtros, PageHeader } from '@/components/PageHeader'
@@ -10,6 +10,8 @@ import { UFS } from '@shared/dominio'
 import { fornecedorSchema } from '@shared/schemas'
 import { useForm } from '@/lib/useForm'
 import { executar } from '@/lib/executar'
+import { exportarExcel } from '@/lib/saida'
+import { ImportarModal } from '@/components/ImportarModal'
 import * as fmt from '@shared/format'
 import type { Fornecedor } from '@shared/tipos'
 
@@ -21,6 +23,7 @@ export default function Fornecedores() {
   const [busca, setBusca] = useState('')
   const [editando, setEditando] = useState<Fornecedor | null>(null)
   const [aberto, setAberto] = useState(false)
+  const [importando, setImportando] = useState(false)
   const [excluindo, setExcluindo] = useState<Fornecedor | null>(null)
   const form = useForm(vazio, fornecedorSchema)
 
@@ -81,7 +84,21 @@ export default function Fornecedores() {
       <PageHeader
         titulo="Fornecedores"
         subtitulo="Empresas das quais você compra mercadorias"
-        acoes={<Button icone={<Plus size={16} />} onClick={() => abrir(null)}>Novo Fornecedor</Button>}
+        acoes={
+          <>
+            <Button variante="secundario" icone={<Upload size={16} />} onClick={() => setImportando(true)}>Importar</Button>
+            <Button
+              variante="secundario"
+              icone={<FileSpreadsheet size={16} />}
+              onClick={() =>
+                exportarExcel({ nome: 'Fornecedores', colunas: [{ titulo: 'Razão social' }, { titulo: 'Nome fantasia' }, { titulo: 'CNPJ' }, { titulo: 'Telefone' }, { titulo: 'E-mail' }, { titulo: 'Cidade' }, { titulo: 'UF' }, { titulo: 'Ativo' }], linhas: lista.map((f) => [f.razaoSocial, f.nomeFantasia, f.cnpj, f.telefone, f.email, f.cidade, f.uf, f.ativo ? 'Sim' : 'Não']) }, `fornecedores_${fmt.hojeIso()}`, notificar)
+              }
+            >
+              Excel
+            </Button>
+            <Button icone={<Plus size={16} />} onClick={() => abrir(null)}>Novo Fornecedor</Button>
+          </>
+        }
       />
       <Filtros>
         <SearchInput className="w-80" placeholder="Pesquisar por nome ou CNPJ..." value={busca} onChange={(e) => setBusca(e.target.value)} />
@@ -127,6 +144,8 @@ export default function Fornecedores() {
           </div>
         </div>
       </Modal>
+
+      <ImportarModal tipo="fornecedores" aberto={importando} onFechar={() => setImportando(false)} />
 
       <ConfirmDialog
         aberto={!!excluindo}

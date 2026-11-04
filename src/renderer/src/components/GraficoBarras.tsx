@@ -58,6 +58,7 @@ export function GraficoBarras({ series, dados, formatar, formatarEixo = formatar
 
   return (
     <div>
+      {series.length > 1 && (
       <div className="mb-3 flex gap-4 text-xs text-slate-600">
         {series.map((s) => (
           <span key={s.nome} className="inline-flex items-center gap-1.5">
@@ -66,6 +67,7 @@ export function GraficoBarras({ series, dados, formatar, formatarEixo = formatar
           </span>
         ))}
       </div>
+      )}
       <div ref={ref} className="relative">
         <svg width={largura} height={altura} role="img" aria-label="Gráfico de movimentações por mês">
           {ticks.map((t) => (

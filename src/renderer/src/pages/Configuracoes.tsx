@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Save } from 'lucide-react'
+import { DatabaseBackup, FolderOpen, History, Save, Upload } from 'lucide-react'
 import { alterar, useDb } from '@/data/store'
 import { chamar } from '@/data/api'
-import type { InfoSistema } from '@shared/api'
+import type { InfoBackup, InfoSistema } from '@shared/api'
+import { useAuth } from '@/contexts/AuthContext'
+import { ConfirmDialog } from '@/components/Modal'
 import { useToast } from '@/contexts/ToastContext'
 import { PageHeader } from '@/components/PageHeader'
-import { Button, Card, CardHeader, Checkbox, Input } from '@/components/ui'
+import { Badge, Button, Card, CardHeader, Checkbox, Input } from '@/components/ui'
 import { configuracoesSchema } from '@shared/schemas'
 import { useForm } from '@/lib/useForm'
 import { executar } from '@/lib/executar'
@@ -64,26 +66,126 @@ export default function Configuracoes() {
           </div>
         </Card>
 
-        <Card className="xl:col-span-2">
-          <CardHeader titulo="Banco de dados" />
-          <div className="space-y-2 p-5 text-sm text-slate-600">
-            <p>
-              Os dados ficam em um banco SQLite local, neste computador. Backup/restauração e a sincronização com o servidor serão configurados
-              aqui nas próximas fases.
-            </p>
-            {info && (
-              <>
-                <p>
-                  Arquivo: <code className="select-all rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-700">{info.caminhoBanco}</code>
-                </p>
-                <p className="text-xs text-slate-400">
-                  Versão {info.versao} · SQLite {info.sqlite} · Electron {info.electron} · Node {info.node}
-                </p>
-              </>
-            )}
-          </div>
-        </Card>
+        <SecaoBackup info={info} />
       </div>
     </>
+  )
+}
+
+function tamanho(bytes: number): string {
+  return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1).replace('.', ',')} MB`
+}
+
+function SecaoBackup({ info }: { info: InfoSistema | null }) {
+  const notificar = useToast()
+  const { sair } = useAuth()
+  const [backups, setBackups] = useState<InfoBackup[]>([])
+  // null = escolher arquivo no diálogo; string = um backup da lista
+  const [restaurando, setRestaurando] = useState<{ caminho: string | null; nome: string } | null>(null)
+
+  const atualizarLista = (): void => {
+    chamar('backup:listar').then(setBackups, () => setBackups([]))
+  }
+  useEffect(atualizarLista, [])
+
+  async function fazerBackup(): Promise<void> {
+    let caminho: string | null = null
+    const ok = await executar(async () => (caminho = await chamar('backup:criar')), { notificar })
+    if (ok && caminho) {
+      notificar('sucesso', 'Backup salvo.', { rotulo: 'Mostrar na pasta', executar: () => void chamar('arquivo:mostrar', caminho!) })
+      atualizarLista()
+    }
+  }
+
+  async function restaurar(): Promise<void> {
+    if (!restaurando) return
+    const alvo = restaurando
+    setRestaurando(null)
+    let feito = false
+    const ok = await executar(async () => (feito = await chamar('backup:restaurar', alvo.caminho)), { notificar })
+    if (ok && feito) {
+      // O main já encerrou a sessão: as senhas válidas agora são as do backup.
+      await sair()
+      notificar('sucesso', 'Backup restaurado. Entre novamente para continuar.')
+    }
+  }
+
+  return (
+    <Card className="xl:col-span-2">
+      <CardHeader titulo="Banco de dados e backup" />
+      <div className="grid gap-6 p-5 lg:grid-cols-5">
+        <div className="space-y-3 text-sm text-slate-600 lg:col-span-2">
+          <p>Os dados ficam em um banco SQLite neste computador e o sistema funciona sem internet.</p>
+          <p>
+            Um <strong>backup automático</strong> é feito uma vez por dia ao abrir o sistema (os 7 mais recentes são mantidos). Para proteção contra
+            perda do computador, salve backups manuais também em um pendrive ou na nuvem.
+          </p>
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Button icone={<DatabaseBackup size={16} />} onClick={fazerBackup}>Fazer backup agora</Button>
+            <Button variante="secundario" icone={<Upload size={16} />} onClick={() => setRestaurando({ caminho: null, nome: 'um arquivo escolhido' })}>
+              Restaurar de arquivo...
+            </Button>
+            <Button variante="secundario" icone={<FolderOpen size={16} />} onClick={() => void chamar('backup:abrirPasta')}>Abrir pasta</Button>
+          </div>
+          {info && (
+            <div className="space-y-1 pt-2 text-xs text-slate-500">
+              <p>
+                Banco: <code className="select-all rounded bg-slate-100 px-1.5 py-0.5 text-slate-700">{info.caminhoBanco}</code>
+              </p>
+              <p className="text-slate-400">
+                Versão {info.versao} · SQLite {info.sqlite} · Electron {info.electron} · Node {info.node}
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="lg:col-span-3">
+          <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-slate-800">
+            <History size={16} /> Backups na pasta do sistema
+          </p>
+          <div className="max-h-64 overflow-y-auto rounded-lg border border-slate-200">
+            {backups.length === 0 ? (
+              <p className="px-4 py-6 text-center text-sm text-slate-500">Nenhum backup ainda.</p>
+            ) : (
+              <table className="w-full text-sm">
+                <tbody>
+                  {backups.map((b) => (
+                    <tr key={b.caminho} className="border-b border-slate-100 last:border-0">
+                      <td className="px-3 py-2">
+                        <p className="tabular-nums text-slate-800">{fmt.dataHora(b.data)}</p>
+                        <p className="truncate text-xs text-slate-400" title={b.nome}>{b.nome}</p>
+                      </td>
+                      <td className="px-3 py-2">
+                        {b.automatico ? <Badge>Automático</Badge> : b.nome.startsWith('antes-da-restauracao') ? <Badge cor="amarelo">Antes de restaurar</Badge> : <Badge cor="azul">Manual</Badge>}
+                      </td>
+                      <td className="px-3 py-2 text-right text-xs tabular-nums text-slate-500">{tamanho(b.tamanho)}</td>
+                      <td className="px-3 py-2 text-right">
+                        <Button tamanho="sm" variante="secundario" onClick={() => setRestaurando({ caminho: b.caminho, nome: fmt.dataHora(b.data) })}>
+                          Restaurar
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <ConfirmDialog
+        aberto={!!restaurando}
+        titulo="Restaurar backup"
+        textoConfirmar="Restaurar"
+        mensagem={
+          <>
+            Todos os dados atuais serão substituídos pelos do backup de <strong>{restaurando?.nome}</strong>. Antes disso, uma cópia do estado atual é
+            guardada na pasta de backups. Depois da restauração você precisará entrar novamente.
+          </>
+        }
+        onConfirmar={restaurar}
+        onCancelar={() => setRestaurando(null)}
+      />
+    </Card>
   )
 }

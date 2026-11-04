@@ -1,10 +1,14 @@
-import { app, ipcMain } from 'electron'
+import { app, ipcMain, shell } from 'electron'
 import { z } from 'zod'
 import type { ArgsDe, NomeCanal, Resposta, RetornoDe } from '@shared/api'
 import type { Recurso } from '@shared/permissoes'
 import * as s from '@shared/schemas'
 import { banco, caminhoBanco } from './db/conexao'
-import { serializarErro } from './erros'
+import { ErroNegocio, serializarErro } from './erros'
+import { escolherArquivo, escolherDestino } from './janela'
+import * as backup from './servicos/backup'
+import * as excel from './servicos/excel'
+import * as impressao from './servicos/impressao'
 import * as cadastros from './servicos/cadastros'
 import * as compras from './servicos/compras'
 import * as dados from './servicos/dados'
@@ -13,7 +17,7 @@ import * as produtos from './servicos/produtos'
 import { exigir, usuarioLogado } from './servicos/sessao'
 import * as usuarios from './servicos/usuarios'
 
-type Handler<C extends NomeCanal> = (...args: ArgsDe<C>) => RetornoDe<C>
+type Handler<C extends NomeCanal> = (...args: ArgsDe<C>) => RetornoDe<C> | Promise<RetornoDe<C>>
 
 /**
  * Registra um canal IPC. Os argumentos vindos da interface não são confiáveis:
@@ -21,9 +25,9 @@ type Handler<C extends NomeCanal> = (...args: ArgsDe<C>) => RetornoDe<C>
  * O retorno é sempre um envelope { ok, dados | erro } para a mensagem chegar intacta.
  */
 function canal<C extends NomeCanal>(nome: C, handler: Handler<C>): void {
-  ipcMain.handle(nome, (_evento, ...args: unknown[]): Resposta<RetornoDe<C>> => {
+  ipcMain.handle(nome, async (_evento, ...args: unknown[]): Promise<Resposta<RetornoDe<C>>> => {
     try {
-      return { ok: true, dados: handler(...(args as ArgsDe<C>)) }
+      return { ok: true, dados: await handler(...(args as ArgsDe<C>)) }
     } catch (e) {
       return { ok: false, erro: serializarErro(e) }
     }
@@ -118,5 +122,83 @@ export function registrarCanais(): void {
   canal('configuracoes:salvar', (d) => {
     exigir('configuracoes')
     dados.salvarConfiguracoes(s.configuracoesSchema.parse(d))
+  })
+
+  // ---------- Relatórios, PDF e impressão ----------
+  const pagina = z.object({ paisagem: z.boolean().optional(), numerarPaginas: z.boolean().optional() })
+  const html = z.string().min(1).max(20_000_000)
+  const nomeArquivo = (v: unknown): string => z.string().min(1).max(150).parse(v).replace(/[\/:*?"<>|]+/g, '-')
+
+  canal('relatorio:pdf', async (h, nome, p) => {
+    usuarioLogado()
+    const destino = await escolherDestino('Salvar PDF', `${nomeArquivo(nome)}.pdf`, [{ name: 'PDF', extensions: ['pdf'] }])
+    return destino ? impressao.gerarPdf(html.parse(h), destino, pagina.parse(p)) : null
+  })
+  canal('relatorio:imprimir', (h, p) => {
+    usuarioLogado()
+    return impressao.imprimir(html.parse(h), pagina.parse(p))
+  })
+
+  // ---------- Excel ----------
+  const planilha = z.object({
+    nome: z.string().max(100),
+    colunas: z.array(
+      z.object({ titulo: z.string(), formato: z.enum(['texto', 'numero', 'moeda', 'data', 'dataHora']).optional(), largura: z.number().optional() })
+    ),
+    linhas: z.array(z.array(z.union([z.string(), z.number(), z.boolean(), z.null()]))).max(200_000)
+  })
+  const tipoImportacao = z.enum(['produtos', 'fornecedores', 'clientes'])
+  const filtroExcel = [{ name: 'Planilha do Excel', extensions: ['xlsx'] }]
+
+  canal('excel:exportar', async (p, nome) => {
+    usuarioLogado()
+    const destino = await escolherDestino('Exportar para Excel', `${nomeArquivo(nome)}.xlsx`, filtroExcel)
+    return destino ? excel.exportar(planilha.parse(p), destino) : null
+  })
+  canal('excel:modelo', async (t) => {
+    const tipo = tipoImportacao.parse(t)
+    exigir(tipo)
+    const destino = await escolherDestino('Salvar modelo de importação', `modelo-importacao-${tipo}.xlsx`, filtroExcel)
+    return destino ? excel.gerarModelo(tipo, destino) : null
+  })
+  canal('excel:previa', async (t) => {
+    const tipo = tipoImportacao.parse(t)
+    const u = exigir(tipo)
+    const origem = await escolherArquivo('Importar planilha', filtroExcel)
+    return origem ? excel.previa(tipo, origem, u.id) : null
+  })
+  canal('excel:importar', (token) => {
+    const t = z.string().uuid().parse(token)
+    const u = exigir(excel.tipoPendente(t))
+    return excel.confirmar(t, u.id)
+  })
+
+  // ---------- Backup ----------
+  canal('backup:criar', async () => {
+    exigir('configuracoes')
+    const destino = await escolherDestino('Salvar backup', backup.nomeSugerido(), [{ name: 'Backup do banco (SQLite)', extensions: ['sqlite'] }])
+    return destino ? backup.criarBackup(destino) : null
+  })
+  canal('backup:listar', () => {
+    exigir('configuracoes')
+    return backup.listarBackups()
+  })
+  canal('backup:restaurar', async (caminho) => {
+    exigir('configuracoes')
+    let origem = z.string().min(1).nullable().parse(caminho)
+    // Um caminho vindo da interface só é aceito se for um dos backups da pasta do sistema.
+    if (origem && !backup.listarBackups().some((b) => b.caminho === origem)) throw new ErroNegocio('Backup não encontrado na pasta do sistema.')
+    origem ??= await escolherArquivo('Restaurar backup', [{ name: 'Backup do banco (SQLite)', extensions: ['sqlite', 'db'] }])
+    if (!origem) return false
+    await backup.restaurar(origem)
+    return true
+  })
+  canal('backup:abrirPasta', async () => {
+    exigir('configuracoes')
+    await shell.openPath(backup.pastaDeBackups())
+  })
+  canal('arquivo:mostrar', (caminho) => {
+    usuarioLogado()
+    shell.showItemInFolder(z.string().min(1).parse(caminho))
   })
 }
