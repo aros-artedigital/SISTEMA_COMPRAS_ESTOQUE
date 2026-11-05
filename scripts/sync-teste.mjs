@@ -206,6 +206,9 @@ try {
   dA = await A.dados()
   verificar(dA.compras.some((c) => c.numero === nova.numero), 'compra de B chega em A')
 
+  r = await A.ipc('sistema:zerarDados', { manterUsuarios: true, restaurarEmpresa: false, confirmacao: 'ZERAR' })
+  verificar(!r.ok && /Desconecte/.test(r.erro.mensagem), 'terminal conectado ao servidor não pode ser zerado')
+
   // ---------- Recuperação de acesso entre terminais ----------
   console.log('Recuperação de acesso')
   const codigo = await A.ok('recuperacao:gerar')

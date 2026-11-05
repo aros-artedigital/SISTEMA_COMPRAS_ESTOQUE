@@ -19,6 +19,7 @@ import * as usuarios from './servicos/usuarios'
 import * as sync from './servicos/sync/motor'
 import * as atualizacao from './atualizacao'
 import * as recuperacao from './servicos/recuperacao'
+import { zerarDados } from './servicos/zerar'
 
 type Handler<C extends NomeCanal> = (...args: ArgsDe<C>) => RetornoDe<C> | Promise<RetornoDe<C>>
 
@@ -79,6 +80,11 @@ export function registrarCanais(): void {
   canal('recuperacao:estado', () => {
     exigir('configuracoes')
     return recuperacao.estado()
+  })
+  canal('sistema:zerarDados', (o) => {
+    const u = exigir('configuracoes')
+    const opcoes = z.object({ manterUsuarios: z.boolean(), restaurarEmpresa: z.boolean(), confirmacao: z.string().max(20) }).parse(o)
+    return zerarDados(opcoes, u.id)
   })
   canal('recuperacao:gerar', () => {
     exigir('configuracoes')

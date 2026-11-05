@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { ConfirmDialog } from '@/components/Modal'
 import { SecaoSincronizacao } from '@/components/SecaoSincronizacao'
 import { SecaoRecuperacao } from '@/components/SecaoRecuperacao'
+import { SecaoZerar } from '@/components/SecaoZerar'
 import { useEstadoSync } from '@/data/sync'
 import { useToast } from '@/contexts/ToastContext'
 import { PageHeader } from '@/components/PageHeader'
@@ -73,6 +74,7 @@ export default function Configuracoes() {
         <SecaoRecuperacao />
         <SecaoSincronizacao />
         <SecaoBackup info={info} />
+        <SecaoZerar />
       </div>
     </>
   )
@@ -166,6 +168,8 @@ function SecaoBackup({ info }: { info: InfoSistema | null }) {
                           <Badge>Automático</Badge>
                         ) : b.nome.startsWith('antes-da-restauracao') ? (
                           <Badge cor="amarelo">Antes de restaurar</Badge>
+                        ) : b.nome.startsWith('antes-de-zerar') ? (
+                          <Badge cor="amarelo">Antes de zerar</Badge>
                         ) : b.nome.startsWith('antes-da-sincronizacao') ? (
                           <Badge cor="amarelo">Antes de sincronizar</Badge>
                         ) : (

@@ -10,3 +10,5 @@ servidor/dados/
 servidor/config.php
 servidor/atualizacoes/*
 !servidor/atualizacoes/LEIA-ME.txt
+# código de recuperação salvo pelo usuário: nunca vai para o git
+codigo-recuperacao*.pdf

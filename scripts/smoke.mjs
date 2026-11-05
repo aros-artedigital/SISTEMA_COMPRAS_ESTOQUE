@@ -295,6 +295,36 @@ try {
   for (let i = 0; i < 4; i++) await ipc(page, 'auth:recuperar', 'admin', 'AAAA-BBBB-CCCC-DDDD', 'outra-senha')
   r = await ipc(page, 'auth:recuperar', 'admin', 'AAAA-BBBB-CCCC-DDDD', 'outra-senha')
   verificar(!r.ok && r.erro.mensagem.includes('Muitas tentativas'), 'depois de 5 tentativas erradas, bloqueia por um tempo')
+
+  console.log('Zerar dados')
+  await ipc(page, 'auth:entrar', 'admin', 'nova-senha-1')
+  const unidadesAntes = (await ipc(page, 'dados:carregar')).dados.unidades.length
+  r = await ipc(page, 'sistema:zerarDados', { manterUsuarios: false, restaurarEmpresa: true, confirmacao: 'apagar' })
+  verificar(!r.ok && r.erro.campo === 'confirmacao', 'sem digitar ZERAR, nada é apagado')
+  await page.reload()
+  await page.waitForSelector('input[placeholder="seu.login"]')
+  await entrar(page, 'admin', 'nova-senha-1')
+  await page.getByRole('link', { name: 'Configurações' }).click()
+  await page.getByRole('button', { name: 'Zerar dados...' }).click()
+  await page.getByLabel('Para confirmar, digite ZERAR').fill('zerar')
+  await foto(page, '7-zerar')
+  await page.getByRole('button', { name: 'Zerar agora' }).click()
+  await page.getByText('Dados zerados.').waitFor()
+  dados = (await ipc(page, 'dados:carregar')).dados
+  verificar(
+    dados.produtos.length === 0 && dados.compras.length === 0 && dados.movimentacoes.length === 0 && dados.categorias.length === 0 && dados.fornecedores.length === 0 && dados.clientes.length === 0,
+    'produtos, estoque, compras e cadastros apagados'
+  )
+  verificar(dados.unidades.length === unidadesAntes, 'unidades de medida mantidas')
+  verificar(dados.usuarios.length === 1 && dados.usuarios[0].login === 'admin', 'fica só o administrador que zerou')
+  verificar(dados.configuracoes.nomeEmpresa === 'Minha Empresa', 'dados da empresa voltam ao padrão')
+  verificar((await ipc(page, 'backup:listar')).dados.some((b) => b.nome.startsWith('antes-de-zerar')), 'backup feito antes de zerar')
+  const cat = (await ipc(page, 'categorias:salvar', null, { nome: 'Minha categoria', descricao: '' })).dados
+  r = await ipc(page, 'produtos:salvar', null, {
+    codigo: 'P0001', codigoBarras: '', nome: 'Meu primeiro produto', categoriaId: cat.id, unidadeId: dados.unidades[0].id,
+    precoCusto: 5, precoVenda: 9, estoque: 10, estoqueMinimo: 2, ativo: true
+  })
+  verificar(r.ok && r.dados.id === 1, 'depois de zerar, o primeiro produto cadastrado começa do código e id 1')
   await app.close()
 } catch (e) {
   falhas++

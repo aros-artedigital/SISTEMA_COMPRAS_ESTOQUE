@@ -62,6 +62,8 @@ export interface Canais {
   'recuperacao:estado': Canal<[], EstadoRecuperacao>
   /** Gera um novo código; o texto só é devolvido nesta chamada. */
   'recuperacao:gerar': Canal<[], string>
+  /** Apaga produtos, estoque, compras e cadastros (com backup antes). Só administrador. */
+  'sistema:zerarDados': Canal<[opcoes: OpcoesZerar], ResultadoZerar>
 
   'dados:carregar': Canal<[], Snapshot>
   'sistema:info': Canal<[], InfoSistema>
@@ -251,4 +253,22 @@ export interface AvisosSeguranca {
   senhaPadrao: boolean
   /** Administrador e o sistema ainda não tem código de recuperação. */
   semCodigoRecuperacao: boolean
+}
+
+// ---------- Zerar dados ----------
+
+export interface OpcoesZerar {
+  /** false: apaga os outros usuários e mantém só quem está zerando. */
+  manterUsuarios: boolean
+  /** true: volta os dados da empresa (nome, CNPJ...) ao padrão. */
+  restaurarEmpresa: boolean
+  /** Precisa ser a palavra ZERAR. */
+  confirmacao: string
+}
+
+export interface ResultadoZerar {
+  backup: string
+  produtos: number
+  compras: number
+  movimentacoes: number
 }

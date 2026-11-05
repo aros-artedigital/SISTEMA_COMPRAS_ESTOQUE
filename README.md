@@ -56,7 +56,9 @@ baixa em segundo plano e oferece "Reiniciar e atualizar". Para publicar: suba a 
 - O schema é criado e atualizado automaticamente pelas migrações em `src/main/db/migracoes.ts`.
 - **Em desenvolvimento** o banco novo vem com dados de demonstração. **No app instalado** vem só com o
   usuário `admin` / `admin123` e as unidades de medida — troque essa senha no primeiro acesso.
-- Para recomeçar do zero em desenvolvimento, feche o app e apague o arquivo `estoque.sqlite`.
+- **Zerar dados** (Configurações → Zerar dados, só administrador): apaga produtos, estoque, compras, categorias,
+  fornecedores e clientes para começar com os seus próprios dados. Mantém as unidades de medida, faz backup antes
+  (`antes-de-zerar_*.sqlite`) e exige digitar ZERAR. Não funciona com o terminal conectado ao servidor.
 - **Backup automático** uma vez por dia ao abrir o app, na subpasta `backups` ao lado do banco (mantém os 7
   mais recentes). Em **Configurações** dá para fazer backup manual, restaurar e abrir a pasta. Restaurar guarda
   antes uma cópia do estado atual (`antes-da-restauracao_*.sqlite`) e encerra a sessão.
