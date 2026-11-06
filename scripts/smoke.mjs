@@ -10,6 +10,8 @@ import { basename, join } from 'path'
 
 const pasta = mkdtempSync(join(tmpdir(), 'estoque-smoke-'))
 const ESTOQUE_DB_PATH = join(pasta, 'teste.sqlite')
+// "Pendrive" do teste de backup externo: fora da pasta do banco.
+const externa = mkdtempSync(join(tmpdir(), 'estoque-externo-'))
 const saida = process.env.SMOKE_OUT
 
 let falhas = 0
@@ -258,6 +260,33 @@ try {
   r = await ipc(page, 'inventario:cancelar', inv2.id)
   verificar(r.ok && (await ipc(page, 'inventario:listar')).dados.find((i) => i.id === inv2.id).status === 'cancelado', 'inventário pode ser cancelado sem ajustar nada')
 
+  // ---------- Backup externo ----------
+  console.log('Backup fora do computador')
+  verificar((await ipc(page, 'backupExterno:estado')).dados.pasta === null, 'começa sem backup externo configurado')
+  await aoAbrir(pasta)
+  r = await ipc(page, 'backupExterno:escolherPasta')
+  verificar(!r.ok && r.erro.mensagem.includes('fora da pasta do sistema'), 'pasta do próprio sistema é recusada')
+  await aoAbrir(join(externa, 'nao-existe'))
+  r = await ipc(page, 'backupExterno:escolherPasta')
+  verificar(!r.ok && r.erro.mensagem.includes('não foi encontrada'), 'pasta inexistente (pendrive desconectado) é recusada')
+  await aoAbrir(externa)
+  r = await ipc(page, 'backupExterno:escolherPasta')
+  const subpasta = join(externa, 'Gestor de Estoque - backups')
+  verificar(r.ok && r.dados.arquivos === 1 && existsSync(subpasta), 'pasta externa configurada e primeira cópia feita')
+  r = await ipc(page, 'backupExterno:fazerAgora')
+  verificar(r.ok && r.dados.arquivos === 2 && !r.dados.ultimoErro, '"Fazer cópia agora" grava outra cópia')
+  verificar((await ipc(page, 'auth:avisos')).dados.backupExternoAtrasado === null, 'com cópia recente, nenhum aviso')
+  rmSync(externa, { recursive: true, force: true }) // pendrive removido
+  r = await ipc(page, 'backupExterno:fazerAgora')
+  verificar(!r.ok && (await ipc(page, 'backupExterno:estado')).dados.ultimoErro?.includes('conectado'), 'sem o pendrive, a cópia falha e o erro fica registrado')
+  const arquivoLocal = join(pasta, 'config-local.json')
+  const cfg = JSON.parse(readFileSync(arquivoLocal, 'utf8'))
+  cfg.backupExterno.ultimoEm = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString()
+  writeFileSync(arquivoLocal, JSON.stringify(cfg))
+  verificar((await ipc(page, 'auth:avisos')).dados.backupExternoAtrasado === 8, 'oito dias sem cópia externa: o administrador é avisado')
+  r = await ipc(page, 'backupExterno:desativar')
+  verificar(r.ok && r.dados.pasta === null && (await ipc(page, 'auth:avisos')).dados.backupExternoAtrasado === null, 'desativar remove a configuração e o aviso')
+
   // ---------- Fase 3: relatórios, etiquetas, Excel e backup ----------
   console.log('Relatórios, etiquetas, Excel e backup')
   const arq = (nome) => join(pasta, nome)
@@ -460,6 +489,7 @@ try {
   await app?.close().catch(() => undefined)
   try {
     rmSync(pasta, { recursive: true, force: true })
+    rmSync(externa, { recursive: true, force: true })
   } catch {
     console.warn(`  (não consegui apagar ${pasta})`)
   }

@@ -116,6 +116,11 @@ export interface Canais {
   'backup:listar': Canal<[], InfoBackup[]>
   'backup:restaurar': Canal<[caminho: string | null], boolean>
   'backup:abrirPasta': Canal<[], void>
+  'backupExterno:estado': Canal<[], EstadoBackupExterno>
+  /** Abre o diálogo para escolher a pasta (pendrive, outro disco, Google Drive/OneDrive) e já faz uma cópia. */
+  'backupExterno:escolherPasta': Canal<[], EstadoBackupExterno | null>
+  'backupExterno:fazerAgora': Canal<[], EstadoBackupExterno>
+  'backupExterno:desativar': Canal<[], EstadoBackupExterno>
   'arquivo:mostrar': Canal<[caminho: string], void>
 
   'sync:estado': Canal<[], EstadoSync>
@@ -267,6 +272,18 @@ export interface AvisosSeguranca {
   senhaPadrao: boolean
   /** Administrador e o sistema ainda não tem código de recuperação. */
   semCodigoRecuperacao: boolean
+  /** Administrador e o backup externo está configurado, mas atrasado (dias sem cópia) ou falhando. */
+  backupExternoAtrasado: number | null
+}
+
+export interface EstadoBackupExterno {
+  /** null = não configurado. */
+  pasta: string | null
+  ultimoEm: string | null
+  ultimoErro: string | null
+  /** Cópias guardadas na pasta (as 10 mais recentes são mantidas). */
+  arquivos: number
+  diasSemBackup: number | null
 }
 
 // ---------- Zerar dados ----------

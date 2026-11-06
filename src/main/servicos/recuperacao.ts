@@ -4,6 +4,7 @@ import { banco } from '../db/conexao'
 import { ErroNegocio } from '../erros'
 import { gerarHash, verificarSenha } from '../seguranca'
 import { agoraIso } from './mapeadores'
+import * as backupExterno from './backupExterno'
 
 // Código de recuperação do administrador: permite redefinir a senha de um administrador
 // pela tela de login quando ninguém lembra a senha. É mostrado uma única vez, guardado só
@@ -67,8 +68,13 @@ export function recuperar(login: string, codigo: string, novaSenha: string): voi
 /** Lembretes de segurança para o usuário logado. */
 export function avisos(usuarioId: number, perfil: string): AvisosSeguranca {
   const { senha_hash } = banco().prepare('SELECT senha_hash FROM usuarios WHERE id = ?').get(usuarioId) as { senha_hash: string }
+  const externo = perfil === 'admin' ? backupExterno.estado() : null
+  // Atrasado: configurado e sem cópia há DIAS_ATRASO dias (ou nunca concluiu uma cópia).
+  const atrasado =
+    externo?.pasta && (externo.diasSemBackup === null || externo.diasSemBackup >= backupExterno.DIAS_ATRASO) ? (externo.diasSemBackup ?? -1) : null
   return {
     senhaPadrao: verificarSenha(SENHA_PADRAO, senha_hash),
-    semCodigoRecuperacao: perfil === 'admin' && !estado().existe
+    semCodigoRecuperacao: perfil === 'admin' && !estado().existe,
+    backupExternoAtrasado: atrasado
   }
 }

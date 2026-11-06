@@ -15,7 +15,7 @@ export function AvisosSeguranca() {
     chamar('auth:avisos').then(setAvisos, () => setAvisos(null))
   }, [pathname])
 
-  if (!avisos || dispensado || (!avisos.senhaPadrao && !avisos.semCodigoRecuperacao)) return null
+  if (!avisos || dispensado || (!avisos.senhaPadrao && !avisos.semCodigoRecuperacao && avisos.backupExternoAtrasado === null)) return null
 
   return (
     <div className="flex items-center gap-3 border-b border-amber-200 bg-amber-50 px-6 py-2 text-sm text-amber-900">
@@ -26,6 +26,15 @@ export function AvisosSeguranca() {
             Você está usando a senha padrão.{' '}
             <Link to="/perfil" className="font-semibold underline underline-offset-2">
               Trocar senha
+            </Link>
+          </span>
+        )}
+        {avisos.backupExternoAtrasado !== null && (
+          <span>
+            {avisos.backupExternoAtrasado < 0 ? 'O backup externo ainda não conseguiu fazer nenhuma cópia.' : `O último backup externo foi há ${avisos.backupExternoAtrasado} dias.`}{' '}
+            Conecte o pendrive ou confira a pasta.{' '}
+            <Link to="/configuracoes" className="font-semibold underline underline-offset-2">
+              Ver backup
             </Link>
           </span>
         )}

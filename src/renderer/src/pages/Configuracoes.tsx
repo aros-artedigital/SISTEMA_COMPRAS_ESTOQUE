@@ -8,6 +8,7 @@ import { ConfirmDialog } from '@/components/Modal'
 import { SecaoSincronizacao } from '@/components/SecaoSincronizacao'
 import { SecaoRecuperacao } from '@/components/SecaoRecuperacao'
 import { SecaoZerar } from '@/components/SecaoZerar'
+import { SecaoBackupExterno } from '@/components/SecaoBackupExterno'
 import { useEstadoSync } from '@/data/sync'
 import { useToast } from '@/contexts/ToastContext'
 import { PageHeader } from '@/components/PageHeader'
@@ -94,6 +95,7 @@ export default function Configuracoes() {
         <SecaoRecuperacao />
         <SecaoSincronizacao />
         <SecaoBackup info={info} />
+        <SecaoBackupExterno />
         <SecaoZerar />
       </div>
     </>

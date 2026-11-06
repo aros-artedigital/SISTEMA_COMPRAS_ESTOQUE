@@ -26,3 +26,11 @@ export async function escolherArquivo(titulo: string, filtros: FileFilter[]): Pr
   const r = win ? await dialog.showOpenDialog(win, opcoes) : await dialog.showOpenDialog(opcoes)
   return r.canceled || r.filePaths.length === 0 ? null : r.filePaths[0]
 }
+
+/** Diálogo "Escolher pasta". Retorna o caminho ou null se o usuário cancelar. */
+export async function escolherPasta(titulo: string): Promise<string | null> {
+  const opcoes = { title: titulo, properties: ['openDirectory' as const, 'createDirectory' as const] }
+  const win = janelaPrincipal()
+  const r = win ? await dialog.showOpenDialog(win, opcoes) : await dialog.showOpenDialog(opcoes)
+  return r.canceled || r.filePaths.length === 0 ? null : r.filePaths[0]
+}

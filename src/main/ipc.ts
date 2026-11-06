@@ -5,8 +5,9 @@ import type { Recurso } from '@shared/permissoes'
 import * as s from '@shared/schemas'
 import { banco, caminhoBanco } from './db/conexao'
 import { ErroNegocio, serializarErro } from './erros'
-import { escolherArquivo, escolherDestino } from './janela'
+import { escolherArquivo, escolherDestino, escolherPasta } from './janela'
 import * as backup from './servicos/backup'
+import * as backupExterno from './servicos/backupExterno'
 import * as excel from './servicos/excel'
 import * as impressao from './servicos/impressao'
 import * as cadastros from './servicos/cadastros'
@@ -248,6 +249,23 @@ export function registrarCanais(): void {
     if (!origem) return false
     await backup.restaurar(origem)
     return true
+  })
+  canal('backupExterno:estado', () => {
+    exigir('configuracoes')
+    return backupExterno.estado()
+  })
+  canal('backupExterno:escolherPasta', async () => {
+    exigir('configuracoes')
+    const pasta = await escolherPasta('Pasta do backup externo (pendrive, outro disco ou Google Drive/OneDrive)')
+    return pasta ? backupExterno.configurar(pasta) : null
+  })
+  canal('backupExterno:fazerAgora', () => {
+    exigir('configuracoes')
+    return backupExterno.fazerAgora()
+  })
+  canal('backupExterno:desativar', () => {
+    exigir('configuracoes')
+    return backupExterno.desativar()
   })
   canal('backup:abrirPasta', async () => {
     exigir('configuracoes')

@@ -4,6 +4,7 @@ import { abrirBanco, fecharBanco } from './db/conexao'
 import { registrarCanais } from './ipc'
 import { definirJanelaPrincipal } from './janela'
 import { backupAutomatico, configurarPastaBackups } from './servicos/backup'
+import { backupExternoAutomatico } from './servicos/backupExterno'
 import { iniciarAgendador } from './servicos/sync/motor'
 import { iniciarAtualizacoes } from './atualizacao'
 
@@ -59,7 +60,7 @@ app.whenReady().then(() => {
   configurarPastaBackups(join(dirname(caminhoBanco), 'backups'))
   registrarCanais()
   createWindow()
-  void backupAutomatico()
+  void backupAutomatico().then(backupExternoAutomatico)
   iniciarAgendador()
   iniciarAtualizacoes()
 

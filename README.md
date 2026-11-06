@@ -62,6 +62,11 @@ baixa em segundo plano e oferece "Reiniciar e atualizar". Para publicar: suba a 
 - **Backup automático** uma vez por dia ao abrir o app, na subpasta `backups` ao lado do banco (mantém os 7
   mais recentes). Em **Configurações** dá para fazer backup manual, restaurar e abrir a pasta. Restaurar guarda
   antes uma cópia do estado atual (`antes-da-restauracao_*.sqlite`) e encerra a sessão.
+- **Backup fora deste computador** (Configurações): escolha uma pasta em pendrive, outro disco ou Google Drive/OneDrive.
+  Uma cópia vai para `<pasta>\Gestor de Estoque - backups` ao abrir o sistema (uma por dia) ou em "Fazer cópia agora";
+  as 10 mais recentes são mantidas. Se ficar 7 dias sem conseguir copiar (ex.: pendrive desconectado), o
+  administrador é avisado. A configuração fica em `config-local.json`, ao lado do banco: vale só para este computador
+  e não se perde ao restaurar um backup.
 
 ### Usuários, senhas e recuperação de acesso
 
