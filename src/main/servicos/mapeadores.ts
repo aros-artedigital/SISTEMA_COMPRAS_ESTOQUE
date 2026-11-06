@@ -94,7 +94,8 @@ export const movimentacao = (r: Linha): Movimentacao => ({
   motivo: r.motivo,
   usuarioId: r.usuario_id,
   ...(r.compra_id ? { compraId: r.compra_id } : {}),
-  ...(r.venda_id ? { vendaId: r.venda_id } : {})
+  ...(r.venda_id ? { vendaId: r.venda_id } : {}),
+  ...(r.estorno_de ? { estornoDe: r.estorno_de } : {})
 })
 
 export const venda = (r: Linha, itens: ItemVenda[]): Venda => ({

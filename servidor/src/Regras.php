@@ -66,6 +66,8 @@ final class Regras
             'vendas' => ['numero' => $minusculo($d['numero'])],
             // Item de venda cancelada só volta ao estoque uma vez, mesmo cancelando em dois terminais sem internet.
             'movimentacoes' => match (true) {
+                // Cada movimentação só pode ser estornada uma vez, mesmo por terminais diferentes sem internet.
+                !empty($d['estornoDe']) => ['estorno' => $d['estornoDe']],
                 !empty($d['venda']) && $d['tipo'] === 'entrada' => ['devolucao' => $d['venda'] . '|' . $d['produto']],
                 default => [],
             },
@@ -85,5 +87,6 @@ final class Regras
         'numero' => 'Número da compra',
         'recebimento' => 'Recebimento',
         'devolucao' => 'Devolução',
+        'estorno' => 'Estorno',
     ];
 }

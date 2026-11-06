@@ -91,6 +91,7 @@ export interface Canais {
   'compras:encerrar': Canal<[id: number], void>
 
   'estoque:movimentar': Canal<[dados: Entrada<typeof movimentacaoSchema>], void>
+  'estoque:estornar': Canal<[id: number, motivo: string], void>
 
   'vendas:registrar': Canal<[dados: Entrada<typeof vendaSchema>], Venda>
   'vendas:cancelar': Canal<[id: number, motivo: string], void>

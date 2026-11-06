@@ -154,6 +154,10 @@ Regras garantidas pelo banco/main (não só pela tela):
 - Vendas não são editadas nem excluídas; cancelar devolve os itens ao estoque (uma vez só, mesmo cancelando em
   dois terminais sem internet). Número com o código do terminal (`V-A0001`).
 - Itens com histórico (produto, fornecedor, usuário) não podem ser excluídos; inative-os.
+- **Estorno** (Movimentações, administrador e gerente): desfaz um lançamento manual criando a movimentação inversa,
+  ligada à original, com motivo. A original fica no histórico marcada como "Estornada". Não se estorna um estorno,
+  nem movimentos de venda (cancele a venda) ou de recebimento de compra; cada movimentação só é estornada uma vez,
+  mesmo entre terminais.
 - Códigos, CNPJ/CPF, logins e siglas são únicos.
 - Sempre existe pelo menos um administrador ativo.
 

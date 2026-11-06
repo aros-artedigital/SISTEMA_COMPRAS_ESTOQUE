@@ -96,6 +96,8 @@ export interface Movimentacao {
   usuarioId: number
   compraId?: number
   vendaId?: number
+  /** Esta movimentação é o estorno da movimentação indicada. */
+  estornoDe?: number
 }
 
 export type FormaPagamento = 'dinheiro' | 'pix' | 'debito' | 'credito' | 'boleto' | 'outro'

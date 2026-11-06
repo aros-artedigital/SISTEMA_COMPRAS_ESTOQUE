@@ -24,6 +24,7 @@ const recursos: { recurso: Recurso; nome: string }[] = [
   { recurso: 'cadastros', nome: 'Categorias e Unidades' },
   { recurso: 'estoque', nome: 'Movimentações e contagem de inventário' },
   { recurso: 'inventarioConcluir', nome: 'Concluir inventário (ajusta o estoque)' },
+  { recurso: 'estoqueEstornar', nome: 'Estornar movimentação' },
   { recurso: 'compras', nome: 'Compras' },
   { recurso: 'fornecedores', nome: 'Fornecedores' },
   { recurso: 'clientes', nome: 'Clientes' },

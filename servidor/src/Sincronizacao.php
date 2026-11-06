@@ -94,6 +94,7 @@ final class Sincronizacao
             $dono = $this->consultarUm('SELECT uuid FROM chaves_unicas WHERE tabela = ? AND campo = ? AND valor = ?', [$tabela, $campo, $valor]);
             if ($dono !== null && $dono !== $uuid) {
                 $nome = Regras::NOMES_CAMPOS[$campo] ?? $campo;
+                if ($campo === 'estorno') return ['rejeitado', 'Esta movimentação já foi estornada em outro terminal'];
                 if ($campo === 'devolucao') return ['rejeitado', 'Este item da venda já foi devolvido ao estoque em outro terminal'];
                 return $campo === 'recebimento'
                     ? ['rejeitado', 'Este item da compra já foi recebido em outro terminal']

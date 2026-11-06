@@ -234,6 +234,23 @@ try {
     'B recebe o restante: compra completa nos dois terminais e estoque +10 nos dois'
   )
 
+  // ---------- Mesma movimentação estornada nos dois terminais ----------
+  console.log('Estorno')
+  dA = await A.dados()
+  dB = await B.dados()
+  const ssd = (d) => porCodigo(d, 'P0004')
+  const ssdAntesEstorno = ssd(dA).estoque
+  const vendaBMov = (d) => d.movimentacoes.find((m) => m.motivo === 'Venda B')
+  await A.ok('estoque:estornar', vendaBMov(dA).id, 'Lançada em duplicidade')
+  await B.ok('estoque:estornar', vendaBMov(dB).id, 'Lançada em duplicidade')
+  await A.sync()
+  await B.sync()
+  await A.sync()
+  dA = await A.dados()
+  dB = await B.dados()
+  verificar(ssd(dA).estoque === ssdAntesEstorno + 4 && ssd(dB).estoque === ssdAntesEstorno + 4, `estorno feito nos dois terminais devolve o estoque uma vez só (${ssdAntesEstorno} + 4)`)
+  verificar((await B.ok('sync:conflitos')).some((c) => /estornada/.test(c.motivo)), 'B é avisado de que o estorno dele foi desfeito')
+
   // ---------- Vendas entre terminais ----------
   console.log('Vendas')
   dA = await A.dados()

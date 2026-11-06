@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
-import { FileSpreadsheet, Plus } from 'lucide-react'
+import { FileSpreadsheet, Plus, Undo2 } from 'lucide-react'
 import { alterar, useDb } from '@/data/store'
 import { useToast } from '@/contexts/ToastContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { Filtros, PageHeader } from '@/components/PageHeader'
 import { DataTable, type Coluna } from '@/components/DataTable'
 import { Modal } from '@/components/Modal'
@@ -32,6 +33,24 @@ export default function Movimentacoes() {
   const [de, setDe] = useState('')
   const [ate, setAte] = useState('')
   const [aberto, setAberto] = useState(false)
+  const { pode } = useAuth()
+  const [estornando, setEstornando] = useState<Movimentacao | null>(null)
+  const [motivoEstorno, setMotivoEstorno] = useState('')
+  const [erroEstorno, setErroEstorno] = useState('')
+  // Movimentações que já têm estorno (para marcar e esconder o botão).
+  const estornadas = useMemo(() => new Set(movimentacoes.filter((m) => m.estornoDe).map((m) => m.estornoDe!)), [movimentacoes])
+  const podeEstornar = (m: Movimentacao): boolean => !m.compraId && !m.vendaId && !m.estornoDe && !estornadas.has(m.id)
+
+  async function estornar(): Promise<void> {
+    if (!estornando) return
+    if (motivoEstorno.trim().length < 3) return setErroEstorno('Informe o motivo do estorno.')
+    const alvo = estornando
+    const ok = await executar(() => alterar('estoque:estornar', alvo.id, motivoEstorno), { notificar, sucesso: 'Movimentação estornada. O estoque voltou ao que era antes dela.' })
+    if (ok) {
+      setEstornando(null)
+      setMotivoEstorno('')
+    }
+  }
   const form = useForm(vazio, movimentacaoSchema)
 
   const produto = (id: number) => produtos.find((p) => p.id === id)
@@ -108,7 +127,17 @@ export default function Movimentacoes() {
         )
       }
     },
-    { chave: 'tipo', titulo: 'Tipo', render: (m) => <Badge cor={corTipoMov[m.tipo]}>{rotuloTipoMov[m.tipo]}</Badge> },
+    {
+      chave: 'tipo',
+      titulo: 'Tipo',
+      render: (m) => (
+        <span className="flex flex-wrap gap-1">
+          <Badge cor={corTipoMov[m.tipo]}>{rotuloTipoMov[m.tipo]}</Badge>
+          {m.estornoDe && <Badge cor="roxo">Estorno</Badge>}
+          {estornadas.has(m.id) && <Badge>Estornada</Badge>}
+        </span>
+      )
+    },
     {
       chave: 'qtd',
       titulo: 'Quantidade',
@@ -125,7 +154,26 @@ export default function Movimentacoes() {
     },
     { chave: 'saldo', titulo: 'Saldo', alinhar: 'direita', render: (m) => <span className="tabular-nums text-slate-500">{fmt.numero(m.saldoApos)}</span> },
     { chave: 'motivo', titulo: 'Motivo', render: (m) => m.motivo },
-    { chave: 'usuario', titulo: 'Usuário', render: (m) => <span className="text-slate-500">{usuarios.find((u) => u.id === m.usuarioId)?.nome ?? '—'}</span> }
+    { chave: 'usuario', titulo: 'Usuário', render: (m) => <span className="text-slate-500">{usuarios.find((u) => u.id === m.usuarioId)?.nome ?? '—'}</span> },
+    {
+      chave: 'acoes',
+      titulo: '',
+      alinhar: 'direita',
+      render: (m) =>
+        pode('estoqueEstornar') && podeEstornar(m) ? (
+          <button
+            onClick={() => {
+              setEstornando(m)
+              setMotivoEstorno('')
+              setErroEstorno('')
+            }}
+            className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            title="Desfazer este lançamento"
+          >
+            <Undo2 size={14} /> Estornar
+          </button>
+        ) : null
+    }
   ]
 
   return (
@@ -170,6 +218,42 @@ export default function Movimentacoes() {
       </Filtros>
 
       <DataTable colunas={colunas} dados={lista} chave={(m) => m.id} porPagina={12} />
+
+      <Modal
+        aberto={estornando !== null}
+        titulo="Estornar movimentação"
+        onFechar={() => setEstornando(null)}
+        tamanho="sm"
+        rodape={
+          <>
+            <Button variante="secundario" onClick={() => setEstornando(null)}>Cancelar</Button>
+            <Button icone={<Undo2 size={16} />} onClick={estornar}>Estornar</Button>
+          </>
+        }
+      >
+        {estornando && (
+          <div className="space-y-4 text-sm text-slate-600">
+            <p>
+              Será lançada a movimentação inversa de{' '}
+              <strong className="text-slate-800">
+                {rotuloTipoMov[estornando.tipo].toLowerCase()} de {fmt.numero(Math.abs(estornando.quantidade))} — {produto(estornando.produtoId)?.nome}
+              </strong>{' '}
+              ({fmt.dataHora(estornando.data)}: {estornando.motivo}). A original continua no histórico, marcada como estornada.
+            </p>
+            <Input
+              label="Motivo do estorno"
+              autoFocus
+              placeholder="Ex.: lançado no produto errado"
+              value={motivoEstorno}
+              error={erroEstorno}
+              onChange={(e) => {
+                setMotivoEstorno(e.target.value)
+                setErroEstorno('')
+              }}
+            />
+          </div>
+        )}
+      </Modal>
 
       <Modal
         aberto={aberto}

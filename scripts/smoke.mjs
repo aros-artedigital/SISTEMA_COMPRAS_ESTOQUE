@@ -308,6 +308,44 @@ try {
   r = await ipc(page, 'inventario:cancelar', inv2.id)
   verificar(r.ok && (await ipc(page, 'inventario:listar')).dados.find((i) => i.id === inv2.id).status === 'cancelado', 'inventário pode ser cancelado sem ajustar nada')
 
+  // ---------- Estorno de movimentação ----------
+  console.log('Estorno de movimentação')
+  dados = (await ipc(page, 'dados:carregar')).dados
+  const mon = (d) => d.produtos.find((p) => p.codigo === 'P0003')
+  const monAntes = mon(dados).estoque
+  await ipc(page, 'estoque:movimentar', { produtoId: mon(dados).id, tipo: 'saida', quantidade: 1, motivo: 'Lançado errado' })
+  await page.reload()
+  await page.waitForSelector('input[placeholder="seu.login"]')
+  await entrar(page, 'admin', 'admin123')
+  await page.getByText('Olá, Administrador').waitFor()
+  await page.getByRole('link', { name: 'Movimentações' }).click()
+  await page.getByPlaceholder('Produto, código ou motivo...').fill('Lançado errado')
+  await page.getByRole('row', { name: /Lançado errado/ }).getByRole('button', { name: 'Estornar' }).click()
+  await page.getByLabel('Motivo do estorno').fill('Produto errado')
+  await page.getByRole('dialog').getByRole('button', { name: 'Estornar' }).click()
+  await page.getByText('Movimentação estornada').waitFor()
+  dados = (await ipc(page, 'dados:carregar')).dados
+  const errada = dados.movimentacoes.find((m) => m.motivo === 'Lançado errado')
+  const estorno = dados.movimentacoes.find((m) => m.estornoDe === errada.id)
+  verificar(mon(dados).estoque === monAntes && estorno?.tipo === 'entrada' && estorno.motivo === 'Estorno: Lançado errado — Produto errado', 'estorno pela tela devolve o estoque e fica ligado à original')
+  await page.getByText('Estornada').first().waitFor()
+  verificar(true, 'histórico marca a original como "Estornada"')
+  r = await ipc(page, 'estoque:estornar', errada.id, 'De novo')
+  verificar(!r.ok && r.erro.mensagem.includes('já foi estornada'), 'a mesma movimentação não é estornada duas vezes')
+  r = await ipc(page, 'estoque:estornar', estorno.id, 'Desfazer o estorno')
+  verificar(!r.ok && r.erro.mensagem.includes('não pode ser estornado'), 'um estorno não pode ser estornado')
+  r = await ipc(page, 'estoque:estornar', dados.movimentacoes.find((m) => m.vendaId).id, 'Teste')
+  verificar(!r.ok && r.erro.mensagem.includes('cancele a venda'), 'movimento de venda é desfeito cancelando a venda, não por estorno')
+  r = await ipc(page, 'estoque:estornar', dados.movimentacoes.find((m) => m.compraId).id, 'Teste')
+  verificar(!r.ok && r.erro.mensagem.includes('compra'), 'recebimento de compra não pode ser estornado')
+  const quatroK = (d) => d.produtos.find((p) => p.codigo === 'P0009')
+  await ipc(page, 'estoque:movimentar', { produtoId: quatroK(dados).id, tipo: 'entrada', quantidade: 5, motivo: 'Entrada para teste' })
+  dados = (await ipc(page, 'dados:carregar')).dados
+  await ipc(page, 'estoque:movimentar', { produtoId: quatroK(dados).id, tipo: 'saida', quantidade: quatroK(dados).estoque, motivo: 'Saída total' })
+  dados = (await ipc(page, 'dados:carregar')).dados
+  r = await ipc(page, 'estoque:estornar', dados.movimentacoes.find((m) => m.motivo === 'Entrada para teste').id, 'Teste')
+  verificar(!r.ok && r.erro.mensagem.includes('Não há saldo'), 'estorno que deixaria o estoque negativo é recusado')
+
   // ---------- Backup externo ----------
   console.log('Backup fora do computador')
   verificar((await ipc(page, 'backupExterno:estado')).dados.pasta === null, 'começa sem backup externo configurado')
@@ -448,6 +486,8 @@ try {
   verificar(inv3.ok, 'operador pode abrir e contar inventário')
   r = await ipc(page, 'inventario:concluir', inv3.dados.id, { naoContadosZero: false })
   verificar(!r.ok && r.erro.tipo === 'permissao', 'operador não pode concluir inventário (ajustar estoque)')
+  r = await ipc(page, 'estoque:estornar', 1, 'Teste')
+  verificar(!r.ok && r.erro.tipo === 'permissao', 'operador não pode estornar movimentação')
 
   await app.close()
 

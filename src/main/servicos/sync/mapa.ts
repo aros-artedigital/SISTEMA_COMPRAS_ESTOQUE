@@ -115,7 +115,8 @@ export function montarDados(tabela: TabelaSync, uuid: string): Dados | null {
         motivo: r.motivo,
         usuario: uuidDe('usuarios', r.usuario_id),
         compra: uuidDe('compras', r.compra_id),
-        venda: uuidDe('vendas', r.venda_id)
+        venda: uuidDe('vendas', r.venda_id),
+        estornoDe: uuidDe('movimentacoes', r.estorno_de)
       }
   }
 }
@@ -352,15 +353,16 @@ export function aplicarRemoto(tabela: TabelaSync, uuid: string, operacao: 'salva
       const usuarioId = idDe('usuarios', d.usuario, 'O usuário da movimentação')
       const compraId = d.compra ? idDe('compras', d.compra, 'A compra da movimentação') : null
       const vendaId = d.venda ? idDe('vendas', d.venda, 'A venda da movimentação') : null
+      const estornoDe = d.estornoDe ? idDe('movimentacoes', d.estornoDe, 'A movimentação estornada') : null
       const quantidade = num(d.quantidade)
       const delta = d.tipo === 'saida' ? -quantidade : quantidade
       db().prepare(`UPDATE produtos SET estoque = estoque + ? WHERE id = ?`).run(delta, produtoId)
       const { estoque } = db().prepare('SELECT estoque FROM produtos WHERE id = ?').get(produtoId) as { estoque: number }
       db()
         .prepare(
-          `INSERT INTO movimentacoes (uuid, data, produto_id, tipo, quantidade, saldo_apos, motivo, usuario_id, compra_id, venda_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          `INSERT INTO movimentacoes (uuid, data, produto_id, tipo, quantidade, saldo_apos, motivo, usuario_id, compra_id, venda_id, estorno_de) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
-        .run(uuid, txt(d.data), produtoId, txt(d.tipo), quantidade, estoque, txt(d.motivo), usuarioId, compraId, vendaId)
+        .run(uuid, txt(d.data), produtoId, txt(d.tipo), quantidade, estoque, txt(d.motivo), usuarioId, compraId, vendaId, estornoDe)
       return null
     }
   }

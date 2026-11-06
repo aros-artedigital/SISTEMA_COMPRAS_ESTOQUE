@@ -182,6 +182,11 @@ export function registrarCanais(): void {
     inventario.cancelar(id(i))
   })
 
+  canal('estoque:estornar', (i, motivo) => {
+    const u = exigir('estoqueEstornar')
+    estoque.estornar(id(i), z.string().trim().min(3, 'Informe o motivo do estorno').max(200).parse(motivo), u.id)
+  })
+
   canal('estoque:movimentar', (d) => {
     const u = exigir('estoque')
     estoque.movimentar({ ...s.movimentacaoSchema.parse(d), usuarioId: u.id })

@@ -100,6 +100,17 @@ try {
   r = await enviar(b.token, [{ tabela: 'vendas', uuid: venda, operacao: 'salvar', alteradoEm: '2026-11-05T12:00:00.000Z', dados: dadosVenda('concluida') }])
   verificar(r[0].status === 'rejeitado', 'venda cancelada não volta a ser concluída')
 
+  // Estorno: cada movimentação só é estornada uma vez
+  const original = '12121212-1212-4121-8121-121212121212'
+  const estornoMov = (uuid, em) => ({ tabela: 'movimentacoes', uuid, operacao: 'salvar', alteradoEm: em, dados: { data: '2026-11-06T13:00:00', produto: p1, tipo: 'entrada', quantidade: 1, motivo: 'Estorno', usuario: usu, estornoDe: original } })
+  r = await enviar(a.token, [
+    { tabela: 'movimentacoes', uuid: original, operacao: 'salvar', alteradoEm: '2026-11-06T12:00:00.000Z', dados: { data: '2026-11-06T12:00:00', produto: p1, tipo: 'saida', quantidade: 1, motivo: 'Errado', usuario: usu } },
+    estornoMov('13131313-1313-4131-8131-131313131313', '2026-11-06T13:00:00.000Z')
+  ])
+  verificar(r.every((x) => x.status === 'aceito'), 'A lança e estorna uma movimentação')
+  r = await enviar(b.token, [estornoMov('14141414-1414-4141-8141-141414141414', '2026-11-06T13:00:05.000Z')])
+  verificar(r[0].status === 'rejeitado' && r[0].motivo.includes('estornada'), 'segundo estorno da mesma movimentação é recusado')
+
   // Exclusão libera a chave única
   r = await enviar(a.token, [{ tabela: 'categorias', uuid: cat, operacao: 'excluir', alteradoEm: '2026-11-04T14:00:00.000Z' }])
   verificar(r[0].status === 'aceito', 'exclusão aceita')
@@ -107,12 +118,12 @@ try {
   // Recebimento: cada terminal recebe só o que os outros fizeram
   const rb = (await req('GET', '/sync/receber?desde=0', null, b.token)).corpo
   const ra = (await req('GET', '/sync/receber?desde=0', null, a.token)).corpo
-  verificar(rb.alteracoes.length === 10 && rb.alteracoes.every((x) => x.uuid !== p2), `B recebe as 10 alterações de A (${rb.alteracoes.length})`)
+  verificar(rb.alteracoes.length === 12 && rb.alteracoes.every((x) => x.uuid !== p2), `B recebe as 12 alterações de A (${rb.alteracoes.length})`)
   verificar(ra.alteracoes.length === 2 && ra.alteracoes[0].dados.nome === 'Mouse Novo', 'A recebe só o que B fez (edição e entrega parcial)')
   const rb2 = (await req('GET', `/sync/receber?desde=${rb.ultimoSeq}`, null, b.token)).corpo
   verificar(rb2.alteracoes.length === 0 && !rb2.temMais, 'cursor avança: nada novo na segunda leitura')
   const st = (await req('GET', '/status', null, a.token)).corpo
-  verificar(st.terminal?.codigo === 'A' && st.registros === 8, `status autenticado mostra terminal e registros (${st.registros})`)
+  verificar(st.terminal?.codigo === 'A' && st.registros === 10, `status autenticado mostra terminal e registros (${st.registros})`)
 } catch (e) {
   falhas++
   console.error('  ✗ erro:', e.message, srv.log())
