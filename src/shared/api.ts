@@ -86,7 +86,7 @@ export interface Canais {
 
   'compras:salvar': Canal<[id: number | null, dados: Entrada<typeof compraEntradaSchema>], Compra>
   'compras:excluir': Canal<[id: number], void>
-  'compras:receber': Canal<[id: number], void>
+  'compras:receber': Canal<[id: number], AlteracaoCusto[]>
 
   'estoque:movimentar': Canal<[dados: Entrada<typeof movimentacaoSchema>], void>
 
@@ -277,4 +277,14 @@ export interface ResultadoZerar {
   produtos: number
   compras: number
   movimentacoes: number
+}
+
+// ---------- Custo médio ----------
+
+/** Mudança no preço de custo de um produto causada pelo recebimento de uma compra. */
+export interface AlteracaoCusto {
+  produtoId: number
+  produto: string
+  de: number
+  para: number
 }

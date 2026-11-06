@@ -130,4 +130,6 @@ export interface Configuracoes {
   estoqueMinimoPadrao: number
   alertarEstoqueMinimo: boolean
   prefixoCompra: string
+  /** Como o preço de custo muda ao receber uma compra. */
+  custoAoReceber: 'medio' | 'ultimo' | 'manter'
 }

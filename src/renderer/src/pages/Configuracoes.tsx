@@ -11,7 +11,7 @@ import { SecaoZerar } from '@/components/SecaoZerar'
 import { useEstadoSync } from '@/data/sync'
 import { useToast } from '@/contexts/ToastContext'
 import { PageHeader } from '@/components/PageHeader'
-import { Badge, Button, Card, CardHeader, Checkbox, Input } from '@/components/ui'
+import { Badge, Button, Card, CardHeader, Checkbox, Input, Select } from '@/components/ui'
 import { configuracoesSchema } from '@shared/schemas'
 import { useForm } from '@/lib/useForm'
 import { executar } from '@/lib/executar'
@@ -61,6 +61,26 @@ export default function Configuracoes() {
           <div className="grid grid-cols-2 gap-4 p-5">
             <Input label="Estoque mínimo padrão" type="number" min="0" hint="Sugerido ao cadastrar novos produtos" {...form.bind('estoqueMinimoPadrao')} />
             <Input label="Prefixo das compras" obrigatorio hint={`Próxima: ${form.values.prefixoCompra}${proximaCompra}`} {...form.bind('prefixoCompra')} />
+            <Select
+              label="Custo ao receber compras"
+              wrapperClassName="col-span-2"
+              opcoes={[
+                { value: 'medio', label: 'Custo médio ponderado (recomendado)' },
+                { value: 'ultimo', label: 'Último preço pago' },
+                { value: 'manter', label: 'Não alterar o custo cadastrado' }
+              ]}
+              value={form.values.custoAoReceber}
+              onChange={(e) => form.set('custoAoReceber', e.target.value as typeof form.values.custoAoReceber)}
+            />
+            <p className="col-span-2 -mt-2 text-xs text-slate-500">
+              {
+                {
+                  medio: 'Ex.: 10 un. a R$ 5,00 em estoque + compra de 10 un. a R$ 7,00 = custo de R$ 6,00. Deixa o valor do estoque e a margem corretos.',
+                  ultimo: 'O custo passa a ser o preço pago na última compra recebida.',
+                  manter: 'O custo só muda quando alguém edita o produto.'
+                }[form.values.custoAoReceber]
+              }
+            </p>
             <div className="col-span-2">
               <Checkbox
                 label="Exibir alertas de estoque mínimo no painel"

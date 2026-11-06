@@ -151,10 +151,16 @@ export default function Compras() {
     if (!recebendo) return
     const alvo = recebendo
     setRecebendo(null)
-    await executar(() => alterar('compras:receber', alvo.id), {
-      notificar,
-      sucesso: `Compra ${alvo.numero} recebida. Estoque atualizado.`
-    })
+    let custos: { produto: string; de: number; para: number }[] = []
+    const ok = await executar(async () => (custos = await alterar('compras:receber', alvo.id)), { notificar })
+    if (!ok) return
+    // Mostra como o preço de custo mudou (custo médio, conforme Configurações).
+    const resumo = custos
+      .slice(0, 3)
+      .map((c) => `${c.produto}: ${fmt.moeda(c.de)} → ${fmt.moeda(c.para)}`)
+      .join('; ')
+    const mais = custos.length > 3 ? ` e mais ${custos.length - 3}` : ''
+    notificar('sucesso', `Compra ${alvo.numero} recebida. Estoque atualizado.${custos.length ? ` Custo atualizado — ${resumo}${mais}.` : ''}`)
   }
 
   async function excluir(): Promise<void> {

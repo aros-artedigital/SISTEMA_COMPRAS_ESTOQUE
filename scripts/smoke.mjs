@@ -140,6 +140,28 @@ try {
   r = await ipc(page, 'usuarios:salvar', 1, { nome: 'Administrador', email: 'admin@empresa.local', login: 'admin', senha: '', perfil: 'operador', ativo: true })
   verificar(!r.ok && r.erro.campo === 'perfil', 'administrador não pode rebaixar o próprio perfil')
 
+  // ---------- Custo médio ----------
+  console.log('Custo ao receber compras')
+  const comprarERecebe = async (produtoId, quantidade, valorUnitario) => {
+    const c = (await ipc(page, 'compras:salvar', null, { fornecedorId: 1, data: '2026-11-05', observacao: '', status: 'pedido', itens: [{ produtoId, quantidade, valorUnitario }] })).dados
+    return (await ipc(page, 'compras:receber', c.id)).dados
+  }
+  const custoDe = async (id) => (await ipc(page, 'dados:carregar')).dados.produtos.find((p) => p.id === id).precoCusto
+  const configBase = (await ipc(page, 'dados:carregar')).dados.configuracoes
+  const teclado = (await ipc(page, 'dados:carregar')).dados.produtos.find((p) => p.id === 2)
+  let alteracoes = await comprarERecebe(2, 3, 60)
+  const esperado = Math.round(((teclado.estoque * teclado.precoCusto + 3 * 60) / (teclado.estoque + 3)) * 100) / 100
+  verificar((await custoDe(2)) === esperado && alteracoes[0]?.para === esperado, `custo médio: ${teclado.estoque} un. a ${teclado.precoCusto} + 3 a 60 = ${esperado}`)
+  await ipc(page, 'configuracoes:salvar', { ...configBase, custoAoReceber: 'ultimo' })
+  await comprarERecebe(2, 1, 70)
+  verificar((await custoDe(2)) === 70, 'opção "último preço pago": custo vira 70')
+  await ipc(page, 'configuracoes:salvar', { ...configBase, custoAoReceber: 'manter' })
+  alteracoes = await comprarERecebe(2, 1, 10)
+  verificar((await custoDe(2)) === 70 && alteracoes.length === 0, 'opção "não alterar": custo continua 70')
+  await ipc(page, 'configuracoes:salvar', { ...configBase, custoAoReceber: 'medio' })
+  await comprarERecebe(10, 1, 120) // webcam: estoque zerado
+  verificar((await custoDe(10)) === 120, 'com estoque zerado, o custo médio é o próprio preço pago')
+
   // ---------- Vendas ----------
   console.log('Vendas')
   await page.reload()

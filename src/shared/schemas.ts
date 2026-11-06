@@ -96,7 +96,8 @@ export const configuracoesSchema = z.object({
   endereco: z.string().trim(),
   estoqueMinimoPadrao: z.coerce.number().int().min(0, 'Não pode ser negativo'),
   alertarEstoqueMinimo: z.boolean(),
-  prefixoCompra: obrigatorio('Prefixo').max(6, 'Máximo de 6 caracteres')
+  prefixoCompra: obrigatorio('Prefixo').max(6, 'Máximo de 6 caracteres'),
+  custoAoReceber: z.enum(['medio', 'ultimo', 'manter'])
 })
 
 export const senhaSchema = z

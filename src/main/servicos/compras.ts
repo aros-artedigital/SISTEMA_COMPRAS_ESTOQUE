@@ -1,6 +1,7 @@
 import type { z } from 'zod'
 import type { compraEntradaSchema } from '@shared/schemas'
-import type { Compra, StatusCompra } from '@shared/tipos'
+import type { AlteracaoCusto } from '@shared/api'
+import type { Compra, Configuracoes, StatusCompra } from '@shared/tipos'
 import { banco } from '../db/conexao'
 import { ErroNegocio } from '../erros'
 import { lerConfiguracoes } from './dados'
@@ -63,10 +64,24 @@ export function salvar(id: number | null, d: DadosCompra): Compra {
   })()
 }
 
-/** Recebe a compra: muda o status e dá entrada de todos os itens, tudo ou nada. */
-export function receber(id: number, usuarioId: number): void {
+/**
+ * Novo preço de custo ao entrar mercadoria.
+ * medio: média ponderada entre o que já estava em estoque e o que chegou;
+ * ultimo: o preço pago nesta compra; manter: não altera.
+ * Com saldo zerado ou negativo, o médio é o próprio preço pago.
+ */
+export function novoCusto(modo: Configuracoes['custoAoReceber'], saldo: number, custoAtual: number, quantidade: number, valorPago: number): number {
+  if (modo === 'manter') return custoAtual
+  if (modo === 'ultimo' || saldo <= 0) return map.dinheiro(valorPago)
+  return map.dinheiro((saldo * custoAtual + quantidade * valorPago) / (saldo + quantidade))
+}
+
+/** Recebe a compra: muda o status, atualiza o custo e dá entrada de todos os itens, tudo ou nada. */
+export function receber(id: number, usuarioId: number): AlteracaoCusto[] {
   const db = banco()
-  db.transaction(() => {
+  const { custoAoReceber } = lerConfiguracoes()
+  return db.transaction(() => {
+    const alteracoes: AlteracaoCusto[] = []
     const compra = buscar(id)
     const bloqueios: Partial<Record<StatusCompra, string>> = {
       recebida: 'Esta compra já foi recebida.',
@@ -77,6 +92,13 @@ export function receber(id: number, usuarioId: number): void {
     if (compra.itens.length === 0) throw new ErroNegocio('A compra não possui itens.')
 
     for (const item of compra.itens) {
+      // O custo é calculado com o saldo de antes da entrada.
+      const p = db.prepare('SELECT nome, estoque, preco_custo FROM produtos WHERE id = ?').get(item.produtoId) as { nome: string; estoque: number; preco_custo: number }
+      const custo = novoCusto(custoAoReceber, p.estoque, p.preco_custo, item.quantidade, item.valorUnitario)
+      if (custo !== p.preco_custo) {
+        db.prepare(`UPDATE produtos SET preco_custo = ?, atualizado_em = datetime('now', 'localtime') WHERE id = ?`).run(custo, item.produtoId)
+        alteracoes.push({ produtoId: item.produtoId, produto: p.nome, de: p.preco_custo, para: custo })
+      }
       lancarMovimentacao({
         produtoId: item.produtoId,
         tipo: 'entrada',
@@ -89,6 +111,7 @@ export function receber(id: number, usuarioId: number): void {
     db.prepare(
       `UPDATE compras SET status = 'recebida', recebida_em = ?, atualizado_em = datetime('now', 'localtime') WHERE id = ?`
     ).run(map.agoraIso(), id)
+    return alteracoes
   })()
 }
 

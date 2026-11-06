@@ -98,5 +98,6 @@ export const configuracoes: Configuracoes = {
   endereco: 'Rua Exemplo, 100 - Centro - São Paulo/SP',
   estoqueMinimoPadrao: 5,
   alertarEstoqueMinimo: true,
-  prefixoCompra: 'C-'
+  prefixoCompra: 'C-',
+  custoAoReceber: 'medio'
 }

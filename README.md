@@ -135,6 +135,9 @@ Regras garantidas pelo banco/main (não só pela tela):
   (depois de sincronizar vendas simultâneas de dois terminais, o saldo pode ficar negativo — e aparece como sem estoque).
 - Receber compra dá entrada de todos os itens de uma vez (transação). Só compras com status "Pedido enviado".
 - Compras recebidas não podem ser alteradas nem excluídas.
+- Ao receber uma compra, o preço de custo vira o **custo médio ponderado** (saldo × custo atual + quantidade ×
+  preço pago, dividido pelo novo saldo; com saldo zerado, vale o preço pago). Em Configurações dá para trocar por
+  "último preço pago" ou "não alterar".
 - Vendas não são editadas nem excluídas; cancelar devolve os itens ao estoque (uma vez só, mesmo cancelando em
   dois terminais sem internet). Número com o código do terminal (`V-A0001`).
 - Itens com histórico (produto, fornecedor, usuário) não podem ser excluídos; inative-os.

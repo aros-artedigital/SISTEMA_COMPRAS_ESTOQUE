@@ -9,5 +9,6 @@ export const configuracoesPadrao: Configuracoes = {
   endereco: '',
   estoqueMinimoPadrao: 5,
   alertarEstoqueMinimo: true,
-  prefixoCompra: 'C-'
+  prefixoCompra: 'C-',
+  custoAoReceber: 'medio'
 }
