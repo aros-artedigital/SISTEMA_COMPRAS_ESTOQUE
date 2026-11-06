@@ -94,6 +94,11 @@ Usuários de demonstração (só em desenvolvimento):
   deixa vender sem saldo. Recibo em cupom de 80 mm (impressão ou PDF, sem valor fiscal). Uma venda não é editada:
   o cancelamento devolve os itens ao estoque e fica registrado com o motivo. Atalho **F2** abre uma nova venda.
   Relatório de vendas por venda, por cliente ou por produto; total comprado por cliente na tela de Clientes.
+- **Auditoria** (Sistema → Auditoria, só administrador): registra quem fez o quê e quando — inclusões, alterações e
+  exclusões de cadastros com os valores de antes e depois (ex.: "Preço de venda: R$ 49,90 → R$ 54,90"), logins e
+  tentativas recusadas, recebimento e encerramento de compras, cancelamento de vendas, estornos, inventários,
+  importações do Excel, configurações, restauração de backup e "Zerar dados". Filtros por período, usuário, ação, tipo
+  e texto; sai em PDF, Excel ou impressão. Fica em cada computador e não é apagada ao zerar os dados.
 - **Ficha do produto** (Produtos → clique no nome ou em "Ficha"): saldo, custo, preço e margem, valor em estoque,
   vendido e faturado em 90 dias, cobertura em dias no ritmo atual de vendas, gráfico do saldo ao longo do tempo e o
   histórico completo — movimentações, compras (pedido × recebido) e vendas. O kardex sai em PDF, Excel ou impressão.

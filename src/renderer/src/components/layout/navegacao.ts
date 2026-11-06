@@ -7,6 +7,7 @@ import {
   Package,
   Receipt,
   Settings,
+  ShieldCheck,
   ShoppingCart,
   Tags,
   Truck,
@@ -62,6 +63,7 @@ export const menu: GrupoMenu[] = [
     titulo: 'Sistema',
     itens: [
       { caminho: '/relatorios', titulo: 'Relatórios', icone: FileBarChart, recurso: 'relatorios' },
+      { caminho: '/auditoria', titulo: 'Auditoria', icone: ShieldCheck, recurso: 'auditoria' },
       { caminho: '/configuracoes', titulo: 'Configurações', icone: Settings, recurso: 'configuracoes' }
     ]
   }
@@ -82,6 +84,7 @@ export const titulos: Record<string, string> = {
   '/clientes': 'Clientes',
   '/usuarios': 'Usuários',
   '/relatorios': 'Relatórios',
+  '/auditoria': 'Auditoria',
   '/configuracoes': 'Configurações',
   '/perfil': 'Meu Perfil'
 }

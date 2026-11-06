@@ -30,7 +30,8 @@ const recursos: { recurso: Recurso; nome: string }[] = [
   { recurso: 'clientes', nome: 'Clientes' },
   { recurso: 'relatorios', nome: 'Relatórios' },
   { recurso: 'usuarios', nome: 'Usuários' },
-  { recurso: 'configuracoes', nome: 'Configurações' }
+  { recurso: 'configuracoes', nome: 'Configurações' },
+  { recurso: 'auditoria', nome: 'Auditoria (quem alterou o quê)' }
 ]
 const perfis: Perfil[] = ['admin', 'gerente', 'operador']
 

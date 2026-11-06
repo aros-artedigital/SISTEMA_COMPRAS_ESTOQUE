@@ -137,6 +137,9 @@ export interface Canais {
   'atualizacao:estado': Canal<[], EstadoAtualizacao>
   'atualizacao:verificar': Canal<[], EstadoAtualizacao>
   'atualizacao:instalar': Canal<[], void>
+
+  /** Só administrador. Devolve até 1000 registros, do mais recente para o mais antigo. */
+  'auditoria:listar': Canal<[filtros: FiltrosAuditoria], ConsultaAuditoria>
 }
 
 export type NomeCanal = keyof Canais
@@ -348,6 +351,42 @@ export interface ItemInventario {
 
 export interface InventarioDetalhe extends InventarioResumo {
   lista: ItemInventario[]
+}
+
+// ---------- Auditoria ----------
+
+export interface AlteracaoAuditoria {
+  campo: string
+  de: string
+  para: string
+}
+
+export interface RegistroAuditoria {
+  id: number
+  /** Data/hora local, "AAAA-MM-DDTHH:MM:SS". */
+  em: string
+  usuario: string
+  acao: string
+  entidade: string
+  descricao: string
+  alteracoes: AlteracaoAuditoria[]
+}
+
+export interface FiltrosAuditoria {
+  /** Datas no formato AAAA-MM-DD (comparadas com a data local do registro). */
+  de?: string
+  ate?: string
+  usuario?: string
+  acao?: string
+  entidade?: string
+  busca?: string
+}
+
+export interface ConsultaAuditoria {
+  itens: RegistroAuditoria[]
+  /** Total de registros que atendem aos filtros (pode passar do que foi devolvido). */
+  total: number
+  usuarios: string[]
 }
 
 export interface ResultadoInventario {

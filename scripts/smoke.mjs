@@ -376,6 +376,47 @@ try {
   verificar((await esperarArquivo(join(pasta, 'ficha.pdf'))) && ehPdf(join(pasta, 'ficha.pdf')), 'histórico do produto (kardex) salvo em PDF')
   await page.keyboard.press('Escape')
 
+  // ---------- Auditoria ----------
+  console.log('Auditoria')
+  const reais = (v) => v.toFixed(2).replace('.', ',')
+  const mouseAud = dados.produtos.find((p) => p.id === 1)
+  r = await ipc(page, 'produtos:salvar', 1, { ...mouseAud, precoVenda: 54.9, estoqueMinimo: mouseAud.estoqueMinimo + 1 })
+  verificar(r.ok, 'alteração de preço salva')
+  let aud = (await ipc(page, 'auditoria:listar', { acao: 'Alteração', entidade: 'Produto' })).dados
+  const regPreco = aud.itens[0]
+  const campoPreco = regPreco?.alteracoes.find((a) => a.campo === 'Preço de venda')
+  verificar(
+    regPreco?.usuario === 'Administrador' && regPreco.descricao.includes('P0001') && campoPreco?.de.includes(reais(mouseAud.precoVenda)) && campoPreco?.para.includes('54,90'),
+    `troca de preço registrada com antes → depois (${campoPreco?.de} → ${campoPreco?.para})`
+  )
+  verificar(regPreco?.alteracoes.length === 2 && regPreco.alteracoes.some((a) => a.campo === 'Estoque mínimo'), 'só os campos que mudaram entram no registro')
+  r = await ipc(page, 'produtos:salvar', 1, { ...mouseAud, precoVenda: 54.9, estoqueMinimo: mouseAud.estoqueMinimo + 1 })
+  verificar((await ipc(page, 'auditoria:listar', { acao: 'Alteração', entidade: 'Produto' })).dados.total === aud.total, 'salvar sem mudar nada não gera registro')
+  const catAud = (await ipc(page, 'categorias:salvar', null, { nome: 'Categoria auditada', descricao: '' })).dados
+  await ipc(page, 'categorias:excluir', catAud.id)
+  aud = (await ipc(page, 'auditoria:listar', { entidade: 'Categoria' })).dados
+  verificar(aud.itens[0]?.acao === 'Exclusão' && aud.itens[0].descricao === 'Categoria Categoria auditada' && aud.itens[1]?.acao === 'Inclusão', 'inclusão e exclusão de cadastro registradas')
+  r = await ipc(page, 'auth:entrar', 'admin', 'senha-errada')
+  aud = (await ipc(page, 'auditoria:listar', { acao: 'Login recusado' })).dados
+  verificar(!r.ok && aud.itens[0]?.usuario === 'admin' && aud.itens[0].descricao.includes('inválidos'), 'tentativa de login com senha errada registrada')
+  aud = (await ipc(page, 'auditoria:listar', {})).dados
+  verificar(['Cancelamento', 'Estorno', 'Conclusão', 'Recebimento parcial', 'Encerramento', 'Login'].every((a) => aud.itens.some((i) => i.acao === a)), 'cancelamento de venda, estorno, inventário e compras registrados')
+  verificar(aud.itens.find((i) => i.acao === 'Estorno')?.descricao.includes('Motivo: Produto errado'), 'estorno registrado com o motivo')
+  await page.reload()
+  await page.waitForSelector('input[placeholder="seu.login"]')
+  await entrar(page, 'admin', 'admin123')
+  await page.getByRole('link', { name: 'Auditoria' }).click()
+  await page.getByPlaceholder('Buscar na descrição ou nos valores...').fill('54,90')
+  await page.getByText('Entrou no sistema').first().waitFor({ state: 'detached' })
+  verificar(
+    (await page.getByText('Preço de venda:').first().isVisible()) && (await page.getByText('1 registro(s)').isVisible()),
+    'tela de Auditoria mostra e filtra os registros (busca pelo valor novo)'
+  )
+  await foto(page, '12-auditoria')
+  await aoSalvar(join(pasta, 'auditoria.pdf'))
+  await page.getByRole('button', { name: 'PDF' }).click()
+  verificar((await esperarArquivo(join(pasta, 'auditoria.pdf'))) && ehPdf(join(pasta, 'auditoria.pdf')), 'auditoria exportada em PDF')
+
   // ---------- Backup externo ----------
   console.log('Backup fora do computador')
   verificar((await ipc(page, 'backupExterno:estado')).dados.pasta === null, 'começa sem backup externo configurado')
@@ -518,6 +559,8 @@ try {
   verificar(!r.ok && r.erro.tipo === 'permissao', 'operador não pode concluir inventário (ajustar estoque)')
   r = await ipc(page, 'estoque:estornar', 1, 'Teste')
   verificar(!r.ok && r.erro.tipo === 'permissao', 'operador não pode estornar movimentação')
+  r = await ipc(page, 'auditoria:listar', {})
+  verificar(!r.ok && r.erro.tipo === 'permissao', 'operador não consulta a auditoria')
 
   await app.close()
 
@@ -594,6 +637,11 @@ try {
   verificar(dados.usuarios.length === 1 && dados.usuarios[0].login === 'admin', 'fica só o administrador que zerou')
   verificar(dados.configuracoes.nomeEmpresa === 'Minha Empresa', 'dados da empresa voltam ao padrão')
   verificar((await ipc(page, 'backup:listar')).dados.some((b) => b.nome.startsWith('antes-de-zerar')), 'backup feito antes de zerar')
+  aud = (await ipc(page, 'auditoria:listar', {})).dados
+  verificar(
+    aud.itens[0]?.acao === 'Zerar dados' && aud.itens.some((i) => i.acao === 'Recuperação de acesso') && aud.itens.some((i) => i.acao === 'Restauração de backup') && aud.itens.some((i) => i.entidade === 'Produto'),
+    'zerar fica registrado e o histórico de auditoria é mantido'
+  )
   const cat = (await ipc(page, 'categorias:salvar', null, { nome: 'Minha categoria', descricao: '' })).dados
   r = await ipc(page, 'produtos:salvar', null, {
     codigo: 'P0001', codigoBarras: '', nome: 'Meu primeiro produto', categoriaId: cat.id, unidadeId: dados.unidades[0].id,
