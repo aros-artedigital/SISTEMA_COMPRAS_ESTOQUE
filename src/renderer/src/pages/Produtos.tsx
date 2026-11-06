@@ -14,6 +14,7 @@ import { executar } from '@/lib/executar'
 import { exportarExcel } from '@/lib/saida'
 import { EtiquetasModal } from '@/components/EtiquetasModal'
 import { ImportarModal } from '@/components/ImportarModal'
+import { FichaProduto } from '@/components/FichaProduto'
 import { buscarPorCodigo } from '@/components/LeitorCodigo'
 import * as fmt from '@shared/format'
 import type { Produto } from '@shared/tipos'
@@ -44,6 +45,7 @@ export default function Produtos() {
   const [modalAberto, setModalAberto] = useState(false)
   const [excluindo, setExcluindo] = useState<Produto | null>(null)
   const [importando, setImportando] = useState(false)
+  const [ficha, setFicha] = useState<number | null>(null)
   const [etiquetas, setEtiquetas] = useState<{ produtoId: number; quantidade: number }[] | null>(null)
   const form = useForm(vazio, produtoSchema)
 
@@ -142,7 +144,9 @@ export default function Produtos() {
       titulo: 'Nome',
       render: (p) => (
         <span className="flex items-center gap-2">
-          <span className="font-medium text-slate-800">{p.nome}</span>
+          <button onClick={() => setFicha(p.id)} className="text-left font-medium text-slate-800 hover:text-blue-700 hover:underline" title="Abrir a ficha do produto">
+            {p.nome}
+          </button>
           {!p.ativo && <Badge>Inativo</Badge>}
         </span>
       )
@@ -171,7 +175,22 @@ export default function Produtos() {
         return s === 'zerado' ? <Badge cor="vermelho">Sem estoque</Badge> : s === 'baixo' ? <Badge cor="amarelo">Estoque baixo</Badge> : <Badge cor="verde">Normal</Badge>
       }
     },
-    { chave: 'acoes', titulo: 'Ações', alinhar: 'direita', render: (p) => <AcoesLinha onEditar={() => abrirEdicao(p)} onExcluir={() => setExcluindo(p)} /> }
+    {
+      chave: 'acoes',
+      titulo: 'Ações',
+      alinhar: 'direita',
+      render: (p) => (
+        <AcoesLinha
+          extra={
+            <button onClick={() => setFicha(p.id)} className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
+              Ficha
+            </button>
+          }
+          onEditar={() => abrirEdicao(p)}
+          onExcluir={() => setExcluindo(p)}
+        />
+      )
+    }
   ]
 
   const margem =
@@ -298,6 +317,7 @@ export default function Produtos() {
       </Modal>
 
       <ImportarModal tipo="produtos" aberto={importando} onFechar={() => setImportando(false)} />
+      {ficha !== null && <FichaProduto produtoId={ficha} onFechar={() => setFicha(null)} />}
       <EtiquetasModal aberto={etiquetas !== null} inicial={etiquetas ?? []} onFechar={() => setEtiquetas(null)} />
 
       <ConfirmDialog

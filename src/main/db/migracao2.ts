@@ -62,7 +62,8 @@ export function reconciliarSaldos(db: Database.Database, motivo = 'Saldo inicial
      VALUES ((SELECT COALESCE(MIN(data), strftime('%Y-%m-%dT%H:%M:%S', 'now', 'localtime')) FROM movimentacoes WHERE produto_id = ?), ?, 'ajuste', ?, ?, ?, ?)`
   )
   // O ajuste é datado junto da primeira movimentação do produto, para o histórico continuar fazendo sentido.
-  for (const d of diferencas) ins.run(d.id, d.id, d.diferenca, d.estoque, motivo, admin.id)
+  // É datado na primeira movimentação do produto, então o saldo logo após ele é a própria diferença.
+  for (const d of diferencas) ins.run(d.id, d.id, d.diferenca, d.diferenca, motivo, admin.id)
   return diferencas.length
 }
 

@@ -49,7 +49,7 @@ export default function Login() {
             Produtos, fornecedores, pedidos de compra e movimentações em um só lugar, funcionando direto no seu computador.
           </p>
         </div>
-        <p className="text-xs text-slate-400">Sistema de Estoque e Compras · v0.7.1</p>
+        <p className="text-xs text-slate-400">Sistema de Estoque e Compras · v0.8.0</p>
       </div>
 
       <div className="flex flex-1 items-center justify-center bg-slate-50 p-8">

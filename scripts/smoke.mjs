@@ -49,6 +49,8 @@ const aoAbrir = (caminho) =>
   app.evaluate(({ dialog }, c) => {
     dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [c] })
   }, caminho)
+const fmt = (n) => new Intl.NumberFormat('pt-BR').format(n)
+
 function ehPdf(caminho) {
   const ok = existsSync(caminho) && readFileSync(caminho).subarray(0, 4).toString() === '%PDF'
   if (ok && saida) copyFileSync(caminho, join(saida, basename(caminho)))
@@ -345,6 +347,34 @@ try {
   dados = (await ipc(page, 'dados:carregar')).dados
   r = await ipc(page, 'estoque:estornar', dados.movimentacoes.find((m) => m.motivo === 'Entrada para teste').id, 'Teste')
   verificar(!r.ok && r.erro.mensagem.includes('Não há saldo'), 'estorno que deixaria o estoque negativo é recusado')
+
+  // ---------- Ficha do produto ----------
+  console.log('Ficha do produto')
+  dados = (await ipc(page, 'dados:carregar')).dados
+  const mouseFicha = dados.produtos.find((p) => p.id === 1)
+  const movsMouse = dados.movimentacoes.filter((m) => m.produtoId === 1).length
+  const comprasMouse = dados.compras.filter((c) => c.itens.some((i) => i.produtoId === 1)).length
+  const vendasMouse = dados.vendas.filter((v) => v.itens.some((i) => i.produtoId === 1)).length
+  await page.getByRole('link', { name: 'Produtos' }).click()
+  await page.getByPlaceholder('Pesquisar por nome, código ou código de barras...').fill('P0001')
+  await page.getByRole('row', { name: /P0001/ }).getByRole('button', { name: 'Ficha' }).click()
+  const ficha = page.getByRole('dialog', { name: `P0001 — ${mouseFicha.nome}` })
+  await ficha.waitFor()
+  verificar(await ficha.getByRole('tab', { name: `Movimentações ${movsMouse}` }).count() === 1, `ficha mostra as ${movsMouse} movimentações do produto`)
+  verificar(
+    (await ficha.getByRole('tab', { name: `Compras ${comprasMouse}` }).count()) === 1 && (await ficha.getByRole('tab', { name: `Vendas ${vendasMouse}` }).count()) === 1,
+    `ficha conta ${comprasMouse} compra(s) e ${vendasMouse} venda(s) do produto`
+  )
+  verificar(await ficha.getByText(`${fmt(mouseFicha.estoque)} UN`).first().isVisible(), 'saldo atual aparece nos indicadores')
+  verificar(await ficha.getByRole('img', { name: 'Saldo do produto ao longo do tempo' }).count() === 1, 'gráfico do saldo ao longo do tempo aparece')
+  await ficha.getByRole('tab', { name: /Vendas/ }).click()
+  await ficha.getByText('V-0001').waitFor()
+  await ficha.getByRole('tab', { name: /Movimentações/ }).click()
+  await foto(page, '11-ficha-produto')
+  await aoSalvar(join(pasta, 'ficha.pdf'))
+  await ficha.getByRole('button', { name: 'PDF' }).click()
+  verificar((await esperarArquivo(join(pasta, 'ficha.pdf'))) && ehPdf(join(pasta, 'ficha.pdf')), 'histórico do produto (kardex) salvo em PDF')
+  await page.keyboard.press('Escape')
 
   // ---------- Backup externo ----------
   console.log('Backup fora do computador')

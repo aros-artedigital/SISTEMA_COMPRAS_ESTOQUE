@@ -94,6 +94,9 @@ Usuários de demonstração (só em desenvolvimento):
   deixa vender sem saldo. Recibo em cupom de 80 mm (impressão ou PDF, sem valor fiscal). Uma venda não é editada:
   o cancelamento devolve os itens ao estoque e fica registrado com o motivo. Atalho **F2** abre uma nova venda.
   Relatório de vendas por venda, por cliente ou por produto; total comprado por cliente na tela de Clientes.
+- **Ficha do produto** (Produtos → clique no nome ou em "Ficha"): saldo, custo, preço e margem, valor em estoque,
+  vendido e faturado em 90 dias, cobertura em dias no ritmo atual de vendas, gráfico do saldo ao longo do tempo e o
+  histórico completo — movimentações, compras (pedido × recebido) e vendas. O kardex sai em PDF, Excel ou impressão.
 - **Inventário** (Estoque → Inventário): congela a lista de produtos ativos (todos ou de uma categoria) e recebe a
   contagem física — digitada ou pelo leitor de código de barras (cada leitura soma 1). As contagens são gravadas na
   hora. Ao concluir (administrador ou gerente), lança um ajuste para cada produto com diferença, comparando com o
