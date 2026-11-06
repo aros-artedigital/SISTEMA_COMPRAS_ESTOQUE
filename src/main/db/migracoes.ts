@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3'
 import { migracao2 } from './migracao2'
 import { migracao4 } from './migracao4'
+import { migracao5 } from './migracao5'
 
 // Cada item é uma versão do schema. Nunca altere uma migração já publicada:
 // adicione uma nova no fim da lista. A versão atual fica em PRAGMA user_version.
@@ -132,7 +133,8 @@ const migracoes: (string | ((db: Database.Database) => void))[] = [
     INSERT INTO sync_fila (tabela, uuid, operacao, alterado_em) VALUES ('recuperacao', 'recuperacao', 'excluir', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
   END;
   `,
-  /* 4 — vendas para clientes */ migracao4
+  /* 4 — vendas para clientes */ migracao4,
+  /* 5 — inventário (contagem em lote) */ migracao5
 ]
 
 /** Versão de schema que este build do app conhece. */

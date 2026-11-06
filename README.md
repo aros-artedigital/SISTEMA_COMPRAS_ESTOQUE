@@ -89,6 +89,11 @@ Usuários de demonstração (só em desenvolvimento):
   deixa vender sem saldo. Recibo em cupom de 80 mm (impressão ou PDF, sem valor fiscal). Uma venda não é editada:
   o cancelamento devolve os itens ao estoque e fica registrado com o motivo. Atalho **F2** abre uma nova venda.
   Relatório de vendas por venda, por cliente ou por produto; total comprado por cliente na tela de Clientes.
+- **Inventário** (Estoque → Inventário): congela a lista de produtos ativos (todos ou de uma categoria) e recebe a
+  contagem física — digitada ou pelo leitor de código de barras (cada leitura soma 1). As contagens são gravadas na
+  hora. Ao concluir (administrador ou gerente), lança um ajuste para cada produto com diferença, comparando com o
+  saldo do sistema naquele momento; os não contados ficam como estão ou podem ser considerados zero. Relatório de
+  diferenças em PDF/Excel. O inventário é local de cada terminal; os ajustes gerados são sincronizados.
 - **Relatórios** (administrador e gerente): posição de estoque, sugestão de compra, compras por período e
   movimentações — cada um com filtros, Excel, PDF (A4, com numeração de páginas) e impressão.
 - **Etiquetas** com código de barras (EAN-13/EAN-8 quando o código é válido, senão CODE128), em folha A4

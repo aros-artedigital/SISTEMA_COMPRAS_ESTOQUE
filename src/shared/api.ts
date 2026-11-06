@@ -93,6 +93,14 @@ export interface Canais {
   'vendas:registrar': Canal<[dados: Entrada<typeof vendaSchema>], Venda>
   'vendas:cancelar': Canal<[id: number, motivo: string], void>
 
+  'inventario:listar': Canal<[], InventarioResumo[]>
+  'inventario:obter': Canal<[id: number], InventarioDetalhe>
+  'inventario:abrir': Canal<[dados: { descricao: string; categoriaId: number | null }], InventarioDetalhe>
+  /** Grava a quantidade contada de um item (null = ainda não contado). */
+  'inventario:contar': Canal<[itemId: number, contado: number | null], void>
+  'inventario:concluir': Canal<[id: number, opcoes: { naoContadosZero: boolean }], ResultadoInventario>
+  'inventario:cancelar': Canal<[id: number], void>
+
   'configuracoes:salvar': Canal<[dados: Entrada<typeof configuracoesSchema>], void>
 
   // Os canais abaixo abrem diálogos de arquivo; retornam null quando o usuário cancela.
@@ -287,4 +295,44 @@ export interface AlteracaoCusto {
   produto: string
   de: number
   para: number
+}
+
+// ---------- Inventário ----------
+
+export type StatusInventario = 'aberto' | 'concluido' | 'cancelado'
+
+export interface InventarioResumo {
+  id: number
+  numero: string
+  descricao: string
+  categoriaId: number | null
+  status: StatusInventario
+  criadoEm: string
+  criadoPor: string
+  concluidoEm: string | null
+  concluidoPor: string | null
+  naoContadosZero: boolean
+  itens: number
+  contados: number
+  /** Itens ajustados (só depois de concluído). */
+  ajustados: number
+}
+
+export interface ItemInventario {
+  id: number
+  produtoId: number
+  saldoSistema: number
+  contado: number | null
+  ajuste: number | null
+}
+
+export interface InventarioDetalhe extends InventarioResumo {
+  lista: ItemInventario[]
+}
+
+export interface ResultadoInventario {
+  ajustados: number
+  /** Soma das diferenças em unidades e em valor (preço de custo). */
+  unidades: number
+  valor: number
 }

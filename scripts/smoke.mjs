@@ -212,6 +212,52 @@ try {
   await page.getByText('Faturamento').waitFor()
   verificar(true, 'relatório de vendas abre como primeira aba')
 
+  // ---------- Inventário ----------
+  console.log('Inventário')
+  dados = (await ipc(page, 'dados:carregar')).dados
+  const porCod = (d, c) => d.produtos.find((p) => p.codigo === c)
+  const roteadorAntes = porCod(dados, 'P0007').estoque
+  const ssdAntes = porCod(dados, 'P0004').estoque
+  const caboAntes = porCod(dados, 'P0006').estoque
+  const papelAntes = porCod(dados, 'P0008').estoque
+  await page.getByRole('link', { name: 'Inventário' }).click()
+  await page.getByRole('button', { name: 'Iniciar contagem' }).click()
+  await page.getByRole('dialog').getByLabel('Descrição').fill('Contagem de teste')
+  await page.getByRole('dialog').getByRole('button', { name: 'Iniciar' }).click()
+  await page.getByText('Inventário INV-0001').waitFor()
+  const leitorInv = page.getByLabel('Código de barras')
+  for (let i = 0; i < 2; i++) {
+    await leitorInv.fill('7891000100073') // roteador
+    await leitorInv.press('Enter')
+  }
+  const inv = (await ipc(page, 'inventario:listar')).dados.find((i) => i.status === 'aberto')
+  let det = (await ipc(page, 'inventario:obter', inv.id)).dados
+  const item = (codigo) => det.lista.find((i) => i.produtoId === porCod(dados, codigo).id)
+  await page.getByLabel(`Quantidade contada de ${porCod(dados, 'P0004').nome}`).fill(String(ssdAntes - 2))
+  await page.getByLabel(`Quantidade contada de ${porCod(dados, 'P0004').nome}`).press('Enter')
+  await ipc(page, 'inventario:contar', item('P0006').id, caboAntes)
+  await foto(page, '9-inventario')
+  r = await ipc(page, 'inventario:abrir', { descricao: 'Outro', categoriaId: null })
+  verificar(!r.ok && r.erro.mensagem.includes('ainda está aberto'), 'só um inventário aberto por vez')
+  await new Promise((r) => setTimeout(r, 500))
+  det = (await ipc(page, 'inventario:obter', inv.id)).dados
+  verificar(item('P0007').contado === 2, 'duas leituras do código somam 2 na contagem')
+  verificar(item('P0004').contado === ssdAntes - 2 && det.contados === 3, 'quantidade digitada é gravada (3 produtos contados)')
+  await page.getByRole('button', { name: 'Concluir inventário' }).click()
+  await page.getByRole('button', { name: 'Concluir e ajustar estoque' }).click()
+  await page.getByText('INV-0001 concluído').waitFor()
+  dados = (await ipc(page, 'dados:carregar')).dados
+  verificar(porCod(dados, 'P0007').estoque === 2 && porCod(dados, 'P0004').estoque === ssdAntes - 2, `estoque ajustado para o contado (roteador ${roteadorAntes} → 2, SSD ${ssdAntes} → ${ssdAntes - 2})`)
+  verificar(porCod(dados, 'P0006').estoque === caboAntes && porCod(dados, 'P0008').estoque === papelAntes, 'produto sem diferença e produto não contado ficam como estavam')
+  verificar(dados.movimentacoes.filter((m) => m.motivo === 'Inventário INV-0001').length === 2, 'um ajuste por produto com diferença, ligado ao inventário')
+  await page.getByText('Diferença (custo)').waitFor()
+  verificar(true, 'relatório de diferenças aparece ao concluir')
+  r = await ipc(page, 'inventario:contar', item('P0006').id, 1)
+  verificar(!r.ok, 'inventário concluído não aceita novas contagens')
+  const inv2 = (await ipc(page, 'inventario:abrir', { descricao: 'Para cancelar', categoriaId: null })).dados
+  r = await ipc(page, 'inventario:cancelar', inv2.id)
+  verificar(r.ok && (await ipc(page, 'inventario:listar')).dados.find((i) => i.id === inv2.id).status === 'cancelado', 'inventário pode ser cancelado sem ajustar nada')
+
   // ---------- Fase 3: relatórios, etiquetas, Excel e backup ----------
   console.log('Relatórios, etiquetas, Excel e backup')
   const arq = (nome) => join(pasta, nome)
@@ -321,6 +367,10 @@ try {
   verificar(r.ok, 'operador pode vender')
   r = await ipc(page, 'vendas:cancelar', r.dados.id, 'Teste')
   verificar(!r.ok && r.erro.tipo === 'permissao', 'operador não pode cancelar venda')
+  const inv3 = (await ipc(page, 'inventario:abrir', { descricao: 'Operador', categoriaId: null }))
+  verificar(inv3.ok, 'operador pode abrir e contar inventário')
+  r = await ipc(page, 'inventario:concluir', inv3.dados.id, { naoContadosZero: false })
+  verificar(!r.ok && r.erro.tipo === 'permissao', 'operador não pode concluir inventário (ajustar estoque)')
 
   await app.close()
 

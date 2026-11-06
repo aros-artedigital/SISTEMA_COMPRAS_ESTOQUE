@@ -17,6 +17,7 @@ import * as produtos from './servicos/produtos'
 import { exigir, usuarioLogado } from './servicos/sessao'
 import * as usuarios from './servicos/usuarios'
 import * as vendas from './servicos/vendas'
+import * as inventario from './servicos/inventario'
 import * as sync from './servicos/sync/motor'
 import * as atualizacao from './atualizacao'
 import * as recuperacao from './servicos/recuperacao'
@@ -142,6 +143,32 @@ export function registrarCanais(): void {
 
   canal('vendas:registrar', (d) => vendas.registrar(s.vendaSchema.parse(d), exigir('vendas').id))
   canal('vendas:cancelar', (i, motivo) => vendas.cancelar(id(i), s.cancelamentoSchema.parse(motivo), exigir('vendasCancelar').id))
+
+  canal('inventario:listar', () => {
+    exigir('estoque')
+    return inventario.listar()
+  })
+  canal('inventario:obter', (i) => {
+    exigir('estoque')
+    return inventario.obter(id(i))
+  })
+  canal('inventario:abrir', (d) => {
+    const u = exigir('estoque')
+    const dados = z.object({ descricao: z.string().trim().max(200), categoriaId: s.idOuNovoSchema }).parse(d)
+    return inventario.abrir(dados, u.id)
+  })
+  canal('inventario:contar', (i, contado) => {
+    exigir('estoque')
+    inventario.contar(id(i), z.number().int('Use número inteiro').min(0, 'Não pode ser negativo').max(10_000_000).nullable().parse(contado))
+  })
+  canal('inventario:concluir', (i, o) => {
+    const u = exigir('inventarioConcluir')
+    return inventario.concluir(id(i), z.object({ naoContadosZero: z.boolean() }).parse(o), u.id)
+  })
+  canal('inventario:cancelar', (i) => {
+    exigir('inventarioConcluir')
+    inventario.cancelar(id(i))
+  })
 
   canal('estoque:movimentar', (d) => {
     const u = exigir('estoque')

@@ -32,7 +32,7 @@ export async function zerarDados(o: OpcoesZerar, usuarioId: number): Promise<Res
   db.transaction(() => {
     // Não vai para a fila de envio: o terminal não está conectado, e os dados deixam de existir.
     db.prepare('UPDATE sync_controle SET aplicando = 1 WHERE id = 1').run()
-    for (const t of ['compra_itens', 'venda_itens', 'movimentacoes', 'vendas', 'compras', 'produtos', 'categorias', 'fornecedores', 'clientes']) {
+    for (const t of ['inventario_itens', 'inventarios', 'compra_itens', 'venda_itens', 'movimentacoes', 'vendas', 'compras', 'produtos', 'categorias', 'fornecedores', 'clientes']) {
       db.prepare(`DELETE FROM ${t}`).run()
     }
     if (!o.manterUsuarios) db.prepare('DELETE FROM usuarios WHERE id <> ?').run(usuarioId)

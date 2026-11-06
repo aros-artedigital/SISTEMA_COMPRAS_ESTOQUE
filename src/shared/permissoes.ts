@@ -10,13 +10,14 @@ export type Recurso =
   | 'clientes'
   | 'vendas'
   | 'vendasCancelar'
+  | 'inventarioConcluir'
   | 'relatorios'
   | 'usuarios'
   | 'configuracoes'
 
 const permissoes: Record<Perfil, Recurso[]> = {
-  admin: ['dashboard', 'vendas', 'vendasCancelar', 'produtos', 'cadastros', 'compras', 'estoque', 'fornecedores', 'clientes', 'relatorios', 'usuarios', 'configuracoes'],
-  gerente: ['dashboard', 'vendas', 'vendasCancelar', 'produtos', 'cadastros', 'compras', 'estoque', 'fornecedores', 'clientes', 'relatorios'],
+  admin: ['dashboard', 'vendas', 'vendasCancelar', 'inventarioConcluir', 'produtos', 'cadastros', 'compras', 'estoque', 'fornecedores', 'clientes', 'relatorios', 'usuarios', 'configuracoes'],
+  gerente: ['dashboard', 'vendas', 'vendasCancelar', 'inventarioConcluir', 'produtos', 'cadastros', 'compras', 'estoque', 'fornecedores', 'clientes', 'relatorios'],
   operador: ['dashboard', 'vendas', 'produtos', 'estoque', 'clientes']
 }
 

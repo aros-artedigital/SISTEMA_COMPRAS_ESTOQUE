@@ -323,6 +323,8 @@ async function substituirPeloServidor(cfg: ConfigSync, token: string): Promise<v
   const db = banco()
   aplicando(() => {
     // Apaga na ordem inversa das dependências.
+    db.prepare('DELETE FROM inventario_itens').run()
+    db.prepare('DELETE FROM inventarios').run()
     db.prepare('DELETE FROM compra_itens').run()
     db.prepare('DELETE FROM venda_itens').run()
     db.prepare('UPDATE movimentacoes SET venda_id = NULL').run()

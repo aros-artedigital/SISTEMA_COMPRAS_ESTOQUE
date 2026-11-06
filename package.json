@@ -1,6 +1,6 @@
 {
   "name": "gestor-estoque-compras",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "Sistema desktop de estoque e compras (Electron + React + TypeScript)",
   "main": "./out/main/index.js",
   "author": "arosartedigital",

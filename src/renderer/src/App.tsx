@@ -13,6 +13,7 @@ import Clientes from '@/pages/Clientes'
 import Usuarios from '@/pages/Usuarios'
 import Relatorios from '@/pages/Relatorios'
 import Vendas from '@/pages/Vendas'
+import Inventario from '@/pages/Inventario'
 import Configuracoes from '@/pages/Configuracoes'
 import Perfil from '@/pages/Perfil'
 
@@ -30,6 +31,7 @@ export default function App() {
               <Route path="produtos" element={<Protegido recurso="produtos"><Produtos /></Protegido>} />
               <Route path="categorias" element={<Protegido recurso="cadastros"><CategoriasUnidades /></Protegido>} />
               <Route path="estoque" element={<Protegido recurso="estoque"><Movimentacoes /></Protegido>} />
+              <Route path="inventario" element={<Protegido recurso="estoque"><Inventario /></Protegido>} />
               <Route path="compras" element={<Protegido recurso="compras"><Compras /></Protegido>} />
               <Route path="fornecedores" element={<Protegido recurso="fornecedores"><Fornecedores /></Protegido>} />
               <Route path="clientes" element={<Protegido recurso="clientes"><Clientes /></Protegido>} />

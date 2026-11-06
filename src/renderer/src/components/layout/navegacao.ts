@@ -1,5 +1,6 @@
 import {
   ArrowLeftRight,
+  ClipboardCheck,
   Boxes,
   FileBarChart,
   LayoutDashboard,
@@ -39,7 +40,8 @@ export const menu: GrupoMenu[] = [
     itens: [
       { caminho: '/produtos', titulo: 'Produtos', icone: Package, recurso: 'produtos' },
       { caminho: '/categorias', titulo: 'Categorias e Unidades', icone: Tags, recurso: 'cadastros' },
-      { caminho: '/estoque', titulo: 'Movimentações', icone: ArrowLeftRight, recurso: 'estoque' }
+      { caminho: '/estoque', titulo: 'Movimentações', icone: ArrowLeftRight, recurso: 'estoque' },
+      { caminho: '/inventario', titulo: 'Inventário', icone: ClipboardCheck, recurso: 'estoque' }
     ]
   },
   {
@@ -74,6 +76,7 @@ export const titulos: Record<string, string> = {
   '/produtos': 'Produtos',
   '/categorias': 'Categorias e Unidades',
   '/estoque': 'Movimentações de Estoque',
+  '/inventario': 'Inventário',
   '/compras': 'Compras',
   '/fornecedores': 'Fornecedores',
   '/clientes': 'Clientes',
