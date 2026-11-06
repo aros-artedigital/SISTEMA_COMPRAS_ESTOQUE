@@ -56,3 +56,7 @@ export const rotuloFormaPagamento: Record<FormaPagamento, string> = {
 
 export const rotuloStatusVenda: Record<StatusVenda, string> = { concluida: 'Concluída', cancelada: 'Cancelada' }
 export const corStatusVenda = { concluida: 'verde', cancelada: 'vermelho' } as const
+
+/** Compra com parte dos itens já recebida (continua com status "pedido"). */
+export const recebidaEmParte = (c: Compra): boolean => c.status === 'pedido' && c.itens.some((i) => (i.quantidadeRecebida ?? 0) > 0)
+export const faltaReceber = (i: Compra['itens'][number]): number => Math.max(0, i.quantidade - (i.quantidadeRecebida ?? 0))

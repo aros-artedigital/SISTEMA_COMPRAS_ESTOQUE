@@ -86,7 +86,9 @@ export interface Canais {
 
   'compras:salvar': Canal<[id: number | null, dados: Entrada<typeof compraEntradaSchema>], Compra>
   'compras:excluir': Canal<[id: number], void>
-  'compras:receber': Canal<[id: number], AlteracaoCusto[]>
+  /** Sem itens: recebe tudo o que falta. Com itens: recebe só essas quantidades (recebimento parcial). */
+  'compras:receber': Canal<[id: number, itens?: { produtoId: number; quantidade: number }[]], AlteracaoCusto[]>
+  'compras:encerrar': Canal<[id: number], void>
 
   'estoque:movimentar': Canal<[dados: Entrada<typeof movimentacaoSchema>], void>
 

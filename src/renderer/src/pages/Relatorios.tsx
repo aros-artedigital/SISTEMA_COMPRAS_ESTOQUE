@@ -7,7 +7,7 @@ import { BarraSaida } from '@/components/BarraSaida'
 import { Checkbox, Input, Select } from '@/components/ui'
 import { alinhadoADireita, formatar, type Relatorio, type Valor } from '@/lib/relatorio'
 import { relatorioExcel, relatorioImprimir, relatorioPdf } from '@/lib/saida'
-import { rotuloFormaPagamento, rotuloStatusCompra, rotuloTipoMov, situacaoEstoque, subtotalVenda, totalCompra, totalVenda } from '@shared/dominio'
+import { recebidaEmParte, rotuloFormaPagamento, rotuloStatusCompra, rotuloTipoMov, situacaoEstoque, subtotalVenda, totalCompra, totalVenda } from '@shared/dominio'
 import * as fmt from '@shared/format'
 import type { FormaPagamento, StatusCompra, TipoMovimentacao } from '@shared/tipos'
 
@@ -284,7 +284,7 @@ function RelatorioCompras() {
         { titulo: 'Itens', formato: 'numero', peso: 0.6 },
         { titulo: 'Total', formato: 'moeda', peso: 1.1 }
       ],
-      linhas: lista.map((c) => [c.numero, c.data, nomeF(c.fornecedorId), rotuloStatusCompra[c.status], c.itens.length, totalCompra(c)]),
+      linhas: lista.map((c) => [c.numero, c.data, nomeF(c.fornecedorId), recebidaEmParte(c) ? 'Recebida em parte' : rotuloStatusCompra[c.status], c.itens.length, totalCompra(c)]),
       totais: ['Total', null, null, null, null, total],
       resumo: [
         { rotulo: 'Compras', valor: fmt.numero(lista.length) },

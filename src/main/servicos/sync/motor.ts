@@ -154,7 +154,7 @@ async function enviar(cfg: ConfigSync, token: string): Promise<{ enviados: numbe
         const descricao = descrever(p.tabela, p.uuid, alteracoes[i].dados)
         if (p.tabela === 'movimentacoes' && /já foi (recebido|devolvido)/.test(r.motivo ?? '')) {
           // Dois terminais receberam a mesma compra (ou cancelaram a mesma venda): a entrada deste é desfeita.
-          desfazerMovimentacao(p.uuid)
+          desfazerMovimentacao(p.uuid, true)
           registrarConflito(p.tabela, p.uuid, descricao, `${r.motivo}. A entrada feita neste terminal foi desfeita.`)
         } else {
           registrarConflito(p.tabela, p.uuid, descricao, `${r.motivo ?? 'Recusado pelo servidor'}. Corrija e salve novamente para reenviar.`)

@@ -143,7 +143,10 @@ Regras garantidas pelo banco/main (não só pela tela):
 
 - Estoque só muda por movimentação e é sempre a soma delas; saída feita no terminal não deixa saldo negativo
   (depois de sincronizar vendas simultâneas de dois terminais, o saldo pode ficar negativo — e aparece como sem estoque).
-- Receber compra dá entrada de todos os itens de uma vez (transação). Só compras com status "Pedido enviado".
+- Receber compra dá entrada no estoque numa transação. Só compras com status "Pedido enviado". O recebimento pode
+  ser **parcial**: informa-se quanto chegou de cada item, a compra aparece como "Parcial" e continua pendente até
+  tudo chegar (vira "Recebida") ou ser **encerrada** sem o restante (o que faltou fica anotado na observação).
+  Entre terminais, a soma recebida de cada item não pode passar do pedido.
 - Compras recebidas não podem ser alteradas nem excluídas.
 - Ao receber uma compra, o preço de custo vira o **custo médio ponderado** (saldo × custo atual + quantidade ×
   preço pago, dividido pelo novo saldo; com saldo zerado, vale o preço pago). Em Configurações dá para trocar por

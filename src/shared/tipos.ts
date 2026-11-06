@@ -69,6 +69,8 @@ export interface ItemCompra {
   produtoId: number
   quantidade: number
   valorUnitario: number
+  /** Quanto já chegou (recebimento parcial). Ausente = 0. */
+  quantidadeRecebida?: number
 }
 
 export interface Compra {

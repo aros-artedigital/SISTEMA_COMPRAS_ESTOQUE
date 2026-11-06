@@ -87,7 +87,7 @@ export function montarDados(tabela: TabelaSync, uuid: string): Dados | null {
         status: r.status,
         observacao: r.observacao,
         recebidaEm: r.recebida_em,
-        itens: itens.map((i) => ({ produto: uuidDe('produtos', i.produto_id), quantidade: i.quantidade, valorUnitario: i.valor_unitario }))
+        itens: itens.map((i) => ({ produto: uuidDe('produtos', i.produto_id), quantidade: i.quantidade, valorUnitario: i.valor_unitario, quantidadeRecebida: i.quantidade_recebida }))
       }
     }
     case 'vendas': {
@@ -298,7 +298,13 @@ export function aplicarRemoto(tabela: TabelaSync, uuid: string, operacao: 'salva
     case 'compras': {
       const fornecedorId = idDe('fornecedores', d.fornecedor, 'O fornecedor da compra')
       const itens = (Array.isArray(d.itens) ? d.itens : []) as Dados[]
-      const resolvidos = itens.map((i) => ({ produtoId: idDe('produtos', i.produto, 'Um produto da compra'), quantidade: num(i.quantidade), valor: num(i.valorUnitario) }))
+      const resolvidos = itens.map((i) => ({
+        produtoId: idDe('produtos', i.produto, 'Um produto da compra'),
+        quantidade: num(i.quantidade),
+        valor: num(i.valorUnitario),
+        // Compras de versões antigas (sem o campo): recebida = tudo, senão nada.
+        recebida: i.quantidadeRecebida === undefined ? (d.status === 'recebida' ? num(i.quantidade) : 0) : num(i.quantidadeRecebida)
+      }))
       let id = 0
       const conflito = comUnicos(uuid, () => {
         id = upsert(tabela, uuid, {
@@ -311,8 +317,8 @@ export function aplicarRemoto(tabela: TabelaSync, uuid: string, operacao: 'salva
         })
       })
       db().prepare('DELETE FROM compra_itens WHERE compra_id = ?').run(id)
-      const ins = db().prepare('INSERT INTO compra_itens (compra_id, produto_id, quantidade, valor_unitario) VALUES (?, ?, ?, ?)')
-      for (const i of resolvidos) ins.run(id, i.produtoId, i.quantidade, i.valor)
+      const ins = db().prepare('INSERT INTO compra_itens (compra_id, produto_id, quantidade, valor_unitario, quantidade_recebida) VALUES (?, ?, ?, ?, ?)')
+      for (const i of resolvidos) ins.run(id, i.produtoId, i.quantidade, i.valor, i.recebida)
       return conflito
     }
     case 'vendas': {
@@ -360,11 +366,19 @@ export function aplicarRemoto(tabela: TabelaSync, uuid: string, operacao: 'salva
   }
 }
 
-/** Desfaz uma movimentação local que o servidor recusou (ex.: compra já recebida em outro terminal). */
-export function desfazerMovimentacao(uuid: string): void {
+/**
+ * Desfaz uma movimentação local que o servidor recusou (ex.: compra já recebida em outro terminal).
+ * Se for entrada de compra, também tira a quantidade do "já recebido" do item.
+ */
+export function desfazerMovimentacao(uuid: string, ajustarCompra = false): void {
   const m = linhaPorUuid('movimentacoes', uuid)
   if (!m) return
   const delta = m.tipo === 'saida' ? -(m.quantidade as number) : (m.quantidade as number)
   db().prepare('UPDATE produtos SET estoque = estoque - ? WHERE id = ?').run(delta, m.produto_id)
+  if (ajustarCompra && m.compra_id && m.tipo === 'entrada') {
+    db()
+      .prepare('UPDATE compra_itens SET quantidade_recebida = MAX(0, quantidade_recebida - ?) WHERE compra_id = ? AND produto_id = ?')
+      .run(m.quantidade, m.compra_id, m.produto_id)
+  }
   db().prepare('DELETE FROM movimentacoes WHERE id = ?').run(m.id)
 }

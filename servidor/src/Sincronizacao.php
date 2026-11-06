@@ -101,6 +101,16 @@ final class Sincronizacao
             }
         }
 
+        // Entrada de compra: a soma recebida de cada item (todos os terminais) não pode passar do pedido.
+        $recebimento = $tabela === 'movimentacoes' && !empty($dados['compra']) && $dados['tipo'] === 'entrada';
+        if ($recebimento) {
+            $ja = (int) ($this->consultarUm('SELECT quantidade FROM recebimentos WHERE compra = ? AND produto = ?', [$dados['compra'], $dados['produto']]) ?? 0);
+            $pedido = $this->quantidadePedida((string) $dados['compra'], (string) $dados['produto']);
+            if ($pedido !== null && $ja + (int) $dados['quantidade'] > $pedido) {
+                return ['rejeitado', 'Este item da compra já foi recebido em outro terminal'];
+            }
+        }
+
         $json = $operacao === 'salvar' ? json_encode($dados, JSON_UNESCAPED_UNICODE) : null;
         $agora = gmdate('Y-m-d H:i:s');
         $this->executar(
@@ -120,6 +130,14 @@ final class Sincronizacao
                 'INSERT INTO registros (tabela, uuid, dados, alterado_em, excluido, dispositivo_id, seq) VALUES (?, ?, ?, ?, ?, ?, ?)',
                 [$tabela, $uuid, $json, $alteradoEm, $excluido, $this->dispositivoId, $seq]
             );
+        }
+
+        if ($recebimento) {
+            $atualizou = $this->pdo->prepare('UPDATE recebimentos SET quantidade = quantidade + ? WHERE compra = ? AND produto = ?');
+            $atualizou->execute([(int) $dados['quantidade'], $dados['compra'], $dados['produto']]);
+            if ($atualizou->rowCount() === 0) {
+                $this->executar('INSERT INTO recebimentos (compra, produto, quantidade) VALUES (?, ?, ?)', [$dados['compra'], $dados['produto'], (int) $dados['quantidade']]);
+            }
         }
 
         $this->executar('DELETE FROM chaves_unicas WHERE tabela = ? AND uuid = ?', [$tabela, $uuid]);
@@ -150,6 +168,17 @@ final class Sincronizacao
         }
         $ultimo = $linhas ? (int) end($linhas)['seq'] : $desde;
         return ['alteracoes' => $alteracoes, 'ultimoSeq' => $ultimo, 'temMais' => count($linhas) === $limite];
+    }
+
+    /** Quantidade pedida do produto na compra, ou null se a compra ainda não chegou ao servidor. */
+    private function quantidadePedida(string $compra, string $produto): ?int
+    {
+        $c = $this->buscar('compras', $compra);
+        if (!$c || $c['excluido']) return null;
+        foreach (json_decode($c['dados'], true)['itens'] ?? [] as $item) {
+            if (($item['produto'] ?? null) === $produto) return (int) $item['quantidade'];
+        }
+        return null;
     }
 
     private function buscar(string $tabela, string $uuid): ?array

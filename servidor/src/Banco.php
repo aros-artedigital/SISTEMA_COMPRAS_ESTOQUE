@@ -85,6 +85,12 @@ final class Banco
                     PRIMARY KEY (tabela, campo, valor)
                 );
                 CREATE INDEX IF NOT EXISTS idx_chaves_uuid ON chaves_unicas (tabela, uuid);
+                CREATE TABLE IF NOT EXISTS recebimentos (
+                    compra TEXT NOT NULL,
+                    produto TEXT NOT NULL,
+                    quantidade INTEGER NOT NULL,
+                    PRIMARY KEY (compra, produto)
+                );
                 SQL);
             return;
         }
@@ -126,6 +132,13 @@ final class Banco
             uuid CHAR(36) NOT NULL,
             PRIMARY KEY (tabela, campo, valor),
             INDEX idx_chaves_uuid (tabela, uuid)
+        ) $opcoes");
+        // Quanto já entrou de cada item de compra, somando todos os terminais (recebimento parcial).
+        $pdo->exec("CREATE TABLE IF NOT EXISTS recebimentos (
+            compra CHAR(36) NOT NULL,
+            produto CHAR(36) NOT NULL,
+            quantidade INT NOT NULL,
+            PRIMARY KEY (compra, produto)
         ) $opcoes");
     }
 }

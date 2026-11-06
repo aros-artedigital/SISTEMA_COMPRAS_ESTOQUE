@@ -209,6 +209,31 @@ try {
   r = await A.ipc('sistema:zerarDados', { manterUsuarios: true, restaurarEmpresa: false, confirmacao: 'ZERAR' })
   verificar(!r.ok && /Desconecte/.test(r.erro.mensagem), 'terminal conectado ao servidor não pode ser zerado')
 
+  // ---------- Entregas parciais em terminais diferentes ----------
+  console.log('Recebimento parcial')
+  dA = await A.dados()
+  const papel = (d) => porCodigo(d, 'P0008')
+  const papelAntes = papel(dA).estoque
+  const pedido = await A.ok('compras:salvar', null, {
+    fornecedorId: dA.fornecedores.find((f) => f.ativo).id, data: '2026-11-06', observacao: '', status: 'pedido',
+    itens: [{ produtoId: papel(dA).id, quantidade: 10, valorUnitario: 22 }]
+  })
+  await A.ok('compras:receber', pedido.id, [{ produtoId: papel(dA).id, quantidade: 4 }])
+  await A.sync()
+  await B.sync()
+  dB = await B.dados()
+  const pedidoB = dB.compras.find((c) => c.numero === pedido.numero)
+  verificar(pedidoB.itens[0].quantidadeRecebida === 4 && papel(dB).estoque === papelAntes + 4, 'entrega parcial feita em A aparece em B (4 de 10)')
+  await B.ok('compras:receber', pedidoB.id) // o restante chega em B
+  await B.sync()
+  await A.sync()
+  dA = await A.dados()
+  dB = await B.dados()
+  verificar(
+    dA.compras.find((c) => c.id === pedido.id).status === 'recebida' && papel(dA).estoque === papelAntes + 10 && papel(dB).estoque === papelAntes + 10,
+    'B recebe o restante: compra completa nos dois terminais e estoque +10 nos dois'
+  )
+
   // ---------- Vendas entre terminais ----------
   console.log('Vendas')
   dA = await A.dados()

@@ -72,6 +72,19 @@ try {
   r = await enviar(b.token, [{ tabela: 'movimentacoes', uuid: '77777777-7777-4777-8777-777777777777', operacao: 'excluir', alteradoEm: '2026-11-04T13:00:00.000Z' }])
   verificar(r[0].status === 'rejeitado', 'movimentação não pode ser excluída')
 
+  // Recebimento parcial: entregas somadas entre terminais até o pedido
+  const compra2 = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+  const entrada = (uuid, qtd, em) => ({ tabela: 'movimentacoes', uuid, operacao: 'salvar', alteradoEm: em, dados: { data: '2026-11-06T10:00:00', produto: p1, tipo: 'entrada', quantidade: qtd, motivo: 'Compra', usuario: usu, compra: compra2 } })
+  r = await enviar(a.token, [
+    { tabela: 'compras', uuid: compra2, operacao: 'salvar', alteradoEm: '2026-11-06T09:00:00.000Z', dados: { numero: 'C-A0002', fornecedor: forn, data: '2026-11-06', status: 'pedido', observacao: '', itens: [{ produto: p1, quantidade: 10, valorUnitario: 1 }] } },
+    entrada('dddddddd-dddd-4ddd-8ddd-dddddddddddd', 4, '2026-11-06T10:00:00.000Z')
+  ])
+  verificar(r.every((x) => x.status === 'aceito'), 'A recebe 4 de 10')
+  r = await enviar(b.token, [entrada('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 6, '2026-11-06T11:00:00.000Z')])
+  verificar(r[0].status === 'aceito', 'B recebe os outros 6 (entregas parciais em terminais diferentes)')
+  r = await enviar(b.token, [entrada('ffffffff-ffff-4fff-8fff-ffffffffffff', 1, '2026-11-06T12:00:00.000Z')])
+  verificar(r[0].status === 'rejeitado', 'receber além do pedido (11 de 10) é recusado')
+
   // Vendas: cancelada não volta, e cada item só retorna ao estoque uma vez
   const venda = '99999999-9999-4999-8999-999999999999'
   const dadosVenda = (status) => ({ numero: 'V-A0001', cliente: null, data: '2026-11-05T10:00:00', status, formaPagamento: 'pix', desconto: 0, observacao: '', usuario: usu, itens: [{ produto: p1, quantidade: 2, valorUnitario: 5 }] })
@@ -94,12 +107,12 @@ try {
   // Recebimento: cada terminal recebe só o que os outros fizeram
   const rb = (await req('GET', '/sync/receber?desde=0', null, b.token)).corpo
   const ra = (await req('GET', '/sync/receber?desde=0', null, a.token)).corpo
-  verificar(rb.alteracoes.length === 8 && rb.alteracoes.every((x) => x.uuid !== p2), `B recebe as 8 alterações de A (${rb.alteracoes.length})`)
-  verificar(ra.alteracoes.length === 1 && ra.alteracoes[0].dados.nome === 'Mouse Novo', 'A recebe só a edição de B')
+  verificar(rb.alteracoes.length === 10 && rb.alteracoes.every((x) => x.uuid !== p2), `B recebe as 10 alterações de A (${rb.alteracoes.length})`)
+  verificar(ra.alteracoes.length === 2 && ra.alteracoes[0].dados.nome === 'Mouse Novo', 'A recebe só o que B fez (edição e entrega parcial)')
   const rb2 = (await req('GET', `/sync/receber?desde=${rb.ultimoSeq}`, null, b.token)).corpo
   verificar(rb2.alteracoes.length === 0 && !rb2.temMais, 'cursor avança: nada novo na segunda leitura')
   const st = (await req('GET', '/status', null, a.token)).corpo
-  verificar(st.terminal?.codigo === 'A' && st.registros === 5, `status autenticado mostra terminal e registros (${st.registros})`)
+  verificar(st.terminal?.codigo === 'A' && st.registros === 8, `status autenticado mostra terminal e registros (${st.registros})`)
 } catch (e) {
   falhas++
   console.error('  ✗ erro:', e.message, srv.log())

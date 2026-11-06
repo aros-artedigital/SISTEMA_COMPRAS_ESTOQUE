@@ -164,6 +164,54 @@ try {
   await comprarERecebe(10, 1, 120) // webcam: estoque zerado
   verificar((await custoDe(10)) === 120, 'com estoque zerado, o custo médio é o próprio preço pago')
 
+  // ---------- Recebimento parcial ----------
+  console.log('Recebimento parcial')
+  dados = (await ipc(page, 'dados:carregar')).dados
+  const fone = (d) => d.produtos.find((p) => p.codigo === 'P0008') // papel A4
+  const pen = (d) => d.produtos.find((p) => p.codigo === 'P0005')
+  const papelAntesP = fone(dados).estoque
+  const penAntesP = pen(dados).estoque
+  const parcial = (await ipc(page, 'compras:salvar', null, {
+    fornecedorId: 3, data: '2026-11-06', observacao: '', status: 'pedido',
+    itens: [{ produtoId: fone(dados).id, quantidade: 10, valorUnitario: 22 }, { produtoId: pen(dados).id, quantidade: 4, valorUnitario: 24 }]
+  })).dados
+  // A compra foi criada por fora da tela: recarrega e entra de novo para a lista mostrá-la.
+  await page.reload()
+  await page.waitForSelector('input[placeholder="seu.login"]')
+  await entrar(page, 'admin', 'admin123')
+  await page.getByText('Olá, Administrador').waitFor()
+  await page.getByRole('link', { name: 'Compras', exact: true }).click()
+  await page.getByRole('row', { name: new RegExp(parcial.numero) }).getByRole('button', { name: 'Receber' }).click()
+  await page.getByLabel(`Quantidade recebida agora de ${fone(dados).nome}`).fill('6')
+  await page.getByLabel(`Quantidade recebida agora de ${pen(dados).nome}`).fill('0')
+  await foto(page, '10-receber-parcial')
+  await page.getByRole('button', { name: /Receber 6 un\. \(parcial\)/ }).click()
+  await page.getByText(`Compra ${parcial.numero} recebida em parte`).waitFor()
+  dados = (await ipc(page, 'dados:carregar')).dados
+  let cp = dados.compras.find((c) => c.id === parcial.id)
+  verificar(cp.status === 'pedido' && fone(dados).estoque === papelAntesP + 6 && pen(dados).estoque === penAntesP, 'entrega parcial pela tela: entra só o que chegou (6 de 10)')
+  verificar(cp.itens.find((i) => i.produtoId === fone(dados).id).quantidadeRecebida === 6, 'compra guarda quanto já foi recebido de cada item')
+  await page.getByRole('row', { name: new RegExp(parcial.numero) }).getByText('Parcial').waitFor()
+  verificar(true, 'lista mostra a compra como "Parcial"')
+  r = await ipc(page, 'compras:receber', parcial.id, [{ produtoId: fone(dados).id, quantidade: 5 }])
+  verificar(!r.ok && r.erro.mensagem.includes('só faltam 4'), 'não deixa receber mais do que falta')
+  r = await ipc(page, 'compras:salvar', parcial.id, { fornecedorId: 3, data: '2026-11-06', observacao: '', status: 'pedido', itens: [{ produtoId: fone(dados).id, quantidade: 99, valorUnitario: 22 }] })
+  verificar(!r.ok && r.erro.mensagem.includes('em parte'), 'compra recebida em parte não pode mais ser editada')
+  r = await ipc(page, 'compras:excluir', parcial.id)
+  verificar(!r.ok, 'compra recebida em parte não pode ser excluída')
+  r = await ipc(page, 'compras:receber', parcial.id) // sem itens: recebe tudo o que falta
+  dados = (await ipc(page, 'dados:carregar')).dados
+  cp = dados.compras.find((c) => c.id === parcial.id)
+  verificar(r.ok && cp.status === 'recebida' && fone(dados).estoque === papelAntesP + 10 && pen(dados).estoque === penAntesP + 4, 'segunda entrega completa a compra, que vira "Recebida"')
+  const outra = (await ipc(page, 'compras:salvar', null, { fornecedorId: 3, data: '2026-11-06', observacao: 'Pedido urgente', status: 'pedido', itens: [{ produtoId: fone(dados).id, quantidade: 8, valorUnitario: 22 }] })).dados
+  r = await ipc(page, 'compras:encerrar', outra.id)
+  verificar(!r.ok, 'compra sem nada recebido não é encerrada (deve ser cancelada)')
+  await ipc(page, 'compras:receber', outra.id, [{ produtoId: fone(dados).id, quantidade: 3 }])
+  r = await ipc(page, 'compras:encerrar', outra.id)
+  dados = (await ipc(page, 'dados:carregar')).dados
+  cp = dados.compras.find((c) => c.id === outra.id)
+  verificar(r.ok && cp.status === 'recebida' && cp.observacao.includes('Encerrada sem receber: 5') && fone(dados).estoque === papelAntesP + 13, 'encerrar sem o restante: fica recebida, anota o que faltou e não mexe no estoque')
+
   // ---------- Vendas ----------
   console.log('Vendas')
   await page.reload()
@@ -412,6 +460,7 @@ try {
   verificar(dados.compras.find((c) => c.id === 6)?.status === 'recebida', 'compra recebida continua recebida')
   verificar(dados.produtos.length === 12, 'seed não roda de novo em banco existente')
   await page.getByRole('link', { name: 'Movimentações' }).click()
+  await page.getByPlaceholder('Produto, código ou motivo...').fill('C-0006')
   await page.getByText('Compra C-0006').first().waitFor()
   await foto(page, '3-movimentacoes')
 

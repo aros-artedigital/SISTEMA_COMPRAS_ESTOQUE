@@ -80,7 +80,8 @@ export const compra = (r: Linha, itens: ItemCompra[]): Compra => ({
 export const itemCompra = (r: Linha): ItemCompra => ({
   produtoId: r.produto_id,
   quantidade: r.quantidade,
-  valorUnitario: r.valor_unitario
+  valorUnitario: r.valor_unitario,
+  quantidadeRecebida: r.quantidade_recebida ?? 0
 })
 
 export const movimentacao = (r: Linha): Movimentacao => ({

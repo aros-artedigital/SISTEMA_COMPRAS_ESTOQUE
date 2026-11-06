@@ -50,6 +50,9 @@ export function salvar(id: number | null, d: DadosCompra): Compra {
     } else {
       const atual = buscar(id)
       if (atual.status === 'recebida') throw new ErroNegocio('Compra recebida não pode ser alterada.')
+      if (atual.itens.some((i) => (i.quantidadeRecebida ?? 0) > 0)) {
+        throw new ErroNegocio('Esta compra já foi recebida em parte e não pode mais ser alterada. Receba o restante ou encerre a compra.')
+      }
       if (atual.status === 'cancelada' && d.status !== 'cancelada') throw new ErroNegocio('Compra cancelada não pode ser reaberta.', 'status')
       db.prepare(
         `UPDATE compras SET fornecedor_id = ?, data = ?, status = ?, observacao = ?, atualizado_em = datetime('now', 'localtime') WHERE id = ?`
@@ -76,8 +79,12 @@ export function novoCusto(modo: Configuracoes['custoAoReceber'], saldo: number, 
   return map.dinheiro((saldo * custoAtual + quantidade * valorPago) / (saldo + quantidade))
 }
 
-/** Recebe a compra: muda o status, atualiza o custo e dá entrada de todos os itens, tudo ou nada. */
-export function receber(id: number, usuarioId: number): AlteracaoCusto[] {
+/**
+ * Recebe a compra, inteira ou em parte. `itens` diz quanto chegou de cada produto agora;
+ * sem `itens`, recebe tudo o que falta. Atualiza o custo, dá entrada no estoque e, quando
+ * tudo chegou, marca a compra como recebida. Tudo ou nada.
+ */
+export function receber(id: number, usuarioId: number, itens?: { produtoId: number; quantidade: number }[]): AlteracaoCusto[] {
   const db = banco()
   const { custoAoReceber } = lerConfiguracoes()
   return db.transaction(() => {
@@ -91,10 +98,24 @@ export function receber(id: number, usuarioId: number): AlteracaoCusto[] {
     if (bloqueios[compra.status]) throw new ErroNegocio(bloqueios[compra.status]!)
     if (compra.itens.length === 0) throw new ErroNegocio('A compra não possui itens.')
 
+    const chegando = new Map((itens ?? compra.itens.map((i) => ({ produtoId: i.produtoId, quantidade: i.quantidade - (i.quantidadeRecebida ?? 0) }))).map((i) => [i.produtoId, i.quantidade]))
+    for (const [produtoId, qtd] of chegando) {
+      const item = compra.itens.find((i) => i.produtoId === produtoId)
+      if (!item) throw new ErroNegocio('Produto não faz parte desta compra.', 'itens')
+      const falta = item.quantidade - (item.quantidadeRecebida ?? 0)
+      if (qtd > falta) {
+        const nome = (db.prepare('SELECT nome FROM produtos WHERE id = ?').get(produtoId) as { nome: string }).nome
+        throw new ErroNegocio(`"${nome}": só faltam ${falta} para receber.`, 'itens')
+      }
+    }
+    if (![...chegando.values()].some((q) => q > 0)) throw new ErroNegocio('Informe a quantidade recebida de pelo menos um item.', 'itens')
+
     for (const item of compra.itens) {
+      const quantidade = chegando.get(item.produtoId) ?? 0
+      if (quantidade <= 0) continue
       // O custo é calculado com o saldo de antes da entrada.
       const p = db.prepare('SELECT nome, estoque, preco_custo FROM produtos WHERE id = ?').get(item.produtoId) as { nome: string; estoque: number; preco_custo: number }
-      const custo = novoCusto(custoAoReceber, p.estoque, p.preco_custo, item.quantidade, item.valorUnitario)
+      const custo = novoCusto(custoAoReceber, p.estoque, p.preco_custo, quantidade, item.valorUnitario)
       if (custo !== p.preco_custo) {
         db.prepare(`UPDATE produtos SET preco_custo = ?, atualizado_em = datetime('now', 'localtime') WHERE id = ?`).run(custo, item.produtoId)
         alteracoes.push({ produtoId: item.produtoId, produto: p.nome, de: p.preco_custo, para: custo })
@@ -102,23 +123,50 @@ export function receber(id: number, usuarioId: number): AlteracaoCusto[] {
       lancarMovimentacao({
         produtoId: item.produtoId,
         tipo: 'entrada',
-        quantidade: item.quantidade,
+        quantidade,
         motivo: `Compra ${compra.numero}`,
         usuarioId,
         compraId: compra.id
       })
+      db.prepare('UPDATE compra_itens SET quantidade_recebida = quantidade_recebida + ? WHERE compra_id = ? AND produto_id = ?').run(quantidade, id, item.produtoId)
     }
-    db.prepare(
-      `UPDATE compras SET status = 'recebida', recebida_em = ?, atualizado_em = datetime('now', 'localtime') WHERE id = ?`
-    ).run(map.agoraIso(), id)
+    const completa = buscar(id).itens.every((i) => (i.quantidadeRecebida ?? 0) >= i.quantidade)
+    if (completa) {
+      db.prepare(`UPDATE compras SET status = 'recebida', recebida_em = ?, atualizado_em = datetime('now', 'localtime') WHERE id = ?`).run(map.agoraIso(), id)
+    } else {
+      db.prepare(`UPDATE compras SET atualizado_em = datetime('now', 'localtime') WHERE id = ?`).run(id)
+    }
     return alteracoes
+  })()
+}
+
+/**
+ * Encerra uma compra recebida em parte quando o restante não vai chegar:
+ * fica como recebida, com o que faltou anotado na observação. Nada entra no estoque.
+ */
+export function encerrar(id: number): void {
+  const db = banco()
+  db.transaction(() => {
+    const compra = buscar(id)
+    if (compra.status !== 'pedido' || !compra.itens.some((i) => (i.quantidadeRecebida ?? 0) > 0)) {
+      throw new ErroNegocio('Só uma compra recebida em parte pode ser encerrada. Para desistir de um pedido sem nada recebido, cancele-o.')
+    }
+    const faltas = compra.itens.filter((i) => (i.quantidadeRecebida ?? 0) < i.quantidade)
+    const nomes = faltas.map((i) => {
+      const nome = (db.prepare('SELECT nome FROM produtos WHERE id = ?').get(i.produtoId) as { nome: string }).nome
+      return `${i.quantidade - (i.quantidadeRecebida ?? 0)} ${nome}`
+    })
+    const nota = `Encerrada sem receber: ${nomes.join(', ')}.`
+    db.prepare(
+      `UPDATE compras SET status = 'recebida', recebida_em = ?, observacao = TRIM(observacao || ' ' || ?), atualizado_em = datetime('now', 'localtime') WHERE id = ?`
+    ).run(map.agoraIso(), nota, id)
   })()
 }
 
 export function excluir(id: number): void {
   const compra = buscar(id)
-  if (compra.status === 'recebida') {
-    throw new ErroNegocio('Compras recebidas não podem ser excluídas, pois já geraram movimentação de estoque.')
+  if (compra.status === 'recebida' || compra.itens.some((i) => (i.quantidadeRecebida ?? 0) > 0)) {
+    throw new ErroNegocio('Compras recebidas (mesmo em parte) não podem ser excluídas, pois já geraram movimentação de estoque.')
   }
   banco().prepare('DELETE FROM compras WHERE id = ?').run(id) // itens saem por ON DELETE CASCADE
 }

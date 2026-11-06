@@ -140,7 +140,18 @@ export function registrarCanais(): void {
   const comp = crud('compras', compras.salvar, compras.excluir, s.compraEntradaSchema)
   canal('compras:salvar', comp.salvar as Handler<'compras:salvar'>)
   canal('compras:excluir', comp.excluir)
-  canal('compras:receber', (i) => compras.receber(id(i), exigir('compras').id))
+  canal('compras:receber', (i, itens) => {
+    const u = exigir('compras')
+    const lista = z
+      .array(z.object({ produtoId: s.idSchema, quantidade: z.number().int('Use números inteiros').min(0, 'Não pode ser negativo') }))
+      .optional()
+      .parse(itens)
+    return compras.receber(id(i), u.id, lista)
+  })
+  canal('compras:encerrar', (i) => {
+    exigir('compras')
+    compras.encerrar(id(i))
+  })
 
   canal('vendas:registrar', (d) => vendas.registrar(s.vendaSchema.parse(d), exigir('vendas').id))
   canal('vendas:cancelar', (i, motivo) => vendas.cancelar(id(i), s.cancelamentoSchema.parse(motivo), exigir('vendasCancelar').id))
