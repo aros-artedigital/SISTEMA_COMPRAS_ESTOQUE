@@ -47,7 +47,7 @@ export function SecaoZerar() {
       <CardHeader titulo="Zerar dados" />
       <div className="flex flex-wrap items-center gap-4 p-5 text-sm text-slate-600">
         <p className="min-w-0 flex-1">
-          Apaga <strong className="text-slate-800">produtos, estoque, movimentações, compras, categorias, fornecedores e clientes</strong> para começar a
+          Apaga <strong className="text-slate-800">produtos, estoque, movimentações, vendas, compras, categorias, fornecedores e clientes</strong> para começar a
           usar o sistema com os seus próprios dados. As unidades de medida são mantidas. Um backup é feito antes, na pasta de backups.
         </p>
         <Button variante="perigo" icone={<Trash2 size={16} />} disabled={conectado} onClick={() => setAberto(true)}>
@@ -73,7 +73,7 @@ export function SecaoZerar() {
         <div className="space-y-4 text-sm">
           <p className="flex gap-2 rounded-lg bg-red-50 px-3 py-2.5 text-red-800">
             <AlertTriangle size={18} className="mt-0.5 shrink-0" />
-            Todos os produtos, o estoque, as compras e os cadastros serão apagados. Só será possível voltar restaurando o backup feito agora.
+            Todos os produtos, o estoque, as vendas, as compras e os cadastros serão apagados. Só será possível voltar restaurando o backup feito agora.
           </p>
           <div className="space-y-2">
             <Checkbox label="Manter os outros usuários (senão, fica só você)" checked={manterUsuarios} onChange={setManterUsuarios} />

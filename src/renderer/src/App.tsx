@@ -12,6 +12,7 @@ import Fornecedores from '@/pages/Fornecedores'
 import Clientes from '@/pages/Clientes'
 import Usuarios from '@/pages/Usuarios'
 import Relatorios from '@/pages/Relatorios'
+import Vendas from '@/pages/Vendas'
 import Configuracoes from '@/pages/Configuracoes'
 import Perfil from '@/pages/Perfil'
 
@@ -25,6 +26,7 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route element={<AppLayout />}>
               <Route index element={<Dashboard />} />
+              <Route path="vendas" element={<Protegido recurso="vendas"><Vendas /></Protegido>} />
               <Route path="produtos" element={<Protegido recurso="produtos"><Produtos /></Protegido>} />
               <Route path="categorias" element={<Protegido recurso="cadastros"><CategoriasUnidades /></Protegido>} />
               <Route path="estoque" element={<Protegido recurso="estoque"><Movimentacoes /></Protegido>} />

@@ -7,7 +7,9 @@ import type {
   Movimentacao,
   Produto,
   Unidade,
-  Usuario
+  Usuario,
+  Venda,
+  ItemVenda
 } from '@shared/tipos'
 
 // Conversão das linhas do SQLite (snake_case, 0/1) para os modelos do domínio.
@@ -90,8 +92,26 @@ export const movimentacao = (r: Linha): Movimentacao => ({
   saldoApos: r.saldo_apos,
   motivo: r.motivo,
   usuarioId: r.usuario_id,
-  ...(r.compra_id ? { compraId: r.compra_id } : {})
+  ...(r.compra_id ? { compraId: r.compra_id } : {}),
+  ...(r.venda_id ? { vendaId: r.venda_id } : {})
 })
+
+export const venda = (r: Linha, itens: ItemVenda[]): Venda => ({
+  id: r.id,
+  numero: r.numero,
+  clienteId: r.cliente_id ?? null,
+  data: r.data,
+  status: r.status,
+  formaPagamento: r.forma_pagamento,
+  desconto: r.desconto,
+  observacao: r.observacao,
+  usuarioId: r.usuario_id,
+  canceladaEm: r.cancelada_em ?? null,
+  motivoCancelamento: r.motivo_cancelamento,
+  itens
+})
+
+export const itemVenda = (r: Linha): ItemVenda => ({ produtoId: r.produto_id, quantidade: r.quantidade, valorUnitario: r.valor_unitario })
 
 export const bool = (v: boolean): number => (v ? 1 : 0)
 

@@ -16,6 +16,7 @@ import * as estoque from './servicos/estoque'
 import * as produtos from './servicos/produtos'
 import { exigir, usuarioLogado } from './servicos/sessao'
 import * as usuarios from './servicos/usuarios'
+import * as vendas from './servicos/vendas'
 import * as sync from './servicos/sync/motor'
 import * as atualizacao from './atualizacao'
 import * as recuperacao from './servicos/recuperacao'
@@ -138,6 +139,9 @@ export function registrarCanais(): void {
   canal('compras:salvar', comp.salvar as Handler<'compras:salvar'>)
   canal('compras:excluir', comp.excluir)
   canal('compras:receber', (i) => compras.receber(id(i), exigir('compras').id))
+
+  canal('vendas:registrar', (d) => vendas.registrar(s.vendaSchema.parse(d), exigir('vendas').id))
+  canal('vendas:cancelar', (i, motivo) => vendas.cancelar(id(i), s.cancelamentoSchema.parse(motivo), exigir('vendasCancelar').id))
 
   canal('estoque:movimentar', (d) => {
     const u = exigir('estoque')

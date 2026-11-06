@@ -18,6 +18,8 @@ const corPerfil = { admin: 'roxo', gerente: 'azul', operador: 'cinza' } as const
 
 const recursos: { recurso: Recurso; nome: string }[] = [
   { recurso: 'dashboard', nome: 'Início' },
+  { recurso: 'vendas', nome: 'Vendas' },
+  { recurso: 'vendasCancelar', nome: 'Cancelar vendas' },
   { recurso: 'produtos', nome: 'Produtos' },
   { recurso: 'cadastros', nome: 'Categorias e Unidades' },
   { recurso: 'estoque', nome: 'Movimentações' },

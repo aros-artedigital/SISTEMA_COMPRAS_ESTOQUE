@@ -58,7 +58,8 @@ export function excluir(id: number): void {
   if (!p) throw new ErroNegocio('Produto não encontrado.')
   const emUso =
     db.prepare('SELECT 1 FROM movimentacoes WHERE produto_id = ? LIMIT 1').get(id) ||
-    db.prepare('SELECT 1 FROM compra_itens WHERE produto_id = ? LIMIT 1').get(id)
-  if (emUso) throw new ErroNegocio(`"${p.nome}" possui histórico de compras ou movimentações. Inative o produto em vez de excluir.`)
+    db.prepare('SELECT 1 FROM compra_itens WHERE produto_id = ? LIMIT 1').get(id) ||
+    db.prepare('SELECT 1 FROM venda_itens WHERE produto_id = ? LIMIT 1').get(id)
+  if (emUso) throw new ErroNegocio(`"${p.nome}" possui histórico de compras, vendas ou movimentações. Inative o produto em vez de excluir.`)
   db.prepare('DELETE FROM produtos WHERE id = ?').run(id)
 }

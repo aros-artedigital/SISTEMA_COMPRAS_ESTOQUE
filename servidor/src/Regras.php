@@ -15,6 +15,7 @@ final class Regras
         'fornecedores' => ['razaoSocial', 'cnpj'],
         'clientes' => ['nome', 'tipo', 'documento'],
         'compras' => ['numero', 'fornecedor', 'data', 'status', 'itens'],
+        'vendas' => ['numero', 'data', 'status', 'formaPagamento', 'usuario', 'itens'],
         'movimentacoes' => ['data', 'produto', 'tipo', 'quantidade', 'usuario'],
         'configuracoes' => ['nomeEmpresa'],
         'recuperacao' => ['codigoHash'],
@@ -39,6 +40,9 @@ final class Regras
         if ($tabela === 'compras' && !in_array($dados['status'], ['rascunho', 'pedido', 'recebida', 'cancelada'], true)) {
             return 'Status de compra inválido';
         }
+        if ($tabela === 'vendas' && !in_array($dados['status'], ['concluida', 'cancelada'], true)) {
+            return 'Status de venda inválido';
+        }
         return null;
     }
 
@@ -59,7 +63,13 @@ final class Regras
             'clientes' => ['documento' => $digitos($d['documento'])],
             'compras' => ['numero' => $minusculo($d['numero'])],
             // Cada item de compra só pode ser recebido uma vez, mesmo que dois terminais recebam a compra sem internet.
-            'movimentacoes' => !empty($d['compra']) && $d['tipo'] === 'entrada' ? ['recebimento' => $d['compra'] . '|' . $d['produto']] : [],
+            'vendas' => ['numero' => $minusculo($d['numero'])],
+            // Item de venda cancelada só volta ao estoque uma vez, mesmo cancelando em dois terminais sem internet.
+            'movimentacoes' => match (true) {
+                !empty($d['compra']) && $d['tipo'] === 'entrada' => ['recebimento' => $d['compra'] . '|' . $d['produto']],
+                !empty($d['venda']) && $d['tipo'] === 'entrada' => ['devolucao' => $d['venda'] . '|' . $d['produto']],
+                default => [],
+            },
             default => [],
         };
         return array_filter($chaves, fn ($v) => $v !== '');
@@ -75,5 +85,6 @@ final class Regras
         'documento' => 'CPF/CNPJ',
         'numero' => 'Número da compra',
         'recebimento' => 'Recebimento',
+        'devolucao' => 'Devolução',
     ];
 }

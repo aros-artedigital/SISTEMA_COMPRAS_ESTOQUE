@@ -135,3 +135,29 @@ export const trocaSenhaSchema = z.object({
   atual: z.string().min(1, 'Senha atual é obrigatória'),
   nova: z.string().min(6, 'Mínimo de 6 caracteres')
 })
+
+// ---------- Vendas ----------
+
+export const itemVendaSchema = z.object({
+  produtoId: idSchema,
+  quantidade: z.number().int('Quantidades devem ser inteiras').positive('Quantidade deve ser maior que zero'),
+  valorUnitario: z.number().min(0, 'Preço não pode ser negativo')
+})
+
+export const vendaSchema = z
+  .object({
+    clienteId: idSchema.nullable(),
+    formaPagamento: z.enum(['dinheiro', 'pix', 'debito', 'credito', 'boleto', 'outro']),
+    desconto: z.number().min(0, 'Desconto não pode ser negativo'),
+    observacao: z.string().trim().max(500),
+    itens: z
+      .array(itemVendaSchema)
+      .min(1, 'Adicione ao menos um produto')
+      .refine((itens) => new Set(itens.map((i) => i.produtoId)).size === itens.length, 'O mesmo produto aparece em mais de uma linha')
+  })
+  .refine((v) => v.desconto <= v.itens.reduce((s, i) => s + i.quantidade * i.valorUnitario, 0), {
+    path: ['desconto'],
+    message: 'Desconto maior que o total da venda'
+  })
+
+export const cancelamentoSchema = z.string().trim().min(3, 'Informe o motivo do cancelamento').max(300)

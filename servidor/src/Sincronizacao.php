@@ -73,6 +73,12 @@ final class Sincronizacao
             if (strcmp($atual['alterado_em'], $alteradoEm) > 0) {
                 return ['ignorado', 'O servidor tem uma versão mais recente'];
             }
+            if ($tabela === 'vendas' && !$atual['excluido']) {
+                $antes = json_decode($atual['dados'], true);
+                if (($antes['status'] ?? '') === 'cancelada' && ($operacao === 'excluir' || $dados['status'] !== 'cancelada')) {
+                    return ['rejeitado', 'Esta venda já foi cancelada em outro terminal'];
+                }
+            }
             if ($tabela === 'compras' && !$atual['excluido']) {
                 $antes = json_decode($atual['dados'], true);
                 if (($antes['status'] ?? '') === 'recebida' && ($operacao === 'excluir' || $dados['status'] !== 'recebida')) {
@@ -88,6 +94,7 @@ final class Sincronizacao
             $dono = $this->consultarUm('SELECT uuid FROM chaves_unicas WHERE tabela = ? AND campo = ? AND valor = ?', [$tabela, $campo, $valor]);
             if ($dono !== null && $dono !== $uuid) {
                 $nome = Regras::NOMES_CAMPOS[$campo] ?? $campo;
+                if ($campo === 'devolucao') return ['rejeitado', 'Este item da venda já foi devolvido ao estoque em outro terminal'];
                 return $campo === 'recebimento'
                     ? ['rejeitado', 'Este item da compra já foi recebido em outro terminal']
                     : ['rejeitado', "$nome \"" . ($dados[$campo] ?? $valor) . "\" já está em uso em outro registro"];

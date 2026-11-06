@@ -72,7 +72,7 @@ try {
     const t = await terminal('antigo', copia)
     const d = await t.dados()
     const e = await t.ok('sync:estado')
-    verificar(d.produtos.length > 0, `banco antigo abre com os dados (${d.produtos.length} produtos)`)
+    verificar(Array.isArray(d.vendas) && d.usuarios.length > 0, `banco deste computador abre e é atualizado para a versão atual (${d.produtos.length} produtos)`)
     verificar(saldoBate(d), 'depois da migração, o saldo de cada produto é a soma das movimentações')
     verificar(e.pendentes > 0 && !e.configurado, `tudo fica pendente para o primeiro envio (${e.pendentes} registros)`)
     await t.app.close()
@@ -208,6 +208,37 @@ try {
 
   r = await A.ipc('sistema:zerarDados', { manterUsuarios: true, restaurarEmpresa: false, confirmacao: 'ZERAR' })
   verificar(!r.ok && /Desconecte/.test(r.erro.mensagem), 'terminal conectado ao servidor não pode ser zerado')
+
+  // ---------- Vendas entre terminais ----------
+  console.log('Vendas')
+  dA = await A.dados()
+  dB = await B.dados()
+  const cabo = (d) => porCodigo(d, 'P0006')
+  const caboAntes = cabo(dA).estoque
+  const vendaB = await B.ok('vendas:registrar', {
+    clienteId: dB.clientes.find((c) => c.ativo).id,
+    formaPagamento: 'dinheiro',
+    desconto: 0,
+    observacao: '',
+    itens: [{ produtoId: cabo(dB).id, quantidade: 10, valorUnitario: 3.5 }]
+  })
+  verificar(vendaB.numero.startsWith('V-B'), `número da venda inclui o terminal (${vendaB.numero})`)
+  await B.sync()
+  await A.sync()
+  dA = await A.dados()
+  const vendaEmA = dA.vendas.find((v) => v.numero === vendaB.numero)
+  verificar(vendaEmA && cabo(dA).estoque === caboAntes - 10, 'venda feita em B chega em A e baixa o estoque lá')
+  // Os dois cancelam a mesma venda sem sincronizar.
+  await A.ok('vendas:cancelar', vendaEmA.id, 'Cancelada em A')
+  await B.ok('vendas:cancelar', vendaB.id, 'Cancelada em B')
+  await A.sync()
+  await B.sync()
+  await A.sync()
+  dA = await A.dados()
+  dB = await B.dados()
+  verificar(cabo(dA).estoque === caboAntes && cabo(dB).estoque === caboAntes, `venda cancelada nos dois terminais devolve o estoque uma vez só (${caboAntes})`)
+  verificar(dA.vendas.find((v) => v.numero === vendaB.numero).status === 'cancelada' && dB.vendas.find((v) => v.numero === vendaB.numero).status === 'cancelada', 'venda aparece cancelada nos dois')
+  verificar(saldoBate(dA) && saldoBate(dB), 'saldos continuam batendo com as movimentações')
 
   // ---------- Recuperação de acesso entre terminais ----------
   console.log('Recuperação de acesso')

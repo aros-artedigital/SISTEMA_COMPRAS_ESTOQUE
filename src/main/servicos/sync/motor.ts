@@ -152,8 +152,8 @@ async function enviar(cfg: ConfigSync, token: string): Promise<{ enviados: numbe
         if (r.status !== 'rejeitado') return enviados++
         rejeitados++
         const descricao = descrever(p.tabela, p.uuid, alteracoes[i].dados)
-        if (p.tabela === 'movimentacoes' && /já foi recebido/.test(r.motivo ?? '')) {
-          // Dois terminais receberam a mesma compra: a entrada deste é desfeita para não somar em dobro.
+        if (p.tabela === 'movimentacoes' && /já foi (recebido|devolvido)/.test(r.motivo ?? '')) {
+          // Dois terminais receberam a mesma compra (ou cancelaram a mesma venda): a entrada deste é desfeita.
           desfazerMovimentacao(p.uuid)
           registrarConflito(p.tabela, p.uuid, descricao, `${r.motivo}. A entrada feita neste terminal foi desfeita.`)
         } else {
@@ -324,6 +324,9 @@ async function substituirPeloServidor(cfg: ConfigSync, token: string): Promise<v
   aplicando(() => {
     // Apaga na ordem inversa das dependências.
     db.prepare('DELETE FROM compra_itens').run()
+    db.prepare('DELETE FROM venda_itens').run()
+    db.prepare('UPDATE movimentacoes SET venda_id = NULL').run()
+    db.prepare('DELETE FROM vendas').run()
     for (const t of [...TABELAS_SYNC].reverse()) db.prepare(`DELETE FROM ${t}`).run()
     db.prepare('DELETE FROM recuperacao').run()
     db.prepare('DELETE FROM sync_fila').run()

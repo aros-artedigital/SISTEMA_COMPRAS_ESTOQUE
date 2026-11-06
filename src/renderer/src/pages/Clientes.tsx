@@ -6,7 +6,7 @@ import { Filtros, PageHeader } from '@/components/PageHeader'
 import { AcoesLinha, DataTable, type Coluna } from '@/components/DataTable'
 import { ConfirmDialog, Modal } from '@/components/Modal'
 import { Badge, Button, Checkbox, Input, SearchInput, Select } from '@/components/ui'
-import { UFS } from '@shared/dominio'
+import { totalVenda, UFS } from '@shared/dominio'
 import { clienteSchema } from '@shared/schemas'
 import { useForm } from '@/lib/useForm'
 import { executar } from '@/lib/executar'
@@ -18,7 +18,7 @@ import type { Cliente } from '@shared/tipos'
 const vazio = { nome: '', tipo: 'PF' as Cliente['tipo'], documento: '', telefone: '', email: '', cidade: '', uf: '', ativo: true }
 
 export default function Clientes() {
-  const { clientes } = useDb()
+  const { clientes, vendas } = useDb()
   const notificar = useToast()
   const [busca, setBusca] = useState('')
   const [tipo, setTipo] = useState('')
@@ -78,6 +78,22 @@ export default function Clientes() {
     { chave: 'documento', titulo: 'CPF/CNPJ', render: (c) => <span className="tabular-nums">{c.documento}</span> },
     { chave: 'contato', titulo: 'Contato', render: (c) => <div className="text-xs"><p>{c.telefone}</p><p className="text-slate-500">{c.email}</p></div> },
     { chave: 'cidade', titulo: 'Cidade', render: (c) => (c.cidade ? `${c.cidade}/${c.uf}` : '—') },
+    {
+      chave: 'vendas',
+      titulo: 'Compras feitas',
+      alinhar: 'direita',
+      render: (c) => {
+        const doCliente = vendas.filter((v) => v.clienteId === c.id && v.status === 'concluida')
+        return doCliente.length ? (
+          <span className="text-xs">
+            <span className="block font-medium tabular-nums text-slate-800">{fmt.moeda(doCliente.reduce((s, v) => s + totalVenda(v), 0))}</span>
+            <span className="text-slate-500">{doCliente.length} venda(s)</span>
+          </span>
+        ) : (
+          <span className="text-slate-400">—</span>
+        )
+      }
+    },
     { chave: 'acoes', titulo: 'Ações', alinhar: 'direita', render: (c) => <AcoesLinha onEditar={() => abrir(c)} onExcluir={() => setExcluindo(c)} /> }
   ]
 

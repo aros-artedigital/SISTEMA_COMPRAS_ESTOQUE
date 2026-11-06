@@ -4,6 +4,7 @@ import {
   FileBarChart,
   LayoutDashboard,
   Package,
+  Receipt,
   Settings,
   ShoppingCart,
   Tags,
@@ -28,7 +29,10 @@ export interface GrupoMenu {
 
 export const menu: GrupoMenu[] = [
   {
-    itens: [{ caminho: '/', titulo: 'Início', icone: LayoutDashboard, recurso: 'dashboard' }]
+    itens: [
+      { caminho: '/', titulo: 'Início', icone: LayoutDashboard, recurso: 'dashboard' },
+      { caminho: '/vendas', titulo: 'Vendas', icone: Receipt, recurso: 'vendas' }
+    ]
   },
   {
     titulo: 'Estoque',
@@ -66,6 +70,7 @@ export const iconeMarca = Boxes
 /** Título exibido na barra superior para cada rota. */
 export const titulos: Record<string, string> = {
   '/': 'Início',
+  '/vendas': 'Vendas',
   '/produtos': 'Produtos',
   '/categorias': 'Categorias e Unidades',
   '/estoque': 'Movimentações de Estoque',

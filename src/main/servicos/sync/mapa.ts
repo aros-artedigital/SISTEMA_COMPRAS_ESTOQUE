@@ -15,6 +15,7 @@ export type TabelaSync =
   | 'clientes'
   | 'produtos'
   | 'compras'
+  | 'vendas'
   | 'movimentacoes'
   | 'configuracoes'
   | 'recuperacao'
@@ -89,6 +90,22 @@ export function montarDados(tabela: TabelaSync, uuid: string): Dados | null {
         itens: itens.map((i) => ({ produto: uuidDe('produtos', i.produto_id), quantidade: i.quantidade, valorUnitario: i.valor_unitario }))
       }
     }
+    case 'vendas': {
+      const itens = db().prepare('SELECT * FROM venda_itens WHERE venda_id = ? ORDER BY id').all(r.id) as Linha[]
+      return {
+        numero: r.numero,
+        cliente: uuidDe('clientes', r.cliente_id),
+        data: r.data,
+        status: r.status,
+        formaPagamento: r.forma_pagamento,
+        desconto: r.desconto,
+        observacao: r.observacao,
+        usuario: uuidDe('usuarios', r.usuario_id),
+        canceladaEm: r.cancelada_em,
+        motivoCancelamento: r.motivo_cancelamento,
+        itens: itens.map((i) => ({ produto: uuidDe('produtos', i.produto_id), quantidade: i.quantidade, valorUnitario: i.valor_unitario }))
+      }
+    }
     case 'movimentacoes':
       return {
         data: r.data,
@@ -97,7 +114,8 @@ export function montarDados(tabela: TabelaSync, uuid: string): Dados | null {
         quantidade: r.quantidade,
         motivo: r.motivo,
         usuario: uuidDe('usuarios', r.usuario_id),
-        compra: uuidDe('compras', r.compra_id)
+        compra: uuidDe('compras', r.compra_id),
+        venda: uuidDe('vendas', r.venda_id)
       }
   }
 }
@@ -114,6 +132,7 @@ export function descrever(tabela: string, uuid: string, dados?: Dados | null): s
     clientes: `Cliente ${txt(r.nome)}`,
     produtos: `Produto ${txt(r.codigo)} — ${txt(r.nome)}`,
     compras: `Compra ${txt(r.numero)}`,
+    vendas: `Venda ${txt(r.numero)}`,
     movimentacoes: `Movimentação: ${txt(r.motivo)}`,
     configuracoes: 'Configurações da empresa',
     recuperacao: 'Código de recuperação do administrador'
@@ -131,7 +150,8 @@ const UNICOS: Record<string, Record<string, (v: string) => string>> = {
   produtos: { codigo: (v) => `${v}-CONFLITO-${sufixo()}`, codigo_barras: () => '' },
   fornecedores: { cnpj: (v) => `${v} (conflito)` },
   clientes: { documento: (v) => `${v} (conflito)` },
-  compras: { numero: (v) => `${v}-${sufixo()}` }
+  compras: { numero: (v) => `${v}-${sufixo()}` },
+  vendas: { numero: (v) => `${v}-${sufixo()}` }
 }
 const sufixo = (): string => randomBytes(2).toString('hex').toUpperCase()
 
@@ -295,20 +315,46 @@ export function aplicarRemoto(tabela: TabelaSync, uuid: string, operacao: 'salva
       for (const i of resolvidos) ins.run(id, i.produtoId, i.quantidade, i.valor)
       return conflito
     }
+    case 'vendas': {
+      const clienteId = d.cliente ? idDe('clientes', d.cliente, 'O cliente da venda') : null
+      const usuarioId = idDe('usuarios', d.usuario, 'O usuário da venda')
+      const itens = (Array.isArray(d.itens) ? d.itens : []) as Dados[]
+      const resolvidos = itens.map((i) => ({ produtoId: idDe('produtos', i.produto, 'Um produto da venda'), quantidade: num(i.quantidade), valor: num(i.valorUnitario) }))
+      let id = 0
+      const conflito = comUnicos(uuid, () => {
+        id = upsert(tabela, uuid, {
+          numero: txt(d.numero),
+          cliente_id: clienteId,
+          data: txt(d.data),
+          status: txt(d.status),
+          forma_pagamento: txt(d.formaPagamento),
+          desconto: num(d.desconto),
+          observacao: txt(d.observacao),
+          usuario_id: usuarioId,
+          cancelada_em: d.canceladaEm ? txt(d.canceladaEm) : null,
+          motivo_cancelamento: txt(d.motivoCancelamento)
+        })
+      })
+      db().prepare('DELETE FROM venda_itens WHERE venda_id = ?').run(id)
+      const ins = db().prepare('INSERT INTO venda_itens (venda_id, produto_id, quantidade, valor_unitario) VALUES (?, ?, ?, ?)')
+      for (const i of resolvidos) ins.run(id, i.produtoId, i.quantidade, i.valor)
+      return conflito
+    }
     case 'movimentacoes': {
       if (linhaPorUuid(tabela, uuid)) return null // já aplicada
       const produtoId = idDe('produtos', d.produto, 'O produto da movimentação')
       const usuarioId = idDe('usuarios', d.usuario, 'O usuário da movimentação')
       const compraId = d.compra ? idDe('compras', d.compra, 'A compra da movimentação') : null
+      const vendaId = d.venda ? idDe('vendas', d.venda, 'A venda da movimentação') : null
       const quantidade = num(d.quantidade)
       const delta = d.tipo === 'saida' ? -quantidade : quantidade
       db().prepare(`UPDATE produtos SET estoque = estoque + ? WHERE id = ?`).run(delta, produtoId)
       const { estoque } = db().prepare('SELECT estoque FROM produtos WHERE id = ?').get(produtoId) as { estoque: number }
       db()
         .prepare(
-          `INSERT INTO movimentacoes (uuid, data, produto_id, tipo, quantidade, saldo_apos, motivo, usuario_id, compra_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          `INSERT INTO movimentacoes (uuid, data, produto_id, tipo, quantidade, saldo_apos, motivo, usuario_id, compra_id, venda_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
-        .run(uuid, txt(d.data), produtoId, txt(d.tipo), quantidade, estoque, txt(d.motivo), usuarioId, compraId)
+        .run(uuid, txt(d.data), produtoId, txt(d.tipo), quantidade, estoque, txt(d.motivo), usuarioId, compraId, vendaId)
       return null
     }
   }

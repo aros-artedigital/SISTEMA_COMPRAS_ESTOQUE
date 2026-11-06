@@ -72,6 +72,21 @@ try {
   r = await enviar(b.token, [{ tabela: 'movimentacoes', uuid: '77777777-7777-4777-8777-777777777777', operacao: 'excluir', alteradoEm: '2026-11-04T13:00:00.000Z' }])
   verificar(r[0].status === 'rejeitado', 'movimentação não pode ser excluída')
 
+  // Vendas: cancelada não volta, e cada item só retorna ao estoque uma vez
+  const venda = '99999999-9999-4999-8999-999999999999'
+  const dadosVenda = (status) => ({ numero: 'V-A0001', cliente: null, data: '2026-11-05T10:00:00', status, formaPagamento: 'pix', desconto: 0, observacao: '', usuario: usu, itens: [{ produto: p1, quantidade: 2, valorUnitario: 5 }] })
+  const devolucao = (uuid, em) => ({ tabela: 'movimentacoes', uuid, operacao: 'salvar', alteradoEm: em, dados: { data: '2026-11-05T11:00:00', produto: p1, tipo: 'entrada', quantidade: 2, motivo: 'Cancelamento', usuario: usu, venda } })
+  r = await enviar(a.token, [
+    { tabela: 'vendas', uuid: venda, operacao: 'salvar', alteradoEm: '2026-11-05T10:00:00.000Z', dados: dadosVenda('concluida') },
+    { tabela: 'vendas', uuid: venda, operacao: 'salvar', alteradoEm: '2026-11-05T11:00:00.000Z', dados: dadosVenda('cancelada') },
+    devolucao('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '2026-11-05T11:00:00.000Z')
+  ])
+  verificar(r.every((x) => x.status === 'aceito'), 'A registra e cancela uma venda')
+  r = await enviar(b.token, [devolucao('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', '2026-11-05T11:00:05.000Z')])
+  verificar(r[0].status === 'rejeitado' && r[0].motivo.includes('devolvido'), 'segundo cancelamento da mesma venda não devolve o estoque de novo')
+  r = await enviar(b.token, [{ tabela: 'vendas', uuid: venda, operacao: 'salvar', alteradoEm: '2026-11-05T12:00:00.000Z', dados: dadosVenda('concluida') }])
+  verificar(r[0].status === 'rejeitado', 'venda cancelada não volta a ser concluída')
+
   // Exclusão libera a chave única
   r = await enviar(a.token, [{ tabela: 'categorias', uuid: cat, operacao: 'excluir', alteradoEm: '2026-11-04T14:00:00.000Z' }])
   verificar(r[0].status === 'aceito', 'exclusão aceita')
@@ -79,12 +94,12 @@ try {
   // Recebimento: cada terminal recebe só o que os outros fizeram
   const rb = (await req('GET', '/sync/receber?desde=0', null, b.token)).corpo
   const ra = (await req('GET', '/sync/receber?desde=0', null, a.token)).corpo
-  verificar(rb.alteracoes.length === 5 && rb.alteracoes.every((x) => x.uuid !== p2), `B recebe as 5 alterações de A (${rb.alteracoes.length})`)
+  verificar(rb.alteracoes.length === 8 && rb.alteracoes.every((x) => x.uuid !== p2), `B recebe as 8 alterações de A (${rb.alteracoes.length})`)
   verificar(ra.alteracoes.length === 1 && ra.alteracoes[0].dados.nome === 'Mouse Novo', 'A recebe só a edição de B')
   const rb2 = (await req('GET', `/sync/receber?desde=${rb.ultimoSeq}`, null, b.token)).corpo
   verificar(rb2.alteracoes.length === 0 && !rb2.temMais, 'cursor avança: nada novo na segunda leitura')
   const st = (await req('GET', '/status', null, a.token)).corpo
-  verificar(st.terminal?.codigo === 'A' && st.registros === 3, `status autenticado mostra terminal e registros (${st.registros})`)
+  verificar(st.terminal?.codigo === 'A' && st.registros === 5, `status autenticado mostra terminal e registros (${st.registros})`)
 } catch (e) {
   falhas++
   console.error('  ✗ erro:', e.message, srv.log())

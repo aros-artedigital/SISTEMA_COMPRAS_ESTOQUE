@@ -84,7 +84,7 @@ export function excluir(id: number, logadoId: number): void {
   const u = db.prepare('SELECT perfil, ativo FROM usuarios WHERE id = ?').get(id) as { perfil: string; ativo: number } | undefined
   if (!u) throw new ErroNegocio('Usuário não encontrado.')
   if (u.perfil === 'admin' && u.ativo && contarAdminsAtivos(id) === 0) throw new ErroNegocio('O sistema precisa de pelo menos um administrador ativo.')
-  if (db.prepare('SELECT 1 FROM movimentacoes WHERE usuario_id = ? LIMIT 1').get(id)) {
+  if (db.prepare('SELECT 1 FROM movimentacoes WHERE usuario_id = ? LIMIT 1').get(id) || db.prepare('SELECT 1 FROM vendas WHERE usuario_id = ? LIMIT 1').get(id)) {
     throw new ErroNegocio('Usuário possui movimentações no histórico. Inative-o em vez de excluir.')
   }
   db.prepare('DELETE FROM usuarios WHERE id = ?').run(id)

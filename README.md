@@ -84,6 +84,11 @@ Usuários de demonstração (só em desenvolvimento):
 
 ## Recursos
 
+- **Vendas** (todos os perfis vendem; só administrador e gerente cancelam): tela de caixa com leitor de código de
+  barras, cliente opcional (ou consumidor final), desconto e forma de pagamento; dá baixa no estoque na hora e não
+  deixa vender sem saldo. Recibo em cupom de 80 mm (impressão ou PDF, sem valor fiscal). Uma venda não é editada:
+  o cancelamento devolve os itens ao estoque e fica registrado com o motivo. Atalho **F2** abre uma nova venda.
+  Relatório de vendas por venda, por cliente ou por produto; total comprado por cliente na tela de Clientes.
 - **Relatórios** (administrador e gerente): posição de estoque, sugestão de compra, compras por período e
   movimentações — cada um com filtros, Excel, PDF (A4, com numeração de páginas) e impressão.
 - **Etiquetas** com código de barras (EAN-13/EAN-8 quando o código é válido, senão CODE128), em folha A4
@@ -130,6 +135,8 @@ Regras garantidas pelo banco/main (não só pela tela):
   (depois de sincronizar vendas simultâneas de dois terminais, o saldo pode ficar negativo — e aparece como sem estoque).
 - Receber compra dá entrada de todos os itens de uma vez (transação). Só compras com status "Pedido enviado".
 - Compras recebidas não podem ser alteradas nem excluídas.
+- Vendas não são editadas nem excluídas; cancelar devolve os itens ao estoque (uma vez só, mesmo cancelando em
+  dois terminais sem internet). Número com o código do terminal (`V-A0001`).
 - Itens com histórico (produto, fornecedor, usuário) não podem ser excluídos; inative-os.
 - Códigos, CNPJ/CPF, logins e siglas são únicos.
 - Sempre existe pelo menos um administrador ativo.

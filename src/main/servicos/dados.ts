@@ -1,5 +1,5 @@
 import type { Snapshot } from '@shared/api'
-import type { Configuracoes, ItemCompra } from '@shared/tipos'
+import type { Configuracoes, ItemCompra, ItemVenda } from '@shared/tipos'
 import { banco } from '../db/conexao'
 import { configuracoesPadrao } from '../db/seed'
 import * as map from './mapeadores'
@@ -27,6 +27,13 @@ export function carregar(): Snapshot {
     itens.set(r.compra_id, lista)
   }
 
+  const itensVenda = new Map<number, ItemVenda[]>()
+  for (const r of todas('SELECT * FROM venda_itens ORDER BY id')) {
+    const lista = itensVenda.get(r.venda_id) ?? []
+    lista.push(map.itemVenda(r))
+    itensVenda.set(r.venda_id, lista)
+  }
+
   return {
     usuarios: todas('SELECT * FROM usuarios ORDER BY nome').map(map.usuario),
     categorias: todas('SELECT * FROM categorias ORDER BY nome').map(map.categoria),
@@ -36,6 +43,7 @@ export function carregar(): Snapshot {
     clientes: todas('SELECT * FROM clientes ORDER BY nome').map(map.cliente),
     compras: todas('SELECT * FROM compras ORDER BY id').map((r) => map.compra(r, itens.get(r.id) ?? [])),
     movimentacoes: todas('SELECT * FROM movimentacoes ORDER BY id').map(map.movimentacao),
+    vendas: todas('SELECT * FROM vendas ORDER BY id').map((r) => map.venda(r, itensVenda.get(r.id) ?? [])),
     configuracoes: lerConfiguracoes()
   }
 }

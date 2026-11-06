@@ -140,6 +140,56 @@ try {
   r = await ipc(page, 'usuarios:salvar', 1, { nome: 'Administrador', email: 'admin@empresa.local', login: 'admin', senha: '', perfil: 'operador', ativo: true })
   verificar(!r.ok && r.erro.campo === 'perfil', 'administrador não pode rebaixar o próprio perfil')
 
+  // ---------- Vendas ----------
+  console.log('Vendas')
+  await page.reload()
+  await page.waitForSelector('input[placeholder="seu.login"]')
+  await entrar(page, 'admin', 'admin123')
+  await page.getByText('Olá, Administrador').waitFor()
+  dados = (await ipc(page, 'dados:carregar')).dados
+  const mouseAntes = dados.produtos.find((p) => p.id === 1).estoque
+  await page.getByRole('link', { name: 'Vendas' }).click()
+  await page.getByRole('button', { name: /Nova venda/ }).click()
+  const caixa = page.getByRole('dialog')
+  const leitorVenda = caixa.getByLabel('Código de barras')
+  await leitorVenda.fill('7891000100011')
+  await leitorVenda.press('Enter')
+  await leitorVenda.fill('7891000100011')
+  await leitorVenda.press('Enter')
+  await caixa.getByLabel('Cliente').selectOption({ label: 'João Pereira — 123.456.789-00' })
+  await caixa.getByLabel('Forma de pagamento').selectOption({ label: 'Pix' })
+  await caixa.getByLabel('Desconto (R$)').fill('9.80')
+  await foto(page, '8-nova-venda')
+  await caixa.getByRole('button', { name: /Finalizar venda/ }).click()
+  await page.getByText('Venda V-0001 registrada').waitFor()
+  dados = (await ipc(page, 'dados:carregar')).dados
+  const venda1 = dados.vendas.find((v) => v.numero === 'V-0001')
+  verificar(venda1?.itens[0]?.quantidade === 2 && venda1.clienteId === 1 && venda1.formaPagamento === 'pix' && venda1.desconto === 9.8, 'venda feita pela tela: 2 leituras do código, cliente, Pix e desconto')
+  verificar(dados.produtos.find((p) => p.id === 1).estoque === mouseAntes - 2, 'venda dá baixa no estoque')
+  verificar(dados.movimentacoes.some((m) => m.vendaId === venda1?.id && m.tipo === 'saida' && m.motivo === 'Venda V-0001'), 'baixa aparece no histórico ligada à venda')
+  await aoSalvar(join(pasta, 'recibo.pdf'))
+  await page.getByRole('dialog').getByRole('button', { name: 'PDF' }).click()
+  verificar((await esperarArquivo(join(pasta, 'recibo.pdf'))) && ehPdf(join(pasta, 'recibo.pdf')), 'recibo da venda salvo em PDF')
+  await page.keyboard.press('Escape')
+
+  const vendasAntes = dados.vendas.length
+  const monitor = dados.produtos.find((p) => p.codigo === 'P0009')
+  r = await ipc(page, 'vendas:registrar', { clienteId: null, formaPagamento: 'dinheiro', desconto: 0, observacao: '', itens: [{ produtoId: monitor.id, quantidade: monitor.estoque + 3, valorUnitario: 10 }] })
+  dados = (await ipc(page, 'dados:carregar')).dados
+  verificar(!r.ok && r.erro.mensagem.includes('Saldo insuficiente') && dados.vendas.length === vendasAntes, 'venda sem estoque suficiente é recusada e nada é gravado')
+  r = await ipc(page, 'vendas:registrar', { clienteId: null, formaPagamento: 'dinheiro', desconto: 999, observacao: '', itens: [{ produtoId: 1, quantidade: 1, valorUnitario: 10 }] })
+  verificar(!r.ok && r.erro.campo === 'desconto', 'desconto maior que o total é recusado')
+  r = await ipc(page, 'clientes:excluir', 1)
+  verificar(!r.ok && r.erro.mensagem.includes('vendas'), 'cliente com vendas não pode ser excluído')
+  r = await ipc(page, 'vendas:cancelar', venda1.id, 'Cliente desistiu')
+  dados = (await ipc(page, 'dados:carregar')).dados
+  verificar(r.ok && dados.vendas.find((v) => v.id === venda1.id).status === 'cancelada' && dados.produtos.find((p) => p.id === 1).estoque === mouseAntes, 'cancelar devolve os itens ao estoque')
+  r = await ipc(page, 'vendas:cancelar', venda1.id, 'De novo')
+  verificar(!r.ok, 'venda já cancelada não é cancelada de novo')
+  await page.getByRole('link', { name: 'Relatórios' }).click()
+  await page.getByText('Faturamento').waitFor()
+  verificar(true, 'relatório de vendas abre como primeira aba')
+
   // ---------- Fase 3: relatórios, etiquetas, Excel e backup ----------
   console.log('Relatórios, etiquetas, Excel e backup')
   const arq = (nome) => join(pasta, nome)
@@ -150,6 +200,7 @@ try {
   await page.getByText('Olá, Administrador').waitFor()
 
   await page.getByRole('link', { name: 'Relatórios' }).click()
+  await page.getByRole('tab', { name: /Posição de estoque/ }).click()
   await page.getByText('Valor a preço de custo').waitFor()
   await foto(page, '4-relatorio')
   await aoSalvar(arq('posicao.pdf'))
@@ -244,6 +295,10 @@ try {
   verificar(!r.ok && r.erro.tipo === 'permissao', 'operador não consegue criar usuário nem chamando o IPC direto')
   r = await ipc(page, 'compras:receber', 1)
   verificar(!r.ok && r.erro.tipo === 'permissao', 'operador não consegue receber compra')
+  r = await ipc(page, 'vendas:registrar', { clienteId: null, formaPagamento: 'dinheiro', desconto: 0, observacao: '', itens: [{ produtoId: 1, quantidade: 1, valorUnitario: 49.9 }] })
+  verificar(r.ok, 'operador pode vender')
+  r = await ipc(page, 'vendas:cancelar', r.dados.id, 'Teste')
+  verificar(!r.ok && r.erro.tipo === 'permissao', 'operador não pode cancelar venda')
 
   await app.close()
 

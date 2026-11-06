@@ -10,6 +10,7 @@ interface NovaMovimentacao {
   motivo: string
   usuarioId: number
   compraId?: number
+  vendaId?: number
 }
 
 /**
@@ -34,9 +35,9 @@ export function lancarMovimentacao(m: NovaMovimentacao): void {
 
   db.prepare(`UPDATE produtos SET estoque = ?, atualizado_em = datetime('now', 'localtime') WHERE id = ?`).run(saldo, m.produtoId)
   db.prepare(
-    `INSERT INTO movimentacoes (data, produto_id, tipo, quantidade, saldo_apos, motivo, usuario_id, compra_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(agoraIso(), m.produtoId, m.tipo, m.quantidade, saldo, m.motivo, m.usuarioId, m.compraId ?? null)
+    `INSERT INTO movimentacoes (data, produto_id, tipo, quantidade, saldo_apos, motivo, usuario_id, compra_id, venda_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(agoraIso(), m.produtoId, m.tipo, m.quantidade, saldo, m.motivo, m.usuarioId, m.compraId ?? null, m.vendaId ?? null)
 }
 
 export function movimentar(m: NovaMovimentacao): void {

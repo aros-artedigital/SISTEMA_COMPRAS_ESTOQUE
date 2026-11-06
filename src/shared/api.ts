@@ -9,7 +9,8 @@ import type {
   perfilSchema,
   produtoSchema,
   unidadeSchema,
-  usuarioSchema
+  usuarioSchema,
+  vendaSchema
 } from './schemas'
 import type {
   Categoria,
@@ -20,7 +21,8 @@ import type {
   Movimentacao,
   Produto,
   Unidade,
-  Usuario
+  Usuario,
+  Venda
 } from './tipos'
 
 // Contrato entre a interface e o processo principal.
@@ -36,6 +38,7 @@ export interface Snapshot {
   clientes: Cliente[]
   compras: Compra[]
   movimentacoes: Movimentacao[]
+  vendas: Venda[]
   configuracoes: Configuracoes
 }
 
@@ -86,6 +89,9 @@ export interface Canais {
   'compras:receber': Canal<[id: number], void>
 
   'estoque:movimentar': Canal<[dados: Entrada<typeof movimentacaoSchema>], void>
+
+  'vendas:registrar': Canal<[dados: Entrada<typeof vendaSchema>], Venda>
+  'vendas:cancelar': Canal<[id: number, motivo: string], void>
 
   'configuracoes:salvar': Canal<[dados: Entrada<typeof configuracoesSchema>], void>
 

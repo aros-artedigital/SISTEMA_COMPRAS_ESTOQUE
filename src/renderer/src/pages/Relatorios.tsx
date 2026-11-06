@@ -7,13 +7,14 @@ import { BarraSaida } from '@/components/BarraSaida'
 import { Checkbox, Input, Select } from '@/components/ui'
 import { alinhadoADireita, formatar, type Relatorio, type Valor } from '@/lib/relatorio'
 import { relatorioExcel, relatorioImprimir, relatorioPdf } from '@/lib/saida'
-import { rotuloStatusCompra, rotuloTipoMov, situacaoEstoque, totalCompra } from '@shared/dominio'
+import { rotuloFormaPagamento, rotuloStatusCompra, rotuloTipoMov, situacaoEstoque, subtotalVenda, totalCompra, totalVenda } from '@shared/dominio'
 import * as fmt from '@shared/format'
-import type { StatusCompra, TipoMovimentacao } from '@shared/tipos'
+import type { FormaPagamento, StatusCompra, TipoMovimentacao } from '@shared/tipos'
 
-type Aba = 'estoque' | 'reposicao' | 'compras' | 'movimentacoes'
+type Aba = 'vendas' | 'estoque' | 'reposicao' | 'compras' | 'movimentacoes'
 
 const abas: { id: Aba; titulo: string; descricao: string }[] = [
+  { id: 'vendas', titulo: 'Vendas', descricao: 'Por venda, por cliente ou por produto' },
   { id: 'estoque', titulo: 'Posição de estoque', descricao: 'Saldo e valor de cada produto' },
   { id: 'reposicao', titulo: 'Sugestão de compra', descricao: 'Produtos no mínimo ou abaixo dele' },
   { id: 'compras', titulo: 'Compras', descricao: 'Compras por período, fornecedor e status' },
@@ -24,7 +25,7 @@ const inicioDoAno = (): string => `${new Date().getFullYear()}-01-01`
 const inicioDoMes = (): string => fmt.hojeIso().slice(0, 8) + '01'
 
 export default function Relatorios() {
-  const [aba, setAba] = useState<Aba>('estoque')
+  const [aba, setAba] = useState<Aba>('vendas')
   return (
     <>
       <PageHeader titulo="Relatórios" subtitulo="Consulte, exporte para Excel, salve em PDF ou imprima" />
@@ -42,6 +43,7 @@ export default function Relatorios() {
           </button>
         ))}
       </div>
+      {aba === 'vendas' && <RelatorioVendas />}
       {aba === 'estoque' && <PosicaoEstoque />}
       {aba === 'reposicao' && <SugestaoCompra />}
       {aba === 'compras' && <RelatorioCompras />}
@@ -397,6 +399,160 @@ function RelatorioMovimentacoes() {
             opcoes={produtos.map((x) => ({ value: x.id, label: `${x.codigo} — ${x.nome}` }))}
             value={produto}
             onChange={(e) => setProduto(e.target.value)}
+          />
+        </>
+      }
+    />
+  )
+}
+
+// ---------- Vendas ----------
+
+function RelatorioVendas() {
+  const { vendas, clientes, produtos } = useDb()
+  const [de, setDe] = useState(inicioDoMes())
+  const [ate, setAte] = useState(fmt.hojeIso())
+  const [agrupar, setAgrupar] = useState<'venda' | 'cliente' | 'produto'>('venda')
+  const [forma, setForma] = useState('')
+  const [cliente, setCliente] = useState('')
+
+  const relatorio = useMemo<Relatorio>(() => {
+    const nomeCliente = (id: number | null): string => (id ? (clientes.find((c) => c.id === id)?.nome ?? '') : 'Consumidor final')
+    // Canceladas não entram em nenhum total.
+    const lista = vendas
+      .filter(
+        (v) =>
+          v.status === 'concluida' &&
+          (!de || v.data.slice(0, 10) >= de) &&
+          (!ate || v.data.slice(0, 10) <= ate) &&
+          (!forma || v.formaPagamento === forma) &&
+          (!cliente || String(v.clienteId ?? 0) === cliente)
+      )
+      .sort((a, b) => a.data.localeCompare(b.data))
+    const total = lista.reduce((s, v) => s + totalVenda(v), 0)
+    const descontos = lista.reduce((s, v) => s + v.desconto, 0)
+    const unidades = lista.reduce((s, v) => s + v.itens.reduce((x, i) => x + i.quantidade, 0), 0)
+    const filtros = [
+      `Período: ${de ? fmt.data(de) : 'início'} a ${ate ? fmt.data(ate) : 'hoje'}`,
+      forma ? `Pagamento: ${rotuloFormaPagamento[forma as FormaPagamento]}` : 'Todas as formas de pagamento',
+      cliente ? `Cliente: ${nomeCliente(Number(cliente) || null)}` : 'Todos os clientes',
+      'Vendas canceladas não entram'
+    ]
+    const resumo = [
+      { rotulo: 'Vendas', valor: fmt.numero(lista.length) },
+      { rotulo: 'Faturamento', valor: fmt.moeda(total) },
+      { rotulo: 'Ticket médio', valor: fmt.moeda(lista.length ? total / lista.length : 0) },
+      { rotulo: 'Descontos dados', valor: fmt.moeda(descontos) }
+    ]
+
+    if (agrupar === 'cliente') {
+      const grupos = new Map<string, { nome: string; vendas: number; total: number; ultima: string }>()
+      for (const v of lista) {
+        const chave = String(v.clienteId ?? 0)
+        const g = grupos.get(chave) ?? { nome: nomeCliente(v.clienteId), vendas: 0, total: 0, ultima: '' }
+        g.vendas++
+        g.total += totalVenda(v)
+        g.ultima = v.data > g.ultima ? v.data : g.ultima
+        grupos.set(chave, g)
+      }
+      const linhas = [...grupos.values()].sort((a, b) => b.total - a.total)
+      return {
+        titulo: 'Vendas por cliente',
+        filtros,
+        resumo,
+        colunas: [
+          { titulo: 'Cliente', peso: 2.5 },
+          { titulo: 'Vendas', formato: 'numero' },
+          { titulo: 'Total', formato: 'moeda', peso: 1.2 },
+          { titulo: 'Ticket médio', formato: 'moeda', peso: 1.2 },
+          { titulo: 'Última compra', formato: 'data' }
+        ],
+        linhas: linhas.map((g) => [g.nome, g.vendas, g.total, g.total / g.vendas, g.ultima]),
+        totais: ['Total', lista.length, total, null, null]
+      }
+    }
+
+    if (agrupar === 'produto') {
+      // Desconto da venda rateado entre os itens, proporcional ao valor de cada um.
+      const grupos = new Map<number, { quantidade: number; total: number }>()
+      for (const v of lista) {
+        const fator = subtotalVenda(v) ? totalVenda(v) / subtotalVenda(v) : 0
+        for (const i of v.itens) {
+          const g = grupos.get(i.produtoId) ?? { quantidade: 0, total: 0 }
+          g.quantidade += i.quantidade
+          g.total += i.quantidade * i.valorUnitario * fator
+          grupos.set(i.produtoId, g)
+        }
+      }
+      const linhas = [...grupos.entries()].sort((a, b) => b[1].total - a[1].total)
+      return {
+        titulo: 'Produtos mais vendidos',
+        filtros: [...filtros, 'Valores já com o desconto rateado'],
+        resumo: [...resumo.slice(0, 2), { rotulo: 'Unidades vendidas', valor: fmt.numero(unidades) }, { rotulo: 'Produtos diferentes', valor: fmt.numero(grupos.size) }],
+        colunas: [
+          { titulo: 'Código', peso: 0.8 },
+          { titulo: 'Produto', peso: 2.4 },
+          { titulo: 'Quantidade', formato: 'numero' },
+          { titulo: 'Total vendido', formato: 'moeda', peso: 1.2 },
+          { titulo: 'Preço médio', formato: 'moeda' },
+          { titulo: '% do faturamento', peso: 0.9 }
+        ],
+        linhas: linhas.map(([id, g]) => {
+          const p = produtos.find((x) => x.id === id)
+          return [p?.codigo ?? '', p?.nome ?? '', g.quantidade, g.total, g.total / g.quantidade, total ? `${((g.total / total) * 100).toFixed(1).replace('.', ',')}%` : '']
+        }),
+        totais: ['Total', null, unidades, total, null, null]
+      }
+    }
+
+    return {
+      titulo: 'Relatório de vendas',
+      filtros,
+      resumo,
+      colunas: [
+        { titulo: 'Número', peso: 0.9 },
+        { titulo: 'Data', formato: 'dataHora', peso: 1.2 },
+        { titulo: 'Cliente', peso: 2 },
+        { titulo: 'Pagamento', peso: 1.1 },
+        { titulo: 'Itens', formato: 'numero', peso: 0.6 },
+        { titulo: 'Desconto', formato: 'moeda' },
+        { titulo: 'Total', formato: 'moeda', peso: 1.1 }
+      ],
+      linhas: lista.map((v) => [v.numero, v.data, nomeCliente(v.clienteId), rotuloFormaPagamento[v.formaPagamento], v.itens.reduce((s, i) => s + i.quantidade, 0), v.desconto, totalVenda(v)]),
+      totais: ['Total', null, null, null, unidades, descontos, total]
+    }
+  }, [vendas, clientes, produtos, de, ate, agrupar, forma, cliente])
+
+  return (
+    <Visualizacao
+      relatorio={relatorio}
+      arquivo={{ venda: 'vendas', cliente: 'vendas-por-cliente', produto: 'produtos-mais-vendidos' }[agrupar]}
+      filtros={
+        <>
+          <Select
+            className="w-44"
+            opcoes={[
+              { value: 'venda', label: 'Por venda' },
+              { value: 'cliente', label: 'Por cliente' },
+              { value: 'produto', label: 'Por produto' }
+            ]}
+            value={agrupar}
+            onChange={(e) => setAgrupar(e.target.value as typeof agrupar)}
+          />
+          <Periodo de={de} ate={ate} setDe={setDe} setAte={setAte} />
+          <Select
+            className="w-44"
+            placeholder="Todos os pagamentos"
+            opcoes={(Object.keys(rotuloFormaPagamento) as FormaPagamento[]).map((f) => ({ value: f, label: rotuloFormaPagamento[f] }))}
+            value={forma}
+            onChange={(e) => setForma(e.target.value)}
+          />
+          <Select
+            className="w-48"
+            placeholder="Todos os clientes"
+            opcoes={[{ value: '0', label: 'Consumidor final' }, ...clientes.map((c) => ({ value: c.id, label: c.nome }))]}
+            value={cliente}
+            onChange={(e) => setCliente(e.target.value)}
           />
         </>
       }

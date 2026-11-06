@@ -93,6 +93,32 @@ export interface Movimentacao {
   motivo: string
   usuarioId: number
   compraId?: number
+  vendaId?: number
+}
+
+export type FormaPagamento = 'dinheiro' | 'pix' | 'debito' | 'credito' | 'boleto' | 'outro'
+export type StatusVenda = 'concluida' | 'cancelada'
+
+export interface ItemVenda {
+  produtoId: number
+  quantidade: number
+  valorUnitario: number
+}
+
+export interface Venda {
+  id: number
+  numero: string
+  /** null = consumidor final (venda de balcão sem cadastro). */
+  clienteId: number | null
+  data: string // ISO com hora
+  status: StatusVenda
+  formaPagamento: FormaPagamento
+  desconto: number
+  observacao: string
+  usuarioId: number
+  canceladaEm: string | null
+  motivoCancelamento: string
+  itens: ItemVenda[]
 }
 
 export interface Configuracoes {

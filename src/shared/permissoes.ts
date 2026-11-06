@@ -8,14 +8,16 @@ export type Recurso =
   | 'estoque'
   | 'fornecedores'
   | 'clientes'
+  | 'vendas'
+  | 'vendasCancelar'
   | 'relatorios'
   | 'usuarios'
   | 'configuracoes'
 
 const permissoes: Record<Perfil, Recurso[]> = {
-  admin: ['dashboard', 'produtos', 'cadastros', 'compras', 'estoque', 'fornecedores', 'clientes', 'relatorios', 'usuarios', 'configuracoes'],
-  gerente: ['dashboard', 'produtos', 'cadastros', 'compras', 'estoque', 'fornecedores', 'clientes', 'relatorios'],
-  operador: ['dashboard', 'produtos', 'estoque', 'clientes']
+  admin: ['dashboard', 'vendas', 'vendasCancelar', 'produtos', 'cadastros', 'compras', 'estoque', 'fornecedores', 'clientes', 'relatorios', 'usuarios', 'configuracoes'],
+  gerente: ['dashboard', 'vendas', 'vendasCancelar', 'produtos', 'cadastros', 'compras', 'estoque', 'fornecedores', 'clientes', 'relatorios'],
+  operador: ['dashboard', 'vendas', 'produtos', 'estoque', 'clientes']
 }
 
 export function pode(perfil: Perfil, recurso: Recurso): boolean {
