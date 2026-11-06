@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Ban, CheckCircle2, FileDown, FileSpreadsheet, Plus, Printer, Trash2 } from 'lucide-react'
 import { alterar, useDb } from '@/data/store'
 import { useAuth } from '@/contexts/AuthContext'
@@ -31,10 +32,20 @@ export default function Vendas() {
   const [detalhe, setDetalhe] = useState<Venda | null>(null)
   const [concluida, setConcluida] = useState<Venda | null>(null)
 
+  // F2 em outra tela traz para cá já com a venda aberta.
+  const { state } = useLocation()
+  const navegar = useNavigate()
+  useEffect(() => {
+    if ((state as { novaVenda?: boolean } | null)?.novaVenda) {
+      setNova(true)
+      navegar('/vendas', { replace: true, state: null })
+    }
+  }, [state]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // F2 abre uma nova venda (atalho de caixa).
   useEffect(() => {
     const tecla = (e: KeyboardEvent): void => {
-      if (e.key === 'F2') {
+      if (e.key === 'F2' && !document.querySelector('[role="dialog"]')) {
         e.preventDefault()
         setNova(true)
       }
@@ -84,10 +95,10 @@ export default function Vendas() {
       alinhar: 'direita',
       render: (v) => (
         <div className="flex justify-end gap-1.5">
-          <button onClick={() => void recibo.imprimir(v)} className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
+          <button onClick={() => void recibo.imprimir(v)} className="rounded-md border border-slate-300 bg-superficie px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
             Recibo
           </button>
-          <button onClick={() => setDetalhe(v)} className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
+          <button onClick={() => setDetalhe(v)} className="rounded-md border border-slate-300 bg-superficie px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
             Ver
           </button>
         </div>
@@ -124,7 +135,7 @@ export default function Vendas() {
         acoes={
           <>
             <Button variante="secundario" icone={<FileSpreadsheet size={16} />} onClick={exportar}>Excel</Button>
-            <Button icone={<Plus size={16} />} onClick={() => setNova(true)}>
+            <Button data-atalho="novo" icone={<Plus size={16} />} onClick={() => setNova(true)}>
               Nova venda <kbd className="ml-1 rounded bg-white/20 px-1 text-[10px]">F2</kbd>
             </Button>
           </>

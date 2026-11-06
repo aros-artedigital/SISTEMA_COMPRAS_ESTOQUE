@@ -6,6 +6,7 @@ import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 import { AvisoAtualizacao } from './AvisoAtualizacao'
 import { AvisosSeguranca } from './AvisosSeguranca'
+import { Atalhos } from './Atalhos'
 
 export function AppLayout() {
   const { usuario } = useAuth()
@@ -13,6 +14,7 @@ export function AppLayout() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-100">
+      <Atalhos />
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <AvisoAtualizacao />

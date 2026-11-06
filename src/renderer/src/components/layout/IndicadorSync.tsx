@@ -85,7 +85,7 @@ export function IndicadorSync() {
       </button>
 
       {aberto && (
-        <div role="menu" className="absolute right-0 z-40 mt-1 w-72 rounded-lg border border-slate-200 bg-white p-3 text-sm shadow-lg">
+        <div role="menu" className="absolute right-0 z-40 mt-1 w-72 rounded-lg border border-slate-200 bg-superficie p-3 text-sm shadow-lg">
           {estado.configurado ? (
             <>
               <p className="font-medium text-slate-800">

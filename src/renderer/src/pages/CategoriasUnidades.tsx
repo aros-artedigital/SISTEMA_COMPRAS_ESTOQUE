@@ -61,7 +61,7 @@ function SecaoCategorias() {
     <section>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-lg font-semibold text-slate-800">Categorias</h2>
-        <Button tamanho="sm" icone={<Plus size={14} />} onClick={() => abrir(null)}>Nova categoria</Button>
+        <Button data-atalho="novo" tamanho="sm" icone={<Plus size={14} />} onClick={() => abrir(null)}>Nova categoria</Button>
       </div>
       <DataTable
         dados={categorias}

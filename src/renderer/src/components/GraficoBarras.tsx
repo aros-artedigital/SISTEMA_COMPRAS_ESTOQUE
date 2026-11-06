@@ -84,8 +84,8 @@ export function GraficoBarras({ series, dados, formatar, formatarEixo = formatar
         <svg width={largura} height={altura} role="img" aria-label="Gráfico de movimentações por mês">
           {ticks.map((t) => (
             <g key={t}>
-              <line x1={M.esquerda} x2={largura - M.direita} y1={y(t)} y2={y(t)} stroke={t === 0 ? '#c3c2b7' : '#e1e0d9'} strokeWidth={1} />
-              <text x={M.esquerda - 8} y={y(t)} dy="0.32em" textAnchor="end" fontSize={11} fill="#898781" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              <line x1={M.esquerda} x2={largura - M.direita} y1={y(t)} y2={y(t)} style={{ stroke: t === 0 ? 'rgb(var(--c-slate-300))' : 'rgb(var(--c-slate-200))' }} strokeWidth={1} />
+              <text x={M.esquerda - 8} y={y(t)} dy="0.32em" textAnchor="end" fontSize={11} style={{ fill: 'rgb(var(--c-slate-500))', fontVariantNumeric: 'tabular-nums' }}>
                 {formatarEixo(t)}
               </text>
             </g>
@@ -96,7 +96,7 @@ export function GraficoBarras({ series, dados, formatar, formatarEixo = formatar
             const inicio = x0 + (grupo - (larguraBarra * series.length + gap * (series.length - 1))) / 2
             return (
               <g key={d.rotulo}>
-                {hover === i && <rect x={x0} y={M.topo} width={grupo} height={areaA} fill="#0b0b0b" opacity={0.04} />}
+                {hover === i && <rect x={x0} y={M.topo} width={grupo} height={areaA} style={{ fill: 'rgb(var(--c-slate-500))' }} opacity={0.08} />}
                 {d.valores.map((v, s) => {
                   const h = Math.max(0, y(0) - y(v))
                   const x = inicio + s * (larguraBarra + gap)
@@ -108,7 +108,7 @@ export function GraficoBarras({ series, dados, formatar, formatarEixo = formatar
                       : `M${x},${y(0)} V${y(v) + r} Q${x},${y(v)} ${x + r},${y(v)} H${x + larguraBarra - r} Q${x + larguraBarra},${y(v)} ${x + larguraBarra},${y(v) + r} V${y(0)} Z`
                   return path && <path key={s} d={path} fill={series[s].cor} />
                 })}
-                <text x={x0 + grupo / 2} y={altura - 8} textAnchor="middle" fontSize={11} fill="#52514e">
+                <text x={x0 + grupo / 2} y={altura - 8} textAnchor="middle" fontSize={11} style={{ fill: 'rgb(var(--c-slate-600))' }}>
                   {d.rotulo}
                 </text>
                 {/* Área de hover maior que as barras */}
@@ -128,7 +128,7 @@ export function GraficoBarras({ series, dados, formatar, formatarEixo = formatar
 
         {hover !== null && (
           <div
-            className="pointer-events-none absolute z-10 min-w-[150px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs shadow-lg"
+            className="pointer-events-none absolute z-10 min-w-[150px] rounded-lg border border-slate-200 bg-superficie px-3 py-2 text-xs shadow-lg"
             style={{
               left: Math.min(M.esquerda + grupo * hover + grupo / 2, largura - 160),
               top: 4

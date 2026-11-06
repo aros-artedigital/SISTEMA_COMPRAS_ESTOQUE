@@ -7,7 +7,7 @@ type Variante = 'primario' | 'secundario' | 'perigo' | 'fantasma'
 
 const variantes: Record<Variante, string> = {
   primario: 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm',
-  secundario: 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50',
+  secundario: 'bg-superficie text-slate-700 border border-slate-300 hover:bg-slate-50',
   perigo: 'bg-red-600 text-white hover:bg-red-700 shadow-sm',
   fantasma: 'text-slate-600 hover:bg-slate-100'
 }
@@ -59,7 +59,7 @@ export function Field({ label, error, hint, obrigatorio, className = '', childre
 
 // Sem largura fixa: campos com label ocupam a coluna (w-full); sem label, quem chama define.
 const baseInput =
-  'h-10 rounded-lg border bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 disabled:bg-slate-100'
+  'h-10 rounded-lg border bg-superficie px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 disabled:bg-slate-100'
 const estadoInput = (erro?: string): string =>
   erro ? 'border-red-400 focus:ring-red-200' : 'border-slate-300 focus:border-blue-500 focus:ring-blue-100'
 
@@ -124,7 +124,7 @@ export function Textarea({ label, error, wrapperClassName, className = '', ...pr
         <textarea
           id={id}
           rows={3}
-          className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 ${estadoInput(error)} ${className}`}
+          className={`w-full rounded-lg border bg-superficie px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 ${estadoInput(error)} ${className}`}
           {...props}
         />
       )}
@@ -173,7 +173,7 @@ export function Badge({ cor = 'cinza', children }: { cor?: CorBadge; children: R
 }
 
 export function Card({ className = '', children }: { className?: string; children: ReactNode }) {
-  return <div className={`rounded-xl border border-slate-200 bg-white shadow-sm ${className}`}>{children}</div>
+  return <div className={`rounded-xl border border-slate-200 bg-superficie shadow-sm ${className}`}>{children}</div>
 }
 
 export function CardHeader({ titulo, acao }: { titulo: string; acao?: ReactNode }) {

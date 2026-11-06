@@ -95,7 +95,7 @@ export function FichaProduto({ produtoId, onFechar }: { produtoId: number | null
   const nomeArquivo = `ficha-${p.codigo}`
 
   const cartao = (titulo: string, valor: string, detalhe?: string, cor = 'text-slate-900') => (
-    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2.5">
+    <div className="rounded-lg border border-slate-200 bg-superficie px-3 py-2.5">
       <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{titulo}</p>
       <p className={`mt-0.5 text-lg font-bold tabular-nums ${cor}`}>{valor}</p>
       {detalhe && <p className="text-xs text-slate-500">{detalhe}</p>}

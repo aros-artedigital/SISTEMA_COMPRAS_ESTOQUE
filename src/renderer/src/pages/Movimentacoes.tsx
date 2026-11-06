@@ -167,7 +167,7 @@ export default function Movimentacoes() {
               setMotivoEstorno('')
               setErroEstorno('')
             }}
-            className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-superficie px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
             title="Desfazer este lançamento"
           >
             <Undo2 size={14} /> Estornar
@@ -187,6 +187,7 @@ export default function Movimentacoes() {
               Excel
             </Button>
             <Button
+              data-atalho="novo"
               icone={<Plus size={16} />}
               onClick={() => {
                 form.reset(vazio)

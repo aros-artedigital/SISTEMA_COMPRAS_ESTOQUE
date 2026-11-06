@@ -32,7 +32,7 @@ export default function Login() {
 
   return (
     <div className="flex h-screen">
-      <div className="hidden w-1/2 flex-col justify-between bg-sidebar p-12 text-white lg:flex">
+      <div className="hidden w-1/2 flex-col justify-between paleta-clara bg-sidebar p-12 text-white lg:flex">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600">
             <Boxes size={24} />
@@ -49,7 +49,7 @@ export default function Login() {
             Produtos, fornecedores, pedidos de compra e movimentações em um só lugar, funcionando direto no seu computador.
           </p>
         </div>
-        <p className="text-xs text-slate-400">Sistema de Estoque e Compras · v0.9.0</p>
+        <p className="text-xs text-slate-400">Sistema de Estoque e Compras · v0.10.0</p>
       </div>
 
       <div className="flex flex-1 items-center justify-center bg-slate-50 p-8">
@@ -90,7 +90,7 @@ export default function Login() {
 
           {/* Só em desenvolvimento: o app instalado não tem os usuários de demonstração. */}
           {import.meta.env.DEV && (
-            <div className="mt-8 rounded-lg border border-dashed border-slate-300 bg-white p-3 text-xs text-slate-500">
+            <div className="mt-8 rounded-lg border border-dashed border-slate-300 bg-superficie p-3 text-xs text-slate-500">
               <p className="mb-1 font-semibold text-slate-600">Usuários de demonstração</p>
               <p>admin / admin123 · gerente / gerente123 · operador / operador123</p>
             </div>

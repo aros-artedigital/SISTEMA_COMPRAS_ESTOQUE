@@ -31,7 +31,7 @@ export function DataTable<T>({ colunas, dados, chave, vazio = 'Nenhum registro e
   const visiveis = dados.slice((pagina - 1) * porPagina, pagina * porPagina)
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-superficie shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -107,12 +107,12 @@ export function AcoesLinha({ onEditar, onExcluir, extra }: { onEditar?: () => vo
     <div className="flex justify-end gap-1.5">
       {extra}
       {onEditar && (
-        <button onClick={onEditar} className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
+        <button onClick={onEditar} className="rounded-md border border-slate-300 bg-superficie px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
           Editar
         </button>
       )}
       {onExcluir && (
-        <button onClick={onExcluir} className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-red-600 hover:border-red-300 hover:bg-red-50">
+        <button onClick={onExcluir} className="rounded-md border border-slate-300 bg-superficie px-2.5 py-1 text-xs font-medium text-red-600 hover:border-red-300 hover:bg-red-50">
           Excluir
         </button>
       )}

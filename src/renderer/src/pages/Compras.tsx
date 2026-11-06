@@ -205,7 +205,7 @@ export default function Compras() {
               c.status === 'recebida' && (
                 <button
                   onClick={() => setEtiquetas({ numero: c.numero, itens: c.itens.map((i) => ({ produtoId: i.produtoId, quantidade: i.quantidadeRecebida ?? i.quantidade })) })}
-                  className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-superficie px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
                   title="Etiquetas dos itens recebidos"
                 >
                   <Tags size={14} /> Etiquetas
@@ -230,7 +230,7 @@ export default function Compras() {
             <Button variante="secundario" icone={<FileSpreadsheet size={16} />} onClick={exportar}>
               Excel
             </Button>
-            <Button icone={<Plus size={16} />} onClick={() => abrir(null)}>Nova Compra</Button>
+            <Button data-atalho="novo" icone={<Plus size={16} />} onClick={() => abrir(null)}>Nova Compra</Button>
           </>
         }
       />

@@ -6,7 +6,7 @@ export function Sidebar() {
   const { pode } = useAuth()
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col bg-sidebar text-slate-200">
+    <aside className="paleta-clara flex w-60 shrink-0 flex-col bg-sidebar text-slate-200">
       <div className="flex items-center gap-2.5 px-5 py-5">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white">
           <Marca size={20} />
@@ -43,7 +43,7 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="border-t border-sidebar-border px-5 py-3 text-[11px] text-slate-400">Versão 0.9.0</div>
+      <div className="border-t border-sidebar-border px-5 py-3 text-[11px] text-slate-400">Versão 0.10.0</div>
     </aside>
   )
 }

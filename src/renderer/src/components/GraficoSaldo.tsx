@@ -69,21 +69,21 @@ export function GraficoSaldo({ pontos, minimo, altura = 200 }: { pontos: PontoSa
       <svg width={largura} height={altura} role="img" aria-label="Saldo do produto ao longo do tempo">
         {ticks.map((t) => (
           <g key={t}>
-            <line x1={M.esquerda} x2={largura - M.direita} y1={y(t)} y2={y(t)} stroke={t === 0 ? '#c3c2b7' : '#e1e0d9'} />
-            <text x={M.esquerda - 8} y={y(t)} dy="0.32em" textAnchor="end" fontSize={11} fill="#898781" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            <line x1={M.esquerda} x2={largura - M.direita} y1={y(t)} y2={y(t)} style={{ stroke: t === 0 ? 'rgb(var(--c-slate-300))' : 'rgb(var(--c-slate-200))' }} />
+            <text x={M.esquerda - 8} y={y(t)} dy="0.32em" textAnchor="end" fontSize={11} style={{ fill: 'rgb(var(--c-slate-500))', fontVariantNumeric: 'tabular-nums' }}>
               {fmt.numero(t)}
             </text>
           </g>
         ))}
         {datas.map((t, i) => (
-          <text key={i} x={x(t)} y={altura - 8} textAnchor={i === 0 ? 'start' : i === 2 ? 'end' : 'middle'} fontSize={11} fill="#52514e">
+          <text key={i} x={x(t)} y={altura - 8} textAnchor={i === 0 ? 'start' : i === 2 ? 'end' : 'middle'} fontSize={11} style={{ fill: 'rgb(var(--c-slate-600))' }}>
             {fmt.data(new Date(t).toISOString().slice(0, 10))}
           </text>
         ))}
         {minimo > 0 && (
           <g>
             <line x1={M.esquerda} x2={largura - M.direita} y1={y(minimo)} y2={y(minimo)} stroke="#d03b3b" strokeDasharray="4 4" strokeWidth={1} />
-            <text x={largura - M.direita} y={y(minimo) - 4} textAnchor="end" fontSize={10} fill="#52514e">
+            <text x={largura - M.direita} y={y(minimo) - 4} textAnchor="end" fontSize={10} style={{ fill: 'rgb(var(--c-slate-600))' }}>
               mínimo {fmt.numero(minimo)}
             </text>
           </g>
@@ -91,15 +91,15 @@ export function GraficoSaldo({ pontos, minimo, altura = 200 }: { pontos: PontoSa
         <path d={caminho} fill="none" stroke={AZUL} strokeWidth={2} strokeLinejoin="round" />
         {p && (
           <g>
-            <line x1={x(tempo(p.data))} x2={x(tempo(p.data))} y1={M.topo} y2={M.topo + areaA} stroke="#898781" strokeDasharray="2 3" />
-            <circle cx={x(tempo(p.data))} cy={y(p.saldo)} r={4.5} fill={AZUL} stroke="#fff" strokeWidth={2} />
+            <line x1={x(tempo(p.data))} x2={x(tempo(p.data))} y1={M.topo} y2={M.topo + areaA} style={{ stroke: 'rgb(var(--c-slate-400))' }} strokeDasharray="2 3" />
+            <circle cx={x(tempo(p.data))} cy={y(p.saldo)} r={4.5} fill={AZUL} style={{ stroke: 'rgb(var(--c-superficie))' }} strokeWidth={2} />
           </g>
         )}
         <rect x={M.esquerda} y={M.topo} width={areaL} height={areaA} fill="transparent" onMouseMove={mover} onMouseLeave={() => setHover(null)} />
       </svg>
       {p && (
         <div
-          className="pointer-events-none absolute top-1 z-10 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs shadow-lg"
+          className="pointer-events-none absolute top-1 z-10 rounded-lg border border-slate-200 bg-superficie px-3 py-2 text-xs shadow-lg"
           style={{ left: Math.min(x(tempo(p.data)) + 8, largura - 150) }}
         >
           <p className="font-semibold text-slate-800">{fmt.dataHora(p.data)}</p>

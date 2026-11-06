@@ -168,7 +168,7 @@ export function EtiquetasModal({ aberto, onFechar, inicial, titulo = 'Imprimir e
           {selecionados[0] && (
             <div>
               <p className="mb-1 text-xs font-medium text-slate-500">Prévia</p>
-              <div className="flex h-32 w-full flex-col rounded-md border border-slate-300 bg-white p-2 shadow-sm">
+              <div className="flex h-32 w-full flex-col rounded-md border border-slate-300 bg-superficie p-2 shadow-sm">
                 <p className="truncate text-xs font-semibold">{selecionados[0].produto.nome}</p>
                 <div className="flex min-h-0 flex-1 items-center justify-center [&>svg]:max-h-full [&>svg]:max-w-full" dangerouslySetInnerHTML={{ __html: amostra }} />
                 <div className="flex justify-between text-[10px]">

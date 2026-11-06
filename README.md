@@ -94,6 +94,11 @@ Usuários de demonstração (só em desenvolvimento):
   deixa vender sem saldo. Recibo em cupom de 80 mm (impressão ou PDF, sem valor fiscal). Uma venda não é editada:
   o cancelamento devolve os itens ao estoque e fica registrado com o motivo. Atalho **F2** abre uma nova venda.
   Relatório de vendas por venda, por cliente ou por produto; total comprado por cliente na tela de Clientes.
+- **Modo escuro**: botão de sol/lua na barra superior — Claro, Escuro ou Automático (segue o Windows). Cada computador
+  guarda a sua escolha. `Ctrl+Shift+D` alterna na hora.
+- **Atalhos de teclado** (`F1` ou o ícone de teclado mostra todos): `F2` nova venda de qualquer tela, `Ctrl+N` novo
+  cadastro na tela atual, `Ctrl+F` vai para a busca, `Ctrl+1` a `Ctrl+9` abrem Início, Vendas, Produtos,
+  Movimentações, Inventário, Compras, Fornecedores, Clientes e Relatórios, `Esc` fecha a janela aberta.
 - **Auditoria** (Sistema → Auditoria, só administrador): registra quem fez o quê e quando — inclusões, alterações e
   exclusões de cadastros com os valores de antes e depois (ex.: "Preço de venda: R$ 49,90 → R$ 54,90"), logins e
   tentativas recusadas, recebimento e encerramento de compras, cancelamento de vendas, estornos, inventários,

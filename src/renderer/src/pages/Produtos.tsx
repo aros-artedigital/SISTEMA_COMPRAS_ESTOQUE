@@ -182,7 +182,7 @@ export default function Produtos() {
       render: (p) => (
         <AcoesLinha
           extra={
-            <button onClick={() => setFicha(p.id)} className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
+            <button onClick={() => setFicha(p.id)} className="rounded-md border border-slate-300 bg-superficie px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
               Ficha
             </button>
           }
@@ -208,7 +208,7 @@ export default function Produtos() {
             <Button variante="secundario" icone={<Upload size={16} />} onClick={() => setImportando(true)}>Importar</Button>
             <Button variante="secundario" icone={<FileSpreadsheet size={16} />} onClick={exportar}>Excel</Button>
             <Button variante="secundario" icone={<Tags size={16} />} onClick={abrirEtiquetas}>Etiquetas</Button>
-            <Button icone={<Plus size={16} />} onClick={abrirNovo}>Novo Produto</Button>
+            <Button data-atalho="novo" icone={<Plus size={16} />} onClick={abrirNovo}>Novo Produto</Button>
           </>
         }
       />

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { ChevronDown, LogOut, UserCircle } from 'lucide-react'
+import { ChevronDown, Keyboard, LogOut, UserCircle } from 'lucide-react'
+import { SeletorTema } from './SeletorTema'
 import { useAuth } from '@/contexts/AuthContext'
 import { useDb } from '@/data/store'
 import { nomePerfil } from '@shared/permissoes'
@@ -31,11 +32,20 @@ export function Topbar() {
     .toUpperCase()
 
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6">
+    <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-superficie px-6">
       <span className="font-semibold text-slate-800">{titulos[pathname] ?? ''}</span>
 
       <div className="flex items-center gap-4">
         <IndicadorSync />
+        <SeletorTema />
+        <button
+          onClick={() => window.dispatchEvent(new Event('abrir-atalhos'))}
+          className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+          title="Atalhos de teclado (F1)"
+          aria-label="Atalhos de teclado"
+        >
+          <Keyboard size={18} />
+        </button>
         <span className="hidden text-sm text-slate-600 xl:inline">{configuracoes.nomeEmpresa}</span>
         <div className="relative" ref={ref}>
           <button
@@ -53,7 +63,7 @@ export function Topbar() {
           </button>
 
           {aberto && (
-            <div role="menu" className="absolute right-0 z-40 mt-1 w-48 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+            <div role="menu" className="absolute right-0 z-40 mt-1 w-48 overflow-hidden rounded-lg border border-slate-200 bg-superficie py-1 shadow-lg">
               <Link
                 to="/perfil"
                 onClick={() => setAberto(false)}

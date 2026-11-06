@@ -97,13 +97,13 @@ export default function Usuarios() {
       <PageHeader
         titulo="Usuários"
         subtitulo="Contas de acesso ao sistema e seus perfis"
-        acoes={<Button icone={<Plus size={16} />} onClick={() => abrir(null)}>Novo Usuário</Button>}
+        acoes={<Button data-atalho="novo" icone={<Plus size={16} />} onClick={() => abrir(null)}>Novo Usuário</Button>}
       />
 
       <DataTable colunas={colunas} dados={usuarios} chave={(u) => u.id} />
 
       <h2 className="mb-3 mt-8 text-lg font-semibold text-slate-800">Permissões por perfil</h2>
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-superficie shadow-sm">
         <table className="w-full text-sm">
           <thead className="bg-slate-50">
             <tr>

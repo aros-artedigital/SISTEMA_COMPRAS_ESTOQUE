@@ -47,7 +47,7 @@ export default function Inventario() {
       <PageHeader
         titulo="Inventário"
         subtitulo="Contagem do estoque físico, com ajuste automático das diferenças"
-        acoes={<Button icone={<Plus size={16} />} onClick={() => setIniciando(true)}>Iniciar contagem</Button>}
+        acoes={<Button data-atalho="novo" icone={<Plus size={16} />} onClick={() => setIniciando(true)}>Iniciar contagem</Button>}
       />
 
       {atual ? (
@@ -85,7 +85,7 @@ function Historico({ lista, onAbrir }: { lista: InventarioResumo[]; onAbrir: (id
       titulo: '',
       alinhar: 'direita',
       render: (i) => (
-        <button onClick={() => onAbrir(i.id)} className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
+        <button onClick={() => onAbrir(i.id)} className="rounded-md border border-slate-300 bg-superficie px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
           Ver
         </button>
       )
@@ -389,7 +389,7 @@ function CampoContagem({ valor, nome, onSalvar }: { valor: number | null; nome: 
       onChange={(e) => setTexto(e.target.value)}
       onBlur={salvar}
       onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
-      className={`h-9 w-24 rounded-lg border px-2 text-right text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-100 ${valor === null ? 'border-slate-300 bg-white' : 'border-blue-300 bg-blue-50/50'}`}
+      className={`h-9 w-24 rounded-lg border px-2 text-right text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-100 ${valor === null ? 'border-slate-300 bg-superficie' : 'border-blue-300 bg-blue-50/50'}`}
     />
   )
 }

@@ -26,12 +26,12 @@ export function Modal({ aberto, titulo, onFechar, children, rodape, tamanho = 'm
   if (!aberto) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" onMouseDown={onFechar}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onMouseDown={onFechar}>
       <div
         role="dialog"
         aria-modal="true"
         aria-label={titulo}
-        className={`flex max-h-[90vh] w-full flex-col rounded-xl bg-white shadow-xl ${larguras[tamanho]}`}
+        className={`flex max-h-[90vh] w-full flex-col rounded-xl bg-superficie shadow-xl ${larguras[tamanho]}`}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">

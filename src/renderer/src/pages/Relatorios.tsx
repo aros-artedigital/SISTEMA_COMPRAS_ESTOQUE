@@ -29,7 +29,7 @@ export default function Relatorios() {
   return (
     <>
       <PageHeader titulo="Relatórios" subtitulo="Consulte, exporte para Excel, salve em PDF ou imprima" />
-      <div className="mb-5 flex gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm" role="tablist">
+      <div className="mb-5 flex gap-1 rounded-xl border border-slate-200 bg-superficie p-1 shadow-sm" role="tablist">
         {abas.map((a) => (
           <button
             key={a.id}
@@ -82,7 +82,7 @@ function Visualizacao({ relatorio, arquivo, filtros }: { relatorio: Relatorio; a
       {relatorio.resumo && (
         <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
           {relatorio.resumo.map((r) => (
-            <div key={r.rotulo} className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <div key={r.rotulo} className="rounded-xl border border-slate-200 bg-superficie px-4 py-3 shadow-sm">
               <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{r.rotulo}</p>
               <p className="mt-1 text-xl font-bold text-slate-900">{r.valor}</p>
             </div>

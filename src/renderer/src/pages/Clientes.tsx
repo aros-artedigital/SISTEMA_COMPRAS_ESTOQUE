@@ -114,7 +114,7 @@ export default function Clientes() {
             >
               Excel
             </Button>
-            <Button icone={<Plus size={16} />} onClick={() => abrir(null)}>Novo Cliente</Button>
+            <Button data-atalho="novo" icone={<Plus size={16} />} onClick={() => abrir(null)}>Novo Cliente</Button>
           </>
         }
       />
