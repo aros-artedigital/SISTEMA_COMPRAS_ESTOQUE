@@ -662,6 +662,99 @@ try {
   await page.getByText('Limpar seleção').click()
   await page.getByLabel('Itens por página').selectOption('10')
 
+  // ---------- Ações em lote nas outras telas ----------
+  console.log('Ações em lote (clientes, compras, categorias, movimentações)')
+  const barraLote = () => page.getByRole('region', { name: 'Ações com os selecionados' })
+  // Clientes: dois novos (sem vendas) + um com vendas
+  for (const [nome, doc] of [['Lote Cliente A', '111.444.777-35'], ['Lote Cliente B', '222.555.888-46']]) {
+    await ipc(page, 'clientes:salvar', null, { nome, tipo: 'PF', documento: doc, telefone: '', email: '', cidade: '', uf: '', ativo: true })
+  }
+  await page.reload()
+  await page.waitForSelector('input[placeholder="seu.login"]')
+  await entrar(page, 'admin', 'admin123')
+  await page.getByText('Olá, Administrador').waitFor()
+  await page.keyboard.press('Control+8')
+  await page.getByRole('heading', { name: 'Clientes', exact: true }).waitFor()
+  await page.getByLabel('Selecionar Lote Cliente A').check()
+  await page.getByLabel('Selecionar Lote Cliente B').check()
+  await barraLote().getByRole('button', { name: 'Inativar' }).click()
+  await page.getByText('2 clientes inativados.').waitFor()
+  dados = (await ipc(page, 'dados:carregar')).dados
+  verificar(dados.clientes.filter((c) => c.nome.startsWith('Lote Cliente')).every((c) => !c.ativo), 'clientes: inativar em lote')
+  await page.getByLabel('Selecionar Lote Cliente A').check()
+  await page.getByLabel('Selecionar Lote Cliente B').check()
+  await page.getByLabel('Selecionar João Pereira').check()
+  await barraLote().getByRole('button', { name: 'Excluir' }).click()
+  await page.getByRole('button', { name: 'Excluir 3' }).click()
+  await page.getByText('2 clientes excluídos.').waitFor()
+  await page.getByText(/1 não pôde ser excluído — Cliente João Pereira: Cliente possui vendas/).waitFor()
+  dados = (await ipc(page, 'dados:carregar')).dados
+  verificar(
+    !dados.clientes.some((c) => c.nome.startsWith('Lote Cliente')) && dados.clientes.some((c) => c.nome === 'João Pereira') && (await page.getByText('1 selecionado', { exact: true }).isVisible()),
+    'clientes: exclui os que podem e mantém marcado o que tem vendas'
+  )
+  await page.getByText('Limpar seleção').click()
+
+  // Compras: uma não recebida (rascunho novo) + uma recebida
+  const fornLote = dados.fornecedores.find((f) => f.ativo)
+  const rascunho = (await ipc(page, 'compras:salvar', null, { fornecedorId: fornLote.id, data: '2026-11-01', observacao: 'lote', status: 'rascunho', itens: [{ produtoId: 1, quantidade: 1, valorUnitario: 10 }] })).dados
+  const recebida = dados.compras.find((c) => c.status === 'recebida')
+  await page.keyboard.press('Control+6')
+  await page.getByRole('heading', { name: 'Compras', exact: true }).waitFor()
+  await page.reload()
+  await page.waitForSelector('input[placeholder="seu.login"]')
+  await entrar(page, 'admin', 'admin123')
+  await page.getByText('Olá, Administrador').waitFor()
+  await page.keyboard.press('Control+6')
+  await page.getByLabel('Itens por página').selectOption('50')
+  await page.getByLabel(`Selecionar ${rascunho.numero}`).check()
+  await page.getByLabel(`Selecionar ${recebida.numero}`, { exact: true }).check()
+  await foto(page, '20-lote-compras')
+  await barraLote().getByRole('button', { name: 'Excluir' }).click()
+  await page.getByRole('button', { name: 'Excluir 2' }).click()
+  await page.getByText('1 compra excluída.').waitFor()
+  await page.getByText(/1 não pôde ser excluída — Compra .*recebidas/).waitFor()
+  dados = (await ipc(page, 'dados:carregar')).dados
+  verificar(!dados.compras.some((c) => c.id === rascunho.id) && dados.compras.some((c) => c.id === recebida.id), 'compras: exclui a não recebida e mantém a recebida (no feminino: "1 compra excluída")')
+  await page.getByText('Limpar seleção').click()
+  await page.getByLabel('Itens por página').selectOption('10')
+
+  // Categorias: uma livre + uma em uso
+  await ipc(page, 'categorias:salvar', null, { nome: 'Categoria lote', descricao: '' })
+  await page.getByRole('link', { name: 'Categorias e Unidades' }).click()
+  await page.reload()
+  await page.waitForSelector('input[placeholder="seu.login"]')
+  await entrar(page, 'admin', 'admin123')
+  await page.getByText('Olá, Administrador').waitFor()
+  await page.getByRole('link', { name: 'Categorias e Unidades' }).click()
+  await page.getByLabel('Selecionar Categoria lote').check()
+  await page.getByLabel('Selecionar Periféricos').check()
+  await barraLote().getByRole('button', { name: 'Excluir' }).click()
+  await page.getByRole('button', { name: 'Excluir 2' }).click()
+  await page.getByText('1 categoria excluída.').waitFor()
+  dados = (await ipc(page, 'dados:carregar')).dados
+  verificar(!dados.categorias.some((c) => c.nome === 'Categoria lote') && dados.categorias.some((c) => c.nome === 'Periféricos'), 'categorias: exclui a livre e mantém a que está em uso')
+  await page.getByText('Limpar seleção').click()
+
+  // Movimentações: exportar só as selecionadas
+  await page.keyboard.press('Control+4')
+  await page.getByRole('heading', { name: 'Movimentações de Estoque', exact: true }).waitFor()
+  const linhasVenda = page.locator('main tbody input[type=checkbox]')
+  const nVendas = await linhasVenda.count()
+  if (nVendas >= 2) {
+    await linhasVenda.nth(0).check()
+    await linhasVenda.nth(1).check()
+    await aoSalvar(join(pasta, 'movs-selecao.xlsx'))
+    await barraLote().getByRole('button', { name: 'Excel' }).click()
+    await esperarArquivo(join(pasta, 'movs-selecao.xlsx'))
+    const wbSel = new ExcelJS.Workbook()
+    await wbSel.xlsx.readFile(join(pasta, 'movs-selecao.xlsx'))
+    verificar(wbSel.worksheets[0].rowCount === 3, `movimentações: Excel só com as 2 selecionadas (${wbSel.worksheets[0].rowCount - 1})`)
+    await page.getByText('Limpar seleção').click()
+  } else {
+    verificar(false, `movimentações: esperava ao menos 2 linhas (${nVendas})`)
+  }
+
   // ---------- Notificações ----------
   console.log('Central de notificações')
   let notif = (await ipc(page, 'notificacoes:listar')).dados

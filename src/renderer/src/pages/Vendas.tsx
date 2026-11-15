@@ -12,6 +12,7 @@ import { Badge, Button, Input, SearchInput, Select, Textarea } from '@/component
 import { InputMoeda } from '@/components/InputMoeda'
 import { executar } from '@/lib/executar'
 import { htmlRecibo } from '@/lib/recibo'
+import { AcoesLote } from '@/components/AcoesLote'
 import { exportarExcel, imprimir, salvarPdf } from '@/lib/saida'
 import { corStatusVenda, rotuloFormaPagamento, rotuloStatusVenda, subtotalVenda, totalVenda } from '@shared/dominio'
 import * as fmt from '@shared/format'
@@ -103,7 +104,10 @@ export default function Vendas() {
     }
   ]
 
-  function exportar(): void {
+  const [selecao, setSelecao] = useState<Set<string | number>>(new Set())
+  const escolhidas = lista.filter((x) => selecao.has(x.id))
+
+  function exportar(itens: Venda[] = lista): void {
     void exportarExcel(
       {
         nome: 'Vendas',
@@ -117,7 +121,7 @@ export default function Vendas() {
           { titulo: 'Total', formato: 'moeda' },
           { titulo: 'Status' }
         ],
-        linhas: lista.map((v) => [v.numero, v.data, nomeCliente(v.clienteId), rotuloFormaPagamento[v.formaPagamento], subtotalVenda(v), v.desconto, totalVenda(v), rotuloStatusVenda[v.status]])
+        linhas: itens.map((v) => [v.numero, v.data, nomeCliente(v.clienteId), rotuloFormaPagamento[v.formaPagamento], subtotalVenda(v), v.desconto, totalVenda(v), rotuloStatusVenda[v.status]])
       },
       `vendas_${fmt.hojeIso()}`,
       notificar
@@ -131,7 +135,7 @@ export default function Vendas() {
         subtitulo="Vendas a clientes, com baixa automática no estoque"
         acoes={
           <>
-            <Button variante="secundario" icone={<FileSpreadsheet size={16} />} onClick={exportar}>Excel</Button>
+            <Button variante="secundario" icone={<FileSpreadsheet size={16} />} onClick={() => exportar()}>Excel</Button>
             <Button data-atalho="novo" icone={<Plus size={16} />} onClick={() => setNova(true)}>
               Nova venda <kbd className="ml-1 rounded bg-white/20 px-1 text-[10px]">F2</kbd>
             </Button>
@@ -154,7 +158,14 @@ export default function Vendas() {
         </span>
       </Filtros>
 
-      <DataTable colunas={colunas} dados={lista} chave={(v) => v.id} vazio="Nenhuma venda no período. Use Nova venda (F2) para registrar." />
+      <DataTable
+        colunas={colunas}
+        dados={lista}
+        chave={(v) => v.id}
+        nomeItens="vendas"
+        selecionados={selecao}
+        onSelecionar={setSelecao}
+        acoesSelecao={<AcoesLote quantidade={escolhidas.length} nome={['venda', 'vendas']} onExcel={() => exportar(escolhidas)} />} vazio="Nenhuma venda no período. Use Nova venda (F2) para registrar." />
 
       <NovaVendaModal
         aberto={nova}

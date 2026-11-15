@@ -11,6 +11,7 @@ import { corTipoMov, rotuloTipoMov } from '@shared/dominio'
 import { movimentacaoSchema } from '@shared/schemas'
 import { useForm } from '@/lib/useForm'
 import { executar } from '@/lib/executar'
+import { AcoesLote } from '@/components/AcoesLote'
 import { exportarExcel } from '@/lib/saida'
 import { LeitorCodigo } from '@/components/LeitorCodigo'
 import * as fmt from '@shared/format'
@@ -81,7 +82,10 @@ export default function Movimentacoes() {
     if (ok) setAberto(false)
   }
 
-  function exportar(): void {
+  const [selecao, setSelecao] = useState<Set<string | number>>(new Set())
+  const escolhidas = lista.filter((x) => selecao.has(x.id))
+
+  function exportar(itens: Movimentacao[] = lista): void {
     void exportarExcel(
       {
         nome: 'Movimentações',
@@ -95,7 +99,7 @@ export default function Movimentacoes() {
           { titulo: 'Motivo' },
           { titulo: 'Usuário' }
         ],
-        linhas: lista.map((m) => [
+        linhas: itens.map((m) => [
           m.data,
           produto(m.produtoId)?.codigo ?? '',
           produto(m.produtoId)?.nome ?? '',
@@ -183,7 +187,7 @@ export default function Movimentacoes() {
         subtitulo="Histórico de entradas, saídas e ajustes de inventário"
         acoes={
           <>
-            <Button variante="secundario" icone={<FileSpreadsheet size={16} />} onClick={exportar}>
+            <Button variante="secundario" icone={<FileSpreadsheet size={16} />} onClick={() => exportar()}>
               Excel
             </Button>
             <Button
@@ -218,7 +222,14 @@ export default function Movimentacoes() {
         <span className="ml-auto text-sm text-slate-500">{lista.length} registro(s)</span>
       </Filtros>
 
-      <DataTable colunas={colunas} dados={lista} chave={(m) => m.id} porPagina={12} />
+      <DataTable
+        colunas={colunas}
+        dados={lista}
+        chave={(m) => m.id}
+        nomeItens="movimentações"
+        selecionados={selecao}
+        onSelecionar={setSelecao}
+        acoesSelecao={<AcoesLote quantidade={escolhidas.length} nome={['movimentação', 'movimentações']} onExcel={() => exportar(escolhidas)} />} porPagina={12} />
 
       <Modal
         aberto={estornando !== null}

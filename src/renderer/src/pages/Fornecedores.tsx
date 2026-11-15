@@ -11,6 +11,8 @@ import { fornecedorSchema } from '@shared/schemas'
 import { useForm } from '@/lib/useForm'
 import { executar } from '@/lib/executar'
 import { exportarExcel } from '@/lib/saida'
+import { AcoesLote } from '@/components/AcoesLote'
+import { useLote } from '@/lib/lote'
 import { ImportarModal } from '@/components/ImportarModal'
 import { CamposEndereco } from '@/components/CamposEndereco'
 import * as fmt from '@shared/format'
@@ -61,6 +63,15 @@ export default function Fornecedores() {
     await executar(() => alterar('fornecedores:excluir', alvo.id), { notificar, sucesso: 'Fornecedor excluído.' })
   }
 
+  function exportar(itens: Fornecedor[]): void {
+    void exportarExcel({ nome: 'Fornecedores', colunas: [{ titulo: 'Razão social' }, { titulo: 'Nome fantasia' }, { titulo: 'CNPJ' }, { titulo: 'Telefone' }, { titulo: 'E-mail' }, { titulo: 'Cidade' }, { titulo: 'UF' }, { titulo: 'Ativo' }], linhas: itens.map((f) => [f.razaoSocial, f.nomeFantasia, f.cnpj, f.telefone, f.email, f.cidade, f.uf, f.ativo ? 'Sim' : 'Não']) }, `fornecedores_${fmt.hojeIso()}`, notificar)
+  }
+
+  const lote = useLote(notificar, { nome: ['fornecedor', 'fornecedores'] })
+  const escolhidos = lista.filter((x) => lote.selecionados.has(x.id))
+  const emLote = (op: 'ativar' | 'inativar' | 'excluir', verbo: string): Promise<void> =>
+    lote.emLote(() => alterar('cadastros:emLote', 'fornecedores', escolhidos.map((x) => x.id), op), verbo)
+
   const colunas: Coluna<Fornecedor>[] = [
     {
       chave: 'nome',
@@ -93,7 +104,7 @@ export default function Fornecedores() {
               variante="secundario"
               icone={<FileSpreadsheet size={16} />}
               onClick={() =>
-                exportarExcel({ nome: 'Fornecedores', colunas: [{ titulo: 'Razão social' }, { titulo: 'Nome fantasia' }, { titulo: 'CNPJ' }, { titulo: 'Telefone' }, { titulo: 'E-mail' }, { titulo: 'Cidade' }, { titulo: 'UF' }, { titulo: 'Ativo' }], linhas: lista.map((f) => [f.razaoSocial, f.nomeFantasia, f.cnpj, f.telefone, f.email, f.cidade, f.uf, f.ativo ? 'Sim' : 'Não']) }, `fornecedores_${fmt.hojeIso()}`, notificar)
+                exportar(lista)
               }
             >
               Excel
@@ -106,7 +117,26 @@ export default function Fornecedores() {
         <SearchInput className="w-80" placeholder="Pesquisar por nome ou CNPJ..." value={busca} onChange={(e) => setBusca(e.target.value)} />
         <span className="ml-auto text-sm text-slate-500">{lista.length} fornecedor(es)</span>
       </Filtros>
-      <DataTable colunas={colunas} dados={lista} chave={(f) => f.id} />
+      <DataTable
+        colunas={colunas}
+        dados={lista}
+        chave={(f) => f.id}
+        nomeItens="fornecedores"
+        selecionados={lote.selecionados}
+        onSelecionar={lote.setSelecionados}
+        rotuloLinha={(f) => f.razaoSocial}
+        acoesSelecao={
+          <AcoesLote
+            quantidade={escolhidos.length}
+            nome={['fornecedor', 'fornecedores']}
+            onAtivar={pode('fornecedoresEditar') ? () => void emLote('ativar', 'ativado') : undefined}
+            onInativar={pode('fornecedoresEditar') ? () => void emLote('inativar', 'inativado') : undefined}
+            onExcel={() => exportar(escolhidos)}
+            onExcluir={pode('fornecedoresExcluir') ? () => void emLote('excluir', 'excluído') : undefined}
+            avisoExcluir="Fornecedores com compras registradas não podem ser excluídos — esses serão mantidos (você pode inativá-los)."
+          />
+        }
+      />
 
       <Modal
         aberto={aberto}

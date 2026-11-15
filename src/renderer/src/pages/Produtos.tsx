@@ -20,7 +20,7 @@ import { FichaProduto } from '@/components/FichaProduto'
 import { buscarPorCodigo } from '@/components/LeitorCodigo'
 import * as fmt from '@shared/format'
 import type { Produto } from '@shared/tipos'
-import type { OperacaoLoteProduto } from '@shared/api'
+import type { OperacaoLoteProduto, ResultadoLote } from '@shared/api'
 
 const vazio = {
   codigo: '',
@@ -101,10 +101,10 @@ export default function Produtos() {
   /** Ação em lote: mostra o resumo (feitos e o que não deu, com o motivo) e limpa a seleção. */
   async function emLote(operacao: OperacaoLoteProduto, verbo: string): Promise<void> {
     const ids = escolhidos.map((p) => p.id)
-    let r: { feitos: number; falhas: { item: string; motivo: string }[] } | null = null
+    let r: ResultadoLote | null = null
     const ok = await executar(async () => (r = await alterar('produtos:emLote', ids, operacao)), { notificar })
     if (!ok || !r) return
-    const { feitos, falhas } = r as { feitos: number; falhas: { item: string; motivo: string }[] }
+    const { feitos, falhas } = r as ResultadoLote
     if (feitos) notificar('sucesso', `${feitos} produto${feitos > 1 ? 's' : ''} ${verbo}${feitos > 1 ? 's' : ''}.`)
     if (falhas.length) {
       const lista = falhas
@@ -113,7 +113,7 @@ export default function Produtos() {
         .join(' · ')
       notificar('aviso', `${falhas.length} não ${falhas.length > 1 ? 'puderam' : 'pôde'} ser ${verbo}${falhas.length > 1 ? 's' : ''} — ${lista}${falhas.length > 3 ? ' …' : ''}`)
     }
-    setSelecionados(new Set(falhas.length ? escolhidos.filter((p) => falhas.some((f) => f.item.startsWith(`${p.codigo} —`))).map((p) => p.id) : []))
+    setSelecionados(new Set(falhas.map((f) => f.id)))
   }
 
   function abrirEtiquetas(): void {

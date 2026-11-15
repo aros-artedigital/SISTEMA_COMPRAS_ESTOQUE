@@ -112,6 +112,9 @@ Usuários de demonstração (só em desenvolvimento):
 - **Ações em lote em Produtos**: marque vários produtos (ou todos da página pela caixa do cabeçalho) e ative, inative,
   mude a categoria, imprima etiquetas, exporte para o Excel ou exclua de uma vez. Produtos com histórico não são
   excluídos — o sistema avisa quais e por quê. Cada alteração fica na auditoria.
+- **Ações em lote nas outras listas**: Clientes e Fornecedores (ativar, inativar, Excel, excluir), Compras (Excel,
+  excluir as não recebidas), Categorias e Unidades (excluir as que não estão em uso), Vendas e Movimentações
+  (exportar a seleção para o Excel). O que não pode ser feito é mantido e marcado, com o motivo na mensagem.
 - **Notificações** (sino na barra superior): estoque zerado ou abaixo do mínimo, compras pedidas há mais de 7 dias e
   não recebidas, inventário em aberto, senha padrão, código de recuperação, backup externo atrasado, conflitos de
   sincronização e atualização disponível — cada usuário vê só o que diz respeito às telas que pode acessar. Avisos

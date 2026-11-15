@@ -12,6 +12,8 @@ import { clienteSchema } from '@shared/schemas'
 import { useForm } from '@/lib/useForm'
 import { executar } from '@/lib/executar'
 import { exportarExcel } from '@/lib/saida'
+import { AcoesLote } from '@/components/AcoesLote'
+import { useLote } from '@/lib/lote'
 import { ImportarModal } from '@/components/ImportarModal'
 import { CamposEndereco } from '@/components/CamposEndereco'
 import * as fmt from '@shared/format'
@@ -67,6 +69,15 @@ export default function Clientes() {
 
   const pf = form.values.tipo === 'PF'
 
+  function exportar(itens: Cliente[]): void {
+    void exportarExcel({ nome: 'Clientes', colunas: [{ titulo: 'Nome' }, { titulo: 'Tipo (PF/PJ)' }, { titulo: 'CPF/CNPJ' }, { titulo: 'Telefone' }, { titulo: 'E-mail' }, { titulo: 'Cidade' }, { titulo: 'UF' }, { titulo: 'Ativo' }], linhas: itens.map((c) => [c.nome, c.tipo, c.documento, c.telefone, c.email, c.cidade, c.uf, c.ativo ? 'Sim' : 'Não']) }, `clientes_${fmt.hojeIso()}`, notificar)
+  }
+
+  const lote = useLote(notificar, { nome: ['cliente', 'clientes'] })
+  const escolhidos = lista.filter((x) => lote.selecionados.has(x.id))
+  const emLote = (op: 'ativar' | 'inativar' | 'excluir', verbo: string): Promise<void> =>
+    lote.emLote(() => alterar('cadastros:emLote', 'clientes', escolhidos.map((x) => x.id), op), verbo)
+
   const colunas: Coluna<Cliente>[] = [
     {
       chave: 'nome',
@@ -112,7 +123,7 @@ export default function Clientes() {
               variante="secundario"
               icone={<FileSpreadsheet size={16} />}
               onClick={() =>
-                exportarExcel({ nome: 'Clientes', colunas: [{ titulo: 'Nome' }, { titulo: 'Tipo (PF/PJ)' }, { titulo: 'CPF/CNPJ' }, { titulo: 'Telefone' }, { titulo: 'E-mail' }, { titulo: 'Cidade' }, { titulo: 'UF' }, { titulo: 'Ativo' }], linhas: lista.map((c) => [c.nome, c.tipo, c.documento, c.telefone, c.email, c.cidade, c.uf, c.ativo ? 'Sim' : 'Não']) }, `clientes_${fmt.hojeIso()}`, notificar)
+                exportar(lista)
               }
             >
               Excel
@@ -135,7 +146,26 @@ export default function Clientes() {
         />
         <span className="ml-auto text-sm text-slate-500">{lista.length} cliente(s)</span>
       </Filtros>
-      <DataTable colunas={colunas} dados={lista} chave={(c) => c.id} />
+      <DataTable
+        colunas={colunas}
+        dados={lista}
+        chave={(c) => c.id}
+        nomeItens="clientes"
+        selecionados={lote.selecionados}
+        onSelecionar={lote.setSelecionados}
+        rotuloLinha={(c) => c.nome}
+        acoesSelecao={
+          <AcoesLote
+            quantidade={escolhidos.length}
+            nome={['cliente', 'clientes']}
+            onAtivar={pode('clientesEditar') ? () => void emLote('ativar', 'ativado') : undefined}
+            onInativar={pode('clientesEditar') ? () => void emLote('inativar', 'inativado') : undefined}
+            onExcel={() => exportar(escolhidos)}
+            onExcluir={pode('clientesExcluir') ? () => void emLote('excluir', 'excluído') : undefined}
+            avisoExcluir="Clientes com vendas registradas não podem ser excluídos — esses serão mantidos (você pode inativá-los)."
+          />
+        }
+      />
 
       <Modal
         aberto={aberto}

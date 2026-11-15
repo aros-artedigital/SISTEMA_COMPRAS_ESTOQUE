@@ -243,7 +243,7 @@ export function registrarCanais(): void {
         }
         resultado.feitos++
       } catch (e) {
-        resultado.falhas.push({ item: `${p.codigo} — ${p.nome}`, motivo: serializarErro(e).mensagem })
+        resultado.falhas.push({ id: idProduto, item: `${p.codigo} — ${p.nome}`, motivo: serializarErro(e).mensagem })
       }
     }
     return resultado
@@ -265,6 +265,35 @@ export function registrarCanais(): void {
   const comp = crud('compras', 'compras', compras.salvar, compras.excluir, s.compraEntradaSchema)
   canal('compras:salvar', comp.salvar as Handler<'compras:salvar'>)
   canal('compras:excluir', comp.excluir)
+
+  // Ações em lote dos demais cadastros: cada item passa pelo mesmo caminho do cadastro individual
+  // (permissões, regras e auditoria); o que não pode ser feito volta na lista de falhas com o motivo.
+  const lotes = {
+    clientes: { crud: cli, tabela: 'clientes', ativo: true },
+    fornecedores: { crud: forn, tabela: 'fornecedores', ativo: true },
+    compras: { crud: comp, tabela: 'compras', ativo: false },
+    categorias: { crud: cat, tabela: 'categorias', ativo: false },
+    unidades: { crud: un, tabela: 'unidades', ativo: false }
+  } as const
+  canal('cadastros:emLote', (t, ids, op) => {
+    const alvo = lotes[z.enum(['clientes', 'fornecedores', 'compras', 'categorias', 'unidades']).parse(t)]
+    const lista = z.array(s.idSchema).min(1).max(5000).parse(ids)
+    const operacao = z.enum(['ativar', 'inativar', 'excluir']).parse(op)
+    if (operacao !== 'excluir' && !alvo.ativo) throw new ErroNegocio('Esta lista não tem ativar/inativar.')
+    const resultado: ResultadoLote = { feitos: 0, falhas: [] }
+    for (const idItem of lista) {
+      const atual = auditoria.ler(alvo.tabela, idItem)
+      if (!atual) continue
+      try {
+        if (operacao === 'excluir') alvo.crud.excluir(idItem)
+        else alvo.crud.salvar(idItem, { ...atual, ativo: operacao === 'ativar' })
+        resultado.feitos++
+      } catch (e) {
+        resultado.falhas.push({ id: idItem, item: auditoria.descrever(alvo.tabela, atual), motivo: serializarErro(e).mensagem })
+      }
+    }
+    return resultado
+  })
   canal('compras:receber', (i, itens) => {
     const u = exigir('comprasEditar')
     const idCompra = id(i)

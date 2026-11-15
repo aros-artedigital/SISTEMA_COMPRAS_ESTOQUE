@@ -13,6 +13,8 @@ import { compraSchema } from '@shared/schemas'
 import { useForm } from '@/lib/useForm'
 import { executar } from '@/lib/executar'
 import { exportarExcel } from '@/lib/saida'
+import { AcoesLote } from '@/components/AcoesLote'
+import { useLote } from '@/lib/lote'
 import { EtiquetasModal, type ItemEtiqueta } from '@/components/EtiquetasModal'
 import { LeitorCodigo } from '@/components/LeitorCodigo'
 import * as fmt from '@shared/format'
@@ -157,7 +159,7 @@ export default function Compras() {
     await executar(() => alterar('compras:excluir', alvo.id), { notificar, sucesso: `Compra ${alvo.numero} excluída.` })
   }
 
-  function exportar(): void {
+  function exportar(itens: Compra[] = lista): void {
     void exportarExcel(
       {
         nome: 'Compras',
@@ -170,7 +172,7 @@ export default function Compras() {
           { titulo: 'Total', formato: 'moeda' },
           { titulo: 'Observação' }
         ],
-        linhas: lista.map((c) => [c.numero, c.data, nomeFornecedor(c.fornecedorId), recebidaEmParte(c) ? 'Recebida em parte' : rotuloStatusCompra[c.status], c.itens.length, totalCompra(c), c.observacao])
+        linhas: itens.map((c) => [c.numero, c.data, nomeFornecedor(c.fornecedorId), recebidaEmParte(c) ? 'Recebida em parte' : rotuloStatusCompra[c.status], c.itens.length, totalCompra(c), c.observacao])
       },
       `compras_${fmt.hojeIso()}`,
       notificar
@@ -178,6 +180,9 @@ export default function Compras() {
   }
 
   const totalForm = itens.reduce((s, l) => s + (Number(l.quantidade) || 0) * (Number(l.valorUnitario) || 0), 0)
+
+  const lote = useLote(notificar, { nome: ['compra', 'compras'], feminino: true })
+  const escolhidas = lista.filter((c) => lote.selecionados.has(c.id))
 
   const colunas: Coluna<Compra>[] = [
     { chave: 'numero', titulo: 'Número', render: (c) => <span className="font-medium text-slate-800">{c.numero}</span> },
@@ -230,7 +235,7 @@ export default function Compras() {
         subtitulo="Pedidos de compra e recebimento de mercadorias"
         acoes={
           <>
-            <Button variante="secundario" icone={<FileSpreadsheet size={16} />} onClick={exportar}>
+            <Button variante="secundario" icone={<FileSpreadsheet size={16} />} onClick={() => exportar()}>
               Excel
             </Button>
             {pode('comprasEditar') && <Button data-atalho="novo" icone={<Plus size={16} />} onClick={() => abrir(null)}>Nova Compra</Button>}
@@ -259,7 +264,28 @@ export default function Compras() {
         </span>
       </Filtros>
 
-      <DataTable colunas={colunas} dados={lista} chave={(c) => c.id} />
+      <DataTable
+        colunas={colunas}
+        dados={lista}
+        chave={(c) => c.id}
+        nomeItens="compras"
+        selecionados={lote.selecionados}
+        onSelecionar={lote.setSelecionados}
+        rotuloLinha={(c) => c.numero}
+        acoesSelecao={
+          <AcoesLote
+            quantidade={escolhidas.length}
+            nome={['compra', 'compras']}
+            onExcel={() => exportar(escolhidas)}
+            onExcluir={
+              pode('comprasExcluir')
+                ? () => void lote.emLote(() => alterar('cadastros:emLote', 'compras', escolhidas.map((c) => c.id), 'excluir'), 'excluído')
+                : undefined
+            }
+            avisoExcluir="Compras recebidas (mesmo em parte) não podem ser excluídas — essas serão mantidas."
+          />
+        }
+      />
 
       <Modal
         aberto={aberto}

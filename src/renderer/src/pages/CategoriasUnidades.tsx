@@ -10,6 +10,8 @@ import { Button, Input } from '@/components/ui'
 import { categoriaSchema, unidadeSchema } from '@shared/schemas'
 import { useForm } from '@/lib/useForm'
 import { executar } from '@/lib/executar'
+import { AcoesLote } from '@/components/AcoesLote'
+import { useLote } from '@/lib/lote'
 import type { Categoria, Unidade } from '@shared/tipos'
 
 export default function CategoriasUnidades() {
@@ -32,6 +34,8 @@ function SecaoCategorias() {
   const [aberto, setAberto] = useState(false)
   const [excluindo, setExcluindo] = useState<Categoria | null>(null)
   const form = useForm({ nome: '', descricao: '' }, categoriaSchema)
+  const lote = useLote(notificar, { nome: ['categoria', 'categorias'], feminino: true })
+  const escolhidas = categorias.filter((x) => lote.selecionados.has(x.id))
 
   const qtdProdutos = (id: number): number => produtos.filter((p) => p.categoriaId === id).length
 
@@ -68,6 +72,22 @@ function SecaoCategorias() {
       <DataTable
         dados={categorias}
         chave={(c) => c.id}
+        nomeItens="categorias"
+        selecionados={lote.selecionados}
+        onSelecionar={lote.setSelecionados}
+        rotuloLinha={(c) => c.nome}
+        acoesSelecao={
+          <AcoesLote
+            quantidade={escolhidas.length}
+            nome={['categoria', 'categorias']}
+            onExcluir={
+              pode('cadastrosExcluir')
+                ? () => void lote.emLote(() => alterar('cadastros:emLote', 'categorias', escolhidas.map((x) => x.id), 'excluir'), 'excluído')
+                : undefined
+            }
+            avisoExcluir="Categorias em uso por produtos não podem ser excluídas — essas serão mantidas."
+          />
+        }
         colunas={[
           { chave: 'nome', titulo: 'Nome', render: (c) => <span className="font-medium text-slate-800">{c.nome}</span> },
           { chave: 'descricao', titulo: 'Descrição', render: (c) => <span className="text-slate-500">{c.descricao || '—'}</span> },
@@ -112,6 +132,8 @@ function SecaoUnidades() {
   const [aberto, setAberto] = useState(false)
   const [excluindo, setExcluindo] = useState<Unidade | null>(null)
   const form = useForm({ sigla: '', nome: '' }, unidadeSchema)
+  const lote = useLote(notificar, { nome: ['unidade', 'unidades'], feminino: true })
+  const escolhidas = unidades.filter((x) => lote.selecionados.has(x.id))
 
   function abrir(u: Unidade | null): void {
     form.reset(u ? { sigla: u.sigla, nome: u.nome } : { sigla: '', nome: '' })
@@ -146,6 +168,22 @@ function SecaoUnidades() {
       <DataTable
         dados={unidades}
         chave={(u) => u.id}
+        nomeItens="unidades"
+        selecionados={lote.selecionados}
+        onSelecionar={lote.setSelecionados}
+        rotuloLinha={(u) => u.sigla}
+        acoesSelecao={
+          <AcoesLote
+            quantidade={escolhidas.length}
+            nome={['unidade', 'unidades']}
+            onExcluir={
+              pode('cadastrosExcluir')
+                ? () => void lote.emLote(() => alterar('cadastros:emLote', 'unidades', escolhidas.map((x) => x.id), 'excluir'), 'excluído')
+                : undefined
+            }
+            avisoExcluir="Unidades em uso por produtos não podem ser excluídas — essas serão mantidas."
+          />
+        }
         colunas={[
           { chave: 'sigla', titulo: 'Sigla', largura: '90px', render: (u) => <span className="font-mono font-medium text-slate-800">{u.sigla}</span> },
           { chave: 'nome', titulo: 'Nome', render: (u) => u.nome },

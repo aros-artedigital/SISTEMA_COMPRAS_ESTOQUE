@@ -77,6 +77,8 @@ export interface Canais {
   'unidades:excluir': Canal<[id: number], void>
   'produtos:salvar': Canal<[id: number | null, dados: Entrada<typeof produtoSchema>], Produto>
   'produtos:excluir': Canal<[id: number], void>
+  /** Ativar, inativar ou excluir vários registros de um cadastro de uma vez. */
+  'cadastros:emLote': Canal<[tabela: TabelaLote, ids: number[], operacao: 'ativar' | 'inativar' | 'excluir'], ResultadoLote>
   /** Ativar, inativar, trocar a categoria ou excluir vários produtos de uma vez. */
   'produtos:emLote': Canal<[ids: number[], operacao: OperacaoLoteProduto], ResultadoLote>
   'fornecedores:salvar': Canal<[id: number | null, dados: Entrada<typeof fornecedorSchema>], Fornecedor>
@@ -365,10 +367,12 @@ export interface InventarioDetalhe extends InventarioResumo {
 
 export type OperacaoLoteProduto = { tipo: 'ativar' } | { tipo: 'inativar' } | { tipo: 'excluir' } | { tipo: 'categoria'; categoriaId: number }
 
+export type TabelaLote = 'clientes' | 'fornecedores' | 'compras' | 'categorias' | 'unidades'
+
 export interface ResultadoLote {
   feitos: number
   /** Itens que não puderam ser alterados, com o motivo (os demais seguem normalmente). */
-  falhas: { item: string; motivo: string }[]
+  falhas: { id: number; item: string; motivo: string }[]
 }
 
 // ---------- Notificações ----------
