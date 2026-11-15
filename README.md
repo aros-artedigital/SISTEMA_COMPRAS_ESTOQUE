@@ -100,6 +100,13 @@ Usuários de demonstração (só em desenvolvimento):
   floresta, Roxo real, Grafite e ciano, Vinho) ou Personalizado, escolhendo a cor principal (botões, links, abas) e a
   secundária (menu lateral). Vale para todos os usuários e terminais sincronizados; cores muito claras são escurecidas
   na tela para o texto continuar legível.
+- **Formulários**:
+  - valores em reais com máscara: digite "35", "59,90" ou "1.234,56" e o campo mostra R$ 1.234,56;
+  - CPF, CNPJ, telefone e CEP formatados enquanto se digita;
+  - **busca de CEP** (ViaCEP, precisa de internet): em clientes, fornecedores e dados da empresa, o CEP preenche rua,
+    bairro, cidade e UF, e o cursor vai para o número. Sem internet, o endereço é digitado normalmente;
+  - todos os campos de seleção aceitam digitação para filtrar a lista (↑ ↓ e Enter escolhem, Esc fecha);
+  - mensagens de sucesso, atenção e erro no canto superior direito; formulário com campo inválido também avisa.
 - **Configurações em abas**: Dados da empresa, Aparência, Estoque e compras, Segurança, Sincronização, Backup e dados.
 - **Atalhos de teclado** (`F1` ou o ícone de teclado mostra todos): `F2` nova venda de qualquer tela, `Ctrl+N` novo
   cadastro na tela atual, `Ctrl+F` vai para a busca, `Ctrl+1` a `Ctrl+9` abrem Início, Vendas, Produtos,

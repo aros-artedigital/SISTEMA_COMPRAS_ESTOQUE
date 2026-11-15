@@ -1,5 +1,6 @@
 import { forwardRef, useId, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 import { Search, type LucideIcon } from 'lucide-react'
+import { SelectBusca } from './SelectBusca'
 
 // ---------- Botões ----------
 
@@ -92,16 +93,21 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   placeholder?: string
 }
 
+/** Seleção com busca (digite para filtrar) — ver SelectBusca. */
 export function Select({ label, error, obrigatorio, wrapperClassName, opcoes, placeholder, className = '', ...props }: SelectProps) {
   const el = (id?: string) => (
-    <select id={id} className={`${baseInput} w-full ${estadoInput(error)} pr-8`} {...props}>
-      {placeholder !== undefined && <option value="">{placeholder}</option>}
-      {opcoes.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
+    <SelectBusca
+      id={id ?? props.id}
+      value={props.value}
+      onChange={props.onChange}
+      opcoes={opcoes}
+      placeholder={placeholder}
+      disabled={props.disabled}
+      autoFocus={props.autoFocus}
+      name={props.name}
+      erro={!!error}
+      aria-label={props['aria-label']}
+    />
   )
   if (!label) return <div className={className}>{el()}</div>
   return (

@@ -50,6 +50,11 @@ export const fornecedor = (r: Linha): Fornecedor => ({
   cnpj: r.cnpj,
   telefone: r.telefone,
   email: r.email,
+  cep: r.cep ?? '',
+  logradouro: r.logradouro ?? '',
+  numero: r.numero ?? '',
+  complemento: r.complemento ?? '',
+  bairro: r.bairro ?? '',
   cidade: r.cidade,
   uf: r.uf,
   ativo: !!r.ativo
@@ -62,6 +67,11 @@ export const cliente = (r: Linha): Cliente => ({
   documento: r.documento,
   telefone: r.telefone,
   email: r.email,
+  cep: r.cep ?? '',
+  logradouro: r.logradouro ?? '',
+  numero: r.numero ?? '',
+  complemento: r.complemento ?? '',
+  bairro: r.bairro ?? '',
   cidade: r.cidade,
   uf: r.uf,
   ativo: !!r.ativo

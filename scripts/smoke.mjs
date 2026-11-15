@@ -37,6 +37,12 @@ async function entrar(page, login, senha) {
   await page.getByRole('button', { name: 'Entrar' }).click()
 }
 
+/** Escolhe uma opção num campo de seleção com busca (a lista abre por cima da tela). */
+async function escolher(campo, opcao) {
+  await campo.click()
+  await campo.page().getByRole('option', { name: opcao, exact: true }).click()
+}
+
 /** Chama um canal IPC direto, como a interface faz. */
 const ipc = (page, canal, ...args) => page.evaluate(([c, a]) => window.api.invoke(c, ...a), [canal, args])
 
@@ -97,8 +103,8 @@ try {
   await page.getByRole('link', { name: 'Produtos' }).click()
   await page.getByRole('button', { name: 'Novo Produto' }).click()
   await page.getByLabel('Nome').fill('Hub USB 4 portas')
-  await page.getByLabel('Categoria').selectOption({ label: 'Periféricos' })
-  await page.getByLabel('Unidade de medida').selectOption({ label: 'UN — Unidade' })
+  await escolher(page.getByLabel('Categoria'), 'Periféricos')
+  await escolher(page.getByLabel('Unidade de medida'), 'UN — Unidade')
   await page.getByLabel('Preço de custo (R$)').fill('35')
   await page.getByLabel('Preço de venda (R$)').fill('59.9')
   await page.getByLabel('Estoque inicial').fill('7')
@@ -113,8 +119,8 @@ try {
   await page.getByRole('button', { name: 'Novo Produto' }).click()
   await page.getByLabel(/^Código \*$/).fill('P0001')
   await page.getByLabel('Nome').fill('Duplicado')
-  await page.getByLabel('Categoria').selectOption({ label: 'Periféricos' })
-  await page.getByLabel('Unidade de medida').selectOption({ label: 'UN — Unidade' })
+  await escolher(page.getByLabel('Categoria'), 'Periféricos')
+  await escolher(page.getByLabel('Unidade de medida'), 'UN — Unidade')
   await page.getByLabel('Preço de custo (R$)').fill('1')
   await page.getByLabel('Preço de venda (R$)').fill('2')
   await page.getByRole('button', { name: 'Salvar', exact: true }).click()
@@ -230,8 +236,8 @@ try {
   await leitorVenda.press('Enter')
   await leitorVenda.fill('7891000100011')
   await leitorVenda.press('Enter')
-  await caixa.getByLabel('Cliente').selectOption({ label: 'João Pereira — 123.456.789-00' })
-  await caixa.getByLabel('Forma de pagamento').selectOption({ label: 'Pix' })
+  await escolher(caixa.getByLabel('Cliente'), 'João Pereira — 123.456.789-00')
+  await escolher(caixa.getByLabel('Forma de pagamento'), 'Pix')
   await caixa.getByLabel('Desconto (R$)').fill('9.80')
   await foto(page, '8-nova-venda')
   await caixa.getByRole('button', { name: /Finalizar venda/ }).click()
@@ -502,6 +508,89 @@ try {
   await entrar(page, 'admin', 'admin123')
   await page.getByText('Olá, Administrador').waitFor()
   verificar(r.ok && (await principal()) === '37 99 235', 'voltar ao tema Azul clássico restaura as cores originais')
+
+  // ---------- Formulários: máscaras, CEP, seleção com busca, mensagens ----------
+  console.log('Formulários (máscaras, CEP, busca, mensagens)')
+  // ViaCEP simulado no processo principal: o teste não depende de internet.
+  await app.evaluate(() => {
+    globalThis.fetch = async (url) => {
+      const cep = String(url).match(/ws\/(\d{8})/)?.[1]
+      if (cep === '99999999') throw new Error('offline')
+      const corpo =
+        cep === '01310100'
+          ? { cep: '01310-100', logradouro: 'Avenida Paulista', complemento: 'de 612 a 1510 - lado par', bairro: 'Bela Vista', localidade: 'São Paulo', uf: 'SP' }
+          : { erro: true }
+      return new Response(JSON.stringify(corpo), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    }
+  })
+  await page.keyboard.press('Control+8')
+  await page.getByRole('heading', { name: 'Clientes', exact: true }).waitFor()
+  await page.keyboard.press('Control+n')
+  const janelaCli = page.getByRole('dialog', { name: 'Novo cliente' })
+  await janelaCli.waitFor()
+  await janelaCli.getByRole('button', { name: 'Salvar' }).click()
+  await page.getByText(/Verifique os \d+ campos destacados/).waitFor()
+  verificar(true, 'salvar com campos obrigatórios vazios mostra aviso além de destacar os campos')
+  await janelaCli.getByLabel('CPF').fill('52998224725')
+  verificar((await janelaCli.getByLabel('CPF').inputValue()) === '529.982.247-25', 'CPF recebe máscara ao digitar')
+  await janelaCli.getByLabel('Nome completo').fill('Cliente com CEP')
+  await janelaCli.getByLabel('Telefone', { exact: true }).fill('11987654321')
+  verificar((await janelaCli.getByLabel('Telefone', { exact: true }).inputValue()) === '(11) 98765-4321', 'telefone recebe máscara ao digitar')
+  await janelaCli.getByLabel('CEP', { exact: true }).fill('00000000')
+  await janelaCli.getByText('CEP não encontrado.').waitFor()
+  verificar(true, 'CEP inexistente avisa sem travar o formulário')
+  await janelaCli.getByLabel('CEP', { exact: true }).fill('99999999')
+  await janelaCli.getByText(/sem internet/).waitFor()
+  verificar(true, 'sem internet, avisa para preencher o endereço à mão')
+  await janelaCli.getByLabel('CEP', { exact: true }).fill('01310100')
+  await janelaCli.getByText('Endereço encontrado').waitFor()
+  verificar(
+    (await janelaCli.getByLabel('CEP', { exact: true }).inputValue()) === '01310-100' &&
+      (await janelaCli.getByLabel('Endereço (rua, avenida...)').inputValue()) === 'Avenida Paulista' &&
+      (await janelaCli.getByLabel('Bairro', { exact: true }).inputValue()) === 'Bela Vista' &&
+      (await janelaCli.getByLabel('Cidade', { exact: true }).inputValue()) === 'São Paulo' &&
+      (await janelaCli.getByLabel('UF', { exact: true }).inputValue()) === 'SP',
+    'CEP preenche rua, bairro, cidade e UF'
+  )
+  verificar(await janelaCli.getByLabel('Número', { exact: true }).evaluate((e) => e === document.activeElement), 'depois do CEP, o cursor vai para o número')
+  await page.keyboard.type('1000')
+  await janelaCli.getByRole('button', { name: 'Salvar' }).click()
+  await page.getByText('Cliente cadastrado.').waitFor()
+  dados = (await ipc(page, 'dados:carregar')).dados
+  const cliCep = dados.clientes.find((c) => c.nome === 'Cliente com CEP')
+  verificar(
+    cliCep?.cep === '01310-100' && cliCep.logradouro === 'Avenida Paulista' && cliCep.numero === '1000' && cliCep.bairro === 'Bela Vista' && cliCep.uf === 'SP',
+    'endereço completo gravado no cliente'
+  )
+  await foto(page, '15-mensagem-sucesso')
+
+  // Valor em reais
+  await page.keyboard.press('Control+3')
+  await page.getByPlaceholder('Pesquisar por nome, código ou código de barras...').fill('P0002')
+  await page.getByRole('row', { name: /P0002/ }).getByRole('button', { name: 'Editar' }).click()
+  const janelaProd = page.getByRole('dialog', { name: 'Editar produto' })
+  await janelaProd.waitFor()
+  const venda = janelaProd.getByLabel('Preço de venda (R$)')
+  verificar((await venda.inputValue()) === '89,90', `preço aparece formatado em reais (${await venda.inputValue()})`)
+  await venda.fill('1.234,5')
+  await janelaProd.getByLabel('Estoque mínimo').click()
+  verificar((await venda.inputValue()) === '1.234,50', 'ao sair do campo, o valor é formatado (1.234,50)')
+  // Seleção com busca: digitar filtra a lista e Enter escolhe
+  await janelaProd.getByLabel('Categoria').click()
+  await page.keyboard.type('armaz')
+  verificar((await page.getByRole('option').count()) === 1, 'digitar no campo de seleção filtra as opções')
+  await page.keyboard.press('Enter')
+  verificar((await janelaProd.getByLabel('Categoria').inputValue()) === 'Armazenamento', 'Enter escolhe a opção filtrada')
+  await janelaProd.getByLabel('Unidade de medida').click()
+  await page.keyboard.press('Escape')
+  verificar(await janelaProd.isVisible(), 'Esc fecha só a lista, não a janela')
+  await foto(page, '16-moeda-e-busca')
+  await janelaProd.getByRole('button', { name: 'Salvar' }).click()
+  await page.getByText('Produto atualizado.').waitFor()
+  dados = (await ipc(page, 'dados:carregar')).dados
+  const prodP2 = dados.produtos.find((p) => p.codigo === 'P0002')
+  verificar(prodP2.precoVenda === 1234.5 && dados.categorias.find((c) => c.id === prodP2.categoriaId)?.nome === 'Armazenamento', 'preço e categoria escolhidos foram gravados')
+  await ipc(page, 'produtos:salvar', prodP2.id, { ...prodP2, precoVenda: 89.9, categoriaId: dados.produtos.find((p) => p.codigo === 'P0001').categoriaId })
 
   // ---------- Backup externo ----------
   console.log('Backup fora do computador')

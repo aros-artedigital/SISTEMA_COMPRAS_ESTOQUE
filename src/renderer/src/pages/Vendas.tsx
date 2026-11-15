@@ -9,6 +9,7 @@ import { DataTable, type Coluna } from '@/components/DataTable'
 import { LeitorCodigo } from '@/components/LeitorCodigo'
 import { Modal } from '@/components/Modal'
 import { Badge, Button, Input, SearchInput, Select, Textarea } from '@/components/ui'
+import { InputMoeda } from '@/components/InputMoeda'
 import { executar } from '@/lib/executar'
 import { htmlRecibo } from '@/lib/recibo'
 import { exportarExcel, imprimir, salvarPdf } from '@/lib/saida'
@@ -350,12 +351,8 @@ function NovaVendaModal({ aberto, onFechar, onConcluida }: { aberto: boolean; on
                         />
                       </td>
                       <td className="px-2 py-2">
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
+                        <InputMoeda
                           aria-label={`Preço de ${p?.nome}`}
-                          className="w-full text-right"
                           value={i.valorUnitario}
                           onChange={(e) => setItens((l) => l.map((x) => (x.chave === i.chave ? { ...x, valorUnitario: e.target.value } : x)))}
                         />
@@ -386,7 +383,7 @@ function NovaVendaModal({ aberto, onFechar, onConcluida }: { aberto: boolean; on
             onChange={(e) => setClienteId(e.target.value)}
           />
           <Select label="Forma de pagamento" opcoes={FORMAS.map((f) => ({ value: f, label: rotuloFormaPagamento[f] }))} value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value as FormaPagamento)} />
-          <Input label="Desconto (R$)" type="number" min="0" step="0.01" placeholder="0,00" value={desconto} onChange={(e) => setDesconto(e.target.value)} />
+          <InputMoeda label="Desconto (R$)" placeholder="0,00" value={desconto} onChange={(e) => setDesconto(e.target.value)} />
           <Textarea label="Observação" value={observacao} onChange={(e) => setObservacao(e.target.value)} />
           <div className="space-y-1 rounded-lg bg-slate-50 p-3 text-sm">
             <p className="flex justify-between text-slate-600"><span>Subtotal</span><span className="tabular-nums">{fmt.moeda(subtotal)}</span></p>

@@ -47,6 +47,11 @@ export interface Fornecedor {
   cnpj: string
   telefone: string
   email: string
+  cep: string
+  logradouro: string
+  numero: string
+  complemento: string
+  bairro: string
   cidade: string
   uf: string
   ativo: boolean
@@ -59,6 +64,11 @@ export interface Cliente {
   documento: string
   telefone: string
   email: string
+  cep: string
+  logradouro: string
+  numero: string
+  complemento: string
+  bairro: string
   cidade: string
   uf: string
   ativo: boolean
@@ -132,6 +142,8 @@ export interface Configuracoes {
   telefone: string
   email: string
   endereco: string
+  /** CEP da empresa (o endereço é montado pela busca de CEP ou digitado). */
+  cep: string
   estoqueMinimoPadrao: number
   alertarEstoqueMinimo: boolean
   prefixoCompra: string

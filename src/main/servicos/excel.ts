@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto'
 import { basename } from 'path'
 import { ZodError } from 'zod'
 import type { FormatoColuna, LinhaImportacao, Planilha, PreviaImportacao, ResultadoImportacao, TipoImportacao } from '@shared/api'
-import { mascaraCnpj, mascaraCpf, mascaraTelefone, somenteDigitos } from '@shared/format'
+import { mascaraCep, mascaraCnpj, mascaraCpf, mascaraTelefone, somenteDigitos } from '@shared/format'
 import { clienteSchema, fornecedorSchema, produtoSchema } from '@shared/schemas'
 import { banco } from '../db/conexao'
 import { ErroNegocio } from '../erros'
@@ -86,6 +86,11 @@ const colunasImportacao: Record<TipoImportacao, Coluna[]> = {
     { chave: 'cnpj', titulo: 'CNPJ', obrigatoria: true, exemplo: '11.222.333/0001-81' },
     { chave: 'telefone', titulo: 'Telefone', apelidos: ['fone'], exemplo: '(11) 3333-4444' },
     { chave: 'email', titulo: 'E-mail', apelidos: ['email'], exemplo: 'vendas@exemplo.com.br' },
+    { chave: 'cep', titulo: 'CEP', exemplo: '01310-100' },
+    { chave: 'logradouro', titulo: 'Endereço', apelidos: ['rua', 'logradouro', 'endereco'], exemplo: 'Avenida Paulista' },
+    { chave: 'numero', titulo: 'Número', apelidos: ['numero', 'nº', 'n'], exemplo: '1000' },
+    { chave: 'complemento', titulo: 'Complemento', exemplo: '' },
+    { chave: 'bairro', titulo: 'Bairro', exemplo: 'Bela Vista' },
     { chave: 'cidade', titulo: 'Cidade', exemplo: 'São Paulo' },
     { chave: 'uf', titulo: 'UF', apelidos: ['estado'], exemplo: 'SP' },
     { chave: 'ativo', titulo: 'Ativo', exemplo: 'Sim' }
@@ -96,6 +101,11 @@ const colunasImportacao: Record<TipoImportacao, Coluna[]> = {
     { chave: 'documento', titulo: 'CPF/CNPJ', obrigatoria: true, apelidos: ['cpf', 'cnpj', 'documento'], exemplo: '123.456.789-09' },
     { chave: 'telefone', titulo: 'Telefone', apelidos: ['fone', 'celular'], exemplo: '(11) 98888-7777' },
     { chave: 'email', titulo: 'E-mail', apelidos: ['email'], exemplo: 'maria@email.com' },
+    { chave: 'cep', titulo: 'CEP', exemplo: '13015-904' },
+    { chave: 'logradouro', titulo: 'Endereço', apelidos: ['rua', 'logradouro', 'endereco'], exemplo: 'Rua Barão de Jaguara' },
+    { chave: 'numero', titulo: 'Número', apelidos: ['numero', 'nº', 'n'], exemplo: '1000' },
+    { chave: 'complemento', titulo: 'Complemento', exemplo: '' },
+    { chave: 'bairro', titulo: 'Bairro', exemplo: 'Centro' },
     { chave: 'cidade', titulo: 'Cidade', exemplo: 'Campinas' },
     { chave: 'uf', titulo: 'UF', apelidos: ['estado'], exemplo: 'SP' },
     { chave: 'ativo', titulo: 'Ativo', exemplo: 'Sim' }
@@ -273,6 +283,11 @@ function importarFornecedor(d: Linha): Resultado {
     cnpj,
     telefone: mascaraTelefone(texto(d.telefone)),
     email: texto(d.email),
+    cep: mascaraCep(texto(d.cep)),
+    logradouro: texto(d.logradouro),
+    numero: texto(d.numero),
+    complemento: texto(d.complemento),
+    bairro: texto(d.bairro),
     cidade: texto(d.cidade),
     uf: texto(d.uf),
     ativo: d.ativo === null || d.ativo === undefined || d.ativo === '' ? true : booleano(d.ativo)
@@ -293,6 +308,11 @@ function importarCliente(d: Linha): Resultado {
     documento,
     telefone: mascaraTelefone(texto(d.telefone)),
     email: texto(d.email),
+    cep: mascaraCep(texto(d.cep)),
+    logradouro: texto(d.logradouro),
+    numero: texto(d.numero),
+    complemento: texto(d.complemento),
+    bairro: texto(d.bairro),
     cidade: texto(d.cidade),
     uf: texto(d.uf),
     ativo: d.ativo === null || d.ativo === undefined || d.ativo === '' ? true : booleano(d.ativo)

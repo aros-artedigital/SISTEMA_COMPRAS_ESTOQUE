@@ -77,9 +77,9 @@ export function salvarFornecedor(id: number | null, d: z.output<typeof fornecedo
   if (mesmoDocumento('fornecedores', 'cnpj', d.cnpj, id)) throw new ErroNegocio('CNPJ já cadastrado.', 'cnpj')
   const novoId = inserirOuAtualizar(
     id,
-    'INSERT INTO fornecedores (razao_social, nome_fantasia, cnpj, telefone, email, cidade, uf, ativo) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    'UPDATE fornecedores SET razao_social = ?, nome_fantasia = ?, cnpj = ?, telefone = ?, email = ?, cidade = ?, uf = ?, ativo = ? WHERE id = ?',
-    [d.razaoSocial, d.nomeFantasia, d.cnpj, d.telefone, d.email, d.cidade, d.uf, map.bool(d.ativo)]
+    'INSERT INTO fornecedores (razao_social, nome_fantasia, cnpj, telefone, email, cep, logradouro, numero, complemento, bairro, cidade, uf, ativo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'UPDATE fornecedores SET razao_social = ?, nome_fantasia = ?, cnpj = ?, telefone = ?, email = ?, cep = ?, logradouro = ?, numero = ?, complemento = ?, bairro = ?, cidade = ?, uf = ?, ativo = ? WHERE id = ?',
+    [d.razaoSocial, d.nomeFantasia, d.cnpj, d.telefone, d.email, d.cep, d.logradouro, d.numero, d.complemento, d.bairro, d.cidade, d.uf, map.bool(d.ativo)]
   )
   return map.fornecedor(banco().prepare('SELECT * FROM fornecedores WHERE id = ?').get(novoId) as map.Linha)
 }
@@ -98,9 +98,9 @@ export function salvarCliente(id: number | null, d: z.output<typeof clienteSchem
   if (mesmoDocumento('clientes', 'documento', d.documento, id)) throw new ErroNegocio('Documento já cadastrado.', 'documento')
   const novoId = inserirOuAtualizar(
     id,
-    'INSERT INTO clientes (nome, tipo, documento, telefone, email, cidade, uf, ativo) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    'UPDATE clientes SET nome = ?, tipo = ?, documento = ?, telefone = ?, email = ?, cidade = ?, uf = ?, ativo = ? WHERE id = ?',
-    [d.nome, d.tipo, d.documento, d.telefone, d.email, d.cidade, d.uf, map.bool(d.ativo)]
+    'INSERT INTO clientes (nome, tipo, documento, telefone, email, cep, logradouro, numero, complemento, bairro, cidade, uf, ativo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'UPDATE clientes SET nome = ?, tipo = ?, documento = ?, telefone = ?, email = ?, cep = ?, logradouro = ?, numero = ?, complemento = ?, bairro = ?, cidade = ?, uf = ?, ativo = ? WHERE id = ?',
+    [d.nome, d.tipo, d.documento, d.telefone, d.email, d.cep, d.logradouro, d.numero, d.complemento, d.bairro, d.cidade, d.uf, map.bool(d.ativo)]
   )
   return map.cliente(banco().prepare('SELECT * FROM clientes WHERE id = ?').get(novoId) as map.Linha)
 }

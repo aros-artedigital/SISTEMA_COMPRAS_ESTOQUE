@@ -49,7 +49,7 @@ const ABAS: { id: IdAba; titulo: string; icone: LucideIcon }[] = [
 ]
 /** Abas com campos do formulário (as outras têm ações próprias e não usam "Salvar"). */
 const CAMPOS_DA_ABA: Partial<Record<IdAba, string[]>> = {
-  empresa: ['nomeEmpresa', 'cnpj', 'telefone', 'email', 'endereco'],
+  empresa: ['nomeEmpresa', 'cnpj', 'telefone', 'email', 'cep', 'endereco'],
   aparencia: ['tema', 'corPrincipal', 'corSecundaria'],
   estoque: ['estoqueMinimoPadrao', 'prefixoCompra', 'custoAoReceber', 'alertarEstoqueMinimo']
 }
@@ -134,7 +134,13 @@ export default function Configuracoes() {
             <Input label="CNPJ" {...form.bind('cnpj')} onChange={(e) => form.set('cnpj', fmt.mascaraCnpj(e.target.value))} />
             <Input label="Telefone" {...form.bind('telefone')} onChange={(e) => form.set('telefone', fmt.mascaraTelefone(e.target.value))} />
             <Input label="E-mail" type="email" wrapperClassName="col-span-2" {...form.bind('email')} />
-            <Input label="Endereço" wrapperClassName="col-span-2" {...form.bind('endereco')} />
+            <CepEmpresa
+              cep={form.values.cep}
+              erro={form.errors.cep}
+              onCep={(v) => form.set('cep', v)}
+              onEndereco={(e) => form.set('endereco', e)}
+            />
+            <Input label="Endereço" hint="Preenchido pela busca de CEP; complete com o número" {...form.bind('endereco')} />
           </div>
         </Card>
       )}
@@ -342,6 +348,37 @@ function SeletorCor({ rotulo, dica, valor, erro, onChange }: { rotulo: string; d
       </div>
       <p className={`mt-1 text-xs ${erro ? 'text-red-600' : 'text-slate-500'}`}>{erro ?? dica}</p>
     </div>
+  )
+}
+
+/** CEP da empresa: a busca monta o endereço em uma linha ("Rua, número - Bairro - Cidade/UF"). */
+function CepEmpresa({ cep, erro, onCep, onEndereco }: { cep: string; erro?: string; onCep: (v: string) => void; onEndereco: (e: string) => void }) {
+  const [aviso, setAviso] = useState('')
+  async function buscar(v: string): Promise<void> {
+    setAviso('Buscando endereço...')
+    try {
+      const e = await chamar('cep:buscar', v)
+      onEndereco(`${e.logradouro}, - ${e.bairro} - ${e.cidade}/${e.uf}`.replace(/^, - /, ''))
+      setAviso('Endereço encontrado: complete com o número.')
+    } catch (err) {
+      setAviso((err as Error).message)
+    }
+  }
+  return (
+    <Input
+      label="CEP"
+      placeholder="00000-000"
+      inputMode="numeric"
+      value={cep}
+      error={erro}
+      hint={aviso || 'Digite o CEP para preencher o endereço'}
+      onChange={(e) => {
+        const v = fmt.mascaraCep(e.target.value)
+        onCep(v)
+        if (fmt.somenteDigitos(v).length === 8) void buscar(v)
+        else setAviso('')
+      }}
+    />
   )
 }
 

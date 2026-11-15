@@ -32,6 +32,8 @@ export function useForm<V extends Record<string, unknown>, Saida>(
       if (campo !== undefined && !novos[campo]) novos[campo] = issue.message
     }
     setErrors(novos)
+    // Avisa também por mensagem (ToastContext), além de destacar os campos.
+    window.dispatchEvent(new CustomEvent('formulario-invalido', { detail: Object.keys(novos).length }))
     return null
   }
 

@@ -7,6 +7,7 @@ import { Filtros, PageHeader } from '@/components/PageHeader'
 import { AcoesLinha, DataTable, type Coluna } from '@/components/DataTable'
 import { ConfirmDialog, Modal } from '@/components/Modal'
 import { Badge, Button, Checkbox, Input, SearchInput, Select } from '@/components/ui'
+import { InputMoeda } from '@/components/InputMoeda'
 import { situacaoEstoque } from '@shared/dominio'
 import { produtoSchema } from '@shared/schemas'
 import { useForm } from '@/lib/useForm'
@@ -288,13 +289,10 @@ export default function Produtos() {
             opcoes={unidades.map((u) => ({ value: u.id, label: `${u.sigla} — ${u.nome}` }))}
             {...form.bind('unidadeId')}
           />
-          <Input label="Preço de custo (R$)" obrigatorio type="number" step="0.01" min="0" wrapperClassName="col-span-2" {...form.bind('precoCusto')} />
-          <Input
+          <InputMoeda label="Preço de custo (R$)" obrigatorio wrapperClassName="col-span-2" {...form.bind('precoCusto')} />
+          <InputMoeda
             label="Preço de venda (R$)"
             obrigatorio
-            type="number"
-            step="0.01"
-            min="0"
             wrapperClassName="col-span-2"
             hint={margem !== null ? `Margem: ${margem.toFixed(1).replace('.', ',')}%` : undefined}
             {...form.bind('precoVenda')}

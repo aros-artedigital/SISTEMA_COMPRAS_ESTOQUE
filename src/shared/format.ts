@@ -39,6 +39,11 @@ export function mascaraCnpj(v: string): string {
     .replace(/(\d{4})(\d{1,2})$/, '$1-$2')
 }
 
+export function mascaraCep(v: string): string {
+  const d = somenteDigitos(v).slice(0, 8)
+  return d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d
+}
+
 export function mascaraTelefone(v: string): string {
   const d = somenteDigitos(v).slice(0, 11)
   if (d.length <= 10) return d.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{4})(\d{1,4})$/, '$1-$2')

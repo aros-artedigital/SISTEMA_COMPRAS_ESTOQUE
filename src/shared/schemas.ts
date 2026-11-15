@@ -6,6 +6,17 @@ import { somenteDigitos } from './format'
 
 const obrigatorio = (campo: string) => z.string().trim().min(1, `${campo} é obrigatório`)
 const emailOpcional = z.union([z.literal(''), z.string().trim().email('E-mail inválido')])
+const cep = z
+  .string()
+  .default('')
+  .refine((v) => [0, 8].includes(somenteDigitos(v).length), 'CEP deve ter 8 dígitos')
+const endereco = {
+  cep,
+  logradouro: z.string().trim().default(''),
+  numero: z.string().trim().default(''),
+  complemento: z.string().trim().default(''),
+  bairro: z.string().trim().default('')
+}
 const uf = z.union([z.literal(''), z.string().trim().length(2, 'UF deve ter 2 letras')]).transform((v) => v.toUpperCase())
 const numeroNaoNegativo = (campo: string) =>
   z.coerce.number({ invalid_type_error: `${campo} inválido` }).min(0, `${campo} não pode ser negativo`)
@@ -45,6 +56,7 @@ export const fornecedorSchema = z.object({
   cnpj: z.string().refine((v) => somenteDigitos(v).length === 14, 'CNPJ deve ter 14 dígitos'),
   telefone: z.string().trim(),
   email: emailOpcional,
+  ...endereco,
   cidade: z.string().trim(),
   uf,
   ativo: z.boolean()
@@ -57,6 +69,7 @@ export const clienteSchema = z
     documento: z.string(),
     telefone: z.string().trim(),
     email: emailOpcional,
+    ...endereco,
     cidade: z.string().trim(),
     uf,
     ativo: z.boolean()
@@ -96,6 +109,7 @@ export const configuracoesSchema = z.object({
   telefone: z.string().trim(),
   email: emailOpcional,
   endereco: z.string().trim(),
+  cep,
   estoqueMinimoPadrao: z.coerce.number().int().min(0, 'Não pode ser negativo'),
   alertarEstoqueMinimo: z.boolean(),
   prefixoCompra: obrigatorio('Prefixo').max(6, 'Máximo de 6 caracteres'),

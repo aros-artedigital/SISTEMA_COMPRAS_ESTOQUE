@@ -7,6 +7,7 @@ import { banco, caminhoBanco } from './db/conexao'
 import { basename } from 'path'
 import { ErroNegocio, ErroPermissao, serializarErro } from './erros'
 import * as auditoria from './servicos/auditoria'
+import * as cep from './servicos/cep'
 import { escolherArquivo, escolherDestino, escolherPasta } from './janela'
 import * as backup from './servicos/backup'
 import * as backupExterno from './servicos/backupExterno'
@@ -328,6 +329,11 @@ export function registrarCanais(): void {
     dados.salvarConfiguracoes(s.configuracoesSchema.parse(d))
     const alteracoes = auditoria.diferencas(antes, auditoria.configuracoesAtuais())
     if (alteracoes.length) auditoria.registrar({ usuario: u, acao: 'Alteração', entidade: 'Configurações', descricao: 'Configurações do sistema', alteracoes })
+  })
+
+  canal('cep:buscar', (c) => {
+    usuarioLogado()
+    return cep.buscar(z.string().max(20).parse(c))
   })
 
   canal('auditoria:listar', (f) => {

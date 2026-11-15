@@ -140,6 +140,9 @@ export interface Canais {
 
   /** Só administrador. Devolve até 1000 registros, do mais recente para o mais antigo. */
   'auditoria:listar': Canal<[filtros: FiltrosAuditoria], ConsultaAuditoria>
+
+  /** Consulta o endereço no ViaCEP (precisa de internet). */
+  'cep:buscar': Canal<[cep: string], EnderecoCep>
 }
 
 export type NomeCanal = keyof Canais
@@ -351,6 +354,17 @@ export interface ItemInventario {
 
 export interface InventarioDetalhe extends InventarioResumo {
   lista: ItemInventario[]
+}
+
+// ---------- CEP ----------
+
+export interface EnderecoCep {
+  cep: string
+  logradouro: string
+  complemento: string
+  bairro: string
+  cidade: string
+  uf: string
 }
 
 // ---------- Auditoria ----------

@@ -5,17 +5,17 @@ import { useToast } from '@/contexts/ToastContext'
 import { Filtros, PageHeader } from '@/components/PageHeader'
 import { AcoesLinha, DataTable, type Coluna } from '@/components/DataTable'
 import { ConfirmDialog, Modal } from '@/components/Modal'
-import { Badge, Button, Checkbox, Input, SearchInput, Select } from '@/components/ui'
-import { UFS } from '@shared/dominio'
+import { Badge, Button, Checkbox, Input, SearchInput } from '@/components/ui'
 import { fornecedorSchema } from '@shared/schemas'
 import { useForm } from '@/lib/useForm'
 import { executar } from '@/lib/executar'
 import { exportarExcel } from '@/lib/saida'
 import { ImportarModal } from '@/components/ImportarModal'
+import { CamposEndereco } from '@/components/CamposEndereco'
 import * as fmt from '@shared/format'
 import type { Fornecedor } from '@shared/tipos'
 
-const vazio = { razaoSocial: '', nomeFantasia: '', cnpj: '', telefone: '', email: '', cidade: '', uf: '', ativo: true }
+const vazio = { razaoSocial: '', nomeFantasia: '', cnpj: '', telefone: '', email: '', cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '', ativo: true }
 
 export default function Fornecedores() {
   const { fornecedores, compras } = useDb()
@@ -36,7 +36,7 @@ export default function Fornecedores() {
   )
 
   function abrir(f: Fornecedor | null): void {
-    form.reset(f ? { ...f } : vazio)
+    form.reset(f ? { ...vazio, ...f } : vazio)
     setEditando(f)
     setAberto(true)
   }
@@ -137,8 +137,7 @@ export default function Fornecedores() {
             onChange={(e) => form.set('telefone', fmt.mascaraTelefone(e.target.value))}
           />
           <Input label="E-mail" type="email" wrapperClassName="col-span-6" {...form.bind('email')} />
-          <Input label="Cidade" wrapperClassName="col-span-4" {...form.bind('cidade')} />
-          <Select label="UF" wrapperClassName="col-span-2" placeholder="—" opcoes={UFS.map((u) => ({ value: u, label: u }))} {...form.bind('uf')} />
+          <CamposEndereco valores={form.values} erros={form.errors} onChange={(c, v) => form.set(c, v)} />
           <div className="col-span-6">
             <Checkbox label="Fornecedor ativo" checked={form.values.ativo} onChange={(v) => form.set('ativo', v)} />
           </div>

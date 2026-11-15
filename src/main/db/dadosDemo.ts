@@ -49,17 +49,17 @@ export const produtos: Produto[] = [
 ]
 
 export const fornecedores: Fornecedor[] = [
-  { id: 1, razaoSocial: 'Tech Distribuidora Ltda', nomeFantasia: 'TechDist', cnpj: '12.345.678/0001-90', telefone: '(11) 3456-7890', email: 'vendas@techdist.com.br', cidade: 'São Paulo', uf: 'SP', ativo: true },
-  { id: 2, razaoSocial: 'Info Atacado S.A.', nomeFantasia: 'Info Atacado', cnpj: '23.456.789/0001-01', telefone: '(21) 2345-6789', email: 'contato@infoatacado.com.br', cidade: 'Rio de Janeiro', uf: 'RJ', ativo: true },
-  { id: 3, razaoSocial: 'Papelaria Central ME', nomeFantasia: 'Papel Central', cnpj: '34.567.890/0001-12', telefone: '(31) 3234-5678', email: 'pedidos@papelcentral.com.br', cidade: 'Belo Horizonte', uf: 'MG', ativo: true },
-  { id: 4, razaoSocial: 'Rede Sul Comércio Eireli', nomeFantasia: 'Rede Sul', cnpj: '45.678.901/0001-23', telefone: '(51) 3123-4567', email: 'comercial@redesul.com.br', cidade: 'Porto Alegre', uf: 'RS', ativo: false }
+  { id: 1, razaoSocial: 'Tech Distribuidora Ltda', nomeFantasia: 'TechDist', cnpj: '12.345.678/0001-90', telefone: '(11) 3456-7890', email: 'vendas@techdist.com.br', cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: 'São Paulo', uf: 'SP', ativo: true },
+  { id: 2, razaoSocial: 'Info Atacado S.A.', nomeFantasia: 'Info Atacado', cnpj: '23.456.789/0001-01', telefone: '(21) 2345-6789', email: 'contato@infoatacado.com.br', cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: 'Rio de Janeiro', uf: 'RJ', ativo: true },
+  { id: 3, razaoSocial: 'Papelaria Central ME', nomeFantasia: 'Papel Central', cnpj: '34.567.890/0001-12', telefone: '(31) 3234-5678', email: 'pedidos@papelcentral.com.br', cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: 'Belo Horizonte', uf: 'MG', ativo: true },
+  { id: 4, razaoSocial: 'Rede Sul Comércio Eireli', nomeFantasia: 'Rede Sul', cnpj: '45.678.901/0001-23', telefone: '(51) 3123-4567', email: 'comercial@redesul.com.br', cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: 'Porto Alegre', uf: 'RS', ativo: false }
 ]
 
 export const clientes: Cliente[] = [
-  { id: 1, nome: 'João Pereira', tipo: 'PF', documento: '123.456.789-00', telefone: '(11) 98765-4321', email: 'joao@email.com', cidade: 'Campinas', uf: 'SP', ativo: true },
-  { id: 2, nome: 'Escola Saber Ltda', tipo: 'PJ', documento: '56.789.012/0001-34', telefone: '(11) 3333-2222', email: 'compras@escolasaber.com.br', cidade: 'São Paulo', uf: 'SP', ativo: true },
-  { id: 3, nome: 'Ana Martins', tipo: 'PF', documento: '987.654.321-00', telefone: '(21) 99876-5432', email: 'ana.martins@email.com', cidade: 'Niterói', uf: 'RJ', ativo: true },
-  { id: 4, nome: 'Clínica Vida S.A.', tipo: 'PJ', documento: '67.890.123/0001-45', telefone: '(31) 3555-4444', email: 'ti@clinicavida.com.br', cidade: 'Contagem', uf: 'MG', ativo: false }
+  { id: 1, nome: 'João Pereira', tipo: 'PF', documento: '123.456.789-00', telefone: '(11) 98765-4321', email: 'joao@email.com', cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: 'Campinas', uf: 'SP', ativo: true },
+  { id: 2, nome: 'Escola Saber Ltda', tipo: 'PJ', documento: '56.789.012/0001-34', telefone: '(11) 3333-2222', email: 'compras@escolasaber.com.br', cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: 'São Paulo', uf: 'SP', ativo: true },
+  { id: 3, nome: 'Ana Martins', tipo: 'PF', documento: '987.654.321-00', telefone: '(21) 99876-5432', email: 'ana.martins@email.com', cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: 'Niterói', uf: 'RJ', ativo: true },
+  { id: 4, nome: 'Clínica Vida S.A.', tipo: 'PJ', documento: '67.890.123/0001-45', telefone: '(31) 3555-4444', email: 'ti@clinicavida.com.br', cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: 'Contagem', uf: 'MG', ativo: false }
 ]
 
 export const compras: Compra[] = [
@@ -96,6 +96,7 @@ export const configuracoes: Configuracoes = {
   telefone: '(11) 4000-0000',
   email: 'contato@minhaempresa.local',
   endereco: 'Rua Exemplo, 100 - Centro - São Paulo/SP',
+  cep: '',
   estoqueMinimoPadrao: 5,
   alertarEstoqueMinimo: true,
   prefixoCompra: 'C-',

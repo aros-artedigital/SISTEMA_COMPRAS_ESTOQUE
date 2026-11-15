@@ -63,9 +63,9 @@ export function montarDados(tabela: TabelaSync, uuid: string): Dados | null {
     case 'unidades':
       return { sigla: r.sigla, nome: r.nome }
     case 'fornecedores':
-      return { razaoSocial: r.razao_social, nomeFantasia: r.nome_fantasia, cnpj: r.cnpj, telefone: r.telefone, email: r.email, cidade: r.cidade, uf: r.uf, ativo: !!r.ativo }
+      return { razaoSocial: r.razao_social, nomeFantasia: r.nome_fantasia, cnpj: r.cnpj, telefone: r.telefone, email: r.email, cep: r.cep, logradouro: r.logradouro, numero: r.numero, complemento: r.complemento, bairro: r.bairro, cidade: r.cidade, uf: r.uf, ativo: !!r.ativo }
     case 'clientes':
-      return { nome: r.nome, tipo: r.tipo, documento: r.documento, telefone: r.telefone, email: r.email, cidade: r.cidade, uf: r.uf, ativo: !!r.ativo }
+      return { nome: r.nome, tipo: r.tipo, documento: r.documento, telefone: r.telefone, email: r.email, cep: r.cep, logradouro: r.logradouro, numero: r.numero, complemento: r.complemento, bairro: r.bairro, cidade: r.cidade, uf: r.uf, ativo: !!r.ativo }
     case 'produtos':
       return {
         codigo: r.codigo,
@@ -263,6 +263,11 @@ export function aplicarRemoto(tabela: TabelaSync, uuid: string, operacao: 'salva
           cnpj: txt(d.cnpj),
           telefone: txt(d.telefone),
           email: txt(d.email),
+          cep: txt(d.cep),
+          logradouro: txt(d.logradouro),
+          numero: txt(d.numero),
+          complemento: txt(d.complemento),
+          bairro: txt(d.bairro),
           cidade: txt(d.cidade),
           uf: txt(d.uf),
           ativo: bool(d.ativo)
@@ -276,6 +281,11 @@ export function aplicarRemoto(tabela: TabelaSync, uuid: string, operacao: 'salva
           documento: txt(d.documento),
           telefone: txt(d.telefone),
           email: txt(d.email),
+          cep: txt(d.cep),
+          logradouro: txt(d.logradouro),
+          numero: txt(d.numero),
+          complemento: txt(d.complemento),
+          bairro: txt(d.bairro),
           cidade: txt(d.cidade),
           uf: txt(d.uf),
           ativo: bool(d.ativo)

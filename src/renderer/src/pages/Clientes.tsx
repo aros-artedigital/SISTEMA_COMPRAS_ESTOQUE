@@ -6,16 +6,17 @@ import { Filtros, PageHeader } from '@/components/PageHeader'
 import { AcoesLinha, DataTable, type Coluna } from '@/components/DataTable'
 import { ConfirmDialog, Modal } from '@/components/Modal'
 import { Badge, Button, Checkbox, Input, SearchInput, Select } from '@/components/ui'
-import { totalVenda, UFS } from '@shared/dominio'
+import { totalVenda } from '@shared/dominio'
 import { clienteSchema } from '@shared/schemas'
 import { useForm } from '@/lib/useForm'
 import { executar } from '@/lib/executar'
 import { exportarExcel } from '@/lib/saida'
 import { ImportarModal } from '@/components/ImportarModal'
+import { CamposEndereco } from '@/components/CamposEndereco'
 import * as fmt from '@shared/format'
 import type { Cliente } from '@shared/tipos'
 
-const vazio = { nome: '', tipo: 'PF' as Cliente['tipo'], documento: '', telefone: '', email: '', cidade: '', uf: '', ativo: true }
+const vazio = { nome: '', tipo: 'PF' as Cliente['tipo'], documento: '', telefone: '', email: '', cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '', ativo: true }
 
 export default function Clientes() {
   const { clientes, vendas } = useDb()
@@ -39,7 +40,7 @@ export default function Clientes() {
   )
 
   function abrir(c: Cliente | null): void {
-    form.reset(c ? { ...c } : vazio)
+    form.reset(c ? { ...vazio, ...c } : vazio)
     setEditando(c)
     setAberto(true)
   }
@@ -176,8 +177,7 @@ export default function Clientes() {
             onChange={(e) => form.set('telefone', fmt.mascaraTelefone(e.target.value))}
           />
           <Input label="E-mail" type="email" wrapperClassName="col-span-4" {...form.bind('email')} />
-          <Input label="Cidade" wrapperClassName="col-span-4" {...form.bind('cidade')} />
-          <Select label="UF" wrapperClassName="col-span-2" placeholder="—" opcoes={UFS.map((u) => ({ value: u, label: u }))} {...form.bind('uf')} />
+          <CamposEndereco valores={form.values} erros={form.errors} onChange={(c, v) => form.set(c, v)} />
           <div className="col-span-6">
             <Checkbox label="Cliente ativo" checked={form.values.ativo} onChange={(v) => form.set('ativo', v)} />
           </div>

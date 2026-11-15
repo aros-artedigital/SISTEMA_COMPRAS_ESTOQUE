@@ -6,6 +6,7 @@ import { Filtros, PageHeader } from '@/components/PageHeader'
 import { AcoesLinha, DataTable, type Coluna } from '@/components/DataTable'
 import { ConfirmDialog, Modal } from '@/components/Modal'
 import { Badge, Button, Input, SearchInput, Select, Textarea } from '@/components/ui'
+import { InputMoeda } from '@/components/InputMoeda'
 import { corStatusCompra, faltaReceber, recebidaEmParte, rotuloStatusCompra, totalCompra } from '@shared/dominio'
 import { compraSchema } from '@shared/schemas'
 import { useForm } from '@/lib/useForm'
@@ -346,7 +347,7 @@ export default function Compras() {
                         <Input type="number" min="1" step="1" className="w-full text-right" value={l.quantidade} onChange={(e) => alterarItem(l.chave, 'quantidade', e.target.value)} />
                       </td>
                       <td className="px-3 py-2">
-                        <Input type="number" min="0" step="0.01" className="w-full text-right" value={l.valorUnitario} onChange={(e) => alterarItem(l.chave, 'valorUnitario', e.target.value)} />
+                        <InputMoeda aria-label="Valor unitário" value={l.valorUnitario} onChange={(e) => alterarItem(l.chave, 'valorUnitario', e.target.value)} />
                       </td>
                       <td className="px-3 py-2 text-right font-medium tabular-nums text-slate-800">
                         {fmt.moeda((Number(l.quantidade) || 0) * (Number(l.valorUnitario) || 0))}

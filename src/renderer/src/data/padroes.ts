@@ -7,6 +7,7 @@ export const configuracoesPadrao: Configuracoes = {
   telefone: '',
   email: '',
   endereco: '',
+  cep: '',
   estoqueMinimoPadrao: 5,
   alertarEstoqueMinimo: true,
   prefixoCompra: 'C-',
