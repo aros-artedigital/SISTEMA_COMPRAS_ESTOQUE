@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Building2, ChevronDown, Keyboard, LogOut, UserCircle } from 'lucide-react'
 import { MenuAparencia } from './MenuAparencia'
+import { CentralNotificacoes } from './CentralNotificacoes'
 import { useAuth } from '@/contexts/AuthContext'
 import { useDb } from '@/data/store'
 import { nomePerfil } from '@shared/permissoes'
@@ -39,6 +40,7 @@ export function Topbar() {
 
       <div className="flex items-center gap-4">
         <IndicadorSync />
+        <CentralNotificacoes />
         <MenuAparencia />
         <button
           onClick={() => window.dispatchEvent(new Event('abrir-atalhos'))}

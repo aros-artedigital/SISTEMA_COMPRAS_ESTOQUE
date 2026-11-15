@@ -13,10 +13,10 @@ import type {
 // Dados de demonstração gravados no banco na primeira execução em desenvolvimento.
 // Credenciais: admin / admin123 · gerente / gerente123 · operador / operador123
 export const usuarios: (Usuario & { senha: string })[] = [
-  { id: 1, nome: 'Administrador', email: 'admin@empresa.local', login: 'admin', senha: 'admin123', perfil: 'admin', ativo: true },
-  { id: 2, nome: 'Marina Souza', email: 'marina@empresa.local', login: 'gerente', senha: 'gerente123', perfil: 'gerente', ativo: true },
-  { id: 3, nome: 'Carlos Lima', email: 'carlos@empresa.local', login: 'operador', senha: 'operador123', perfil: 'operador', ativo: true },
-  { id: 4, nome: 'Paula Reis', email: 'paula@empresa.local', login: 'paula', senha: 'paula123', perfil: 'operador', ativo: false }
+  { id: 1, nome: 'Administrador', email: 'admin@empresa.local', login: 'admin', senha: 'admin123', perfil: 'admin', permissoes: null, ativo: true },
+  { id: 2, nome: 'Marina Souza', email: 'marina@empresa.local', login: 'gerente', senha: 'gerente123', perfil: 'gerente', permissoes: null, ativo: true },
+  { id: 3, nome: 'Carlos Lima', email: 'carlos@empresa.local', login: 'operador', senha: 'operador123', perfil: 'operador', permissoes: null, ativo: true },
+  { id: 4, nome: 'Paula Reis', email: 'paula@empresa.local', login: 'paula', senha: 'paula123', perfil: 'operador', permissoes: null, ativo: false }
 ]
 
 export const categorias: Categoria[] = [

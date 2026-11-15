@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Ban, CheckCircle2, FileSpreadsheet, FolderInput, Plus, Tags, Trash2, Upload } from 'lucide-react'
 import { alterar, useDb } from '@/data/store'
 import { useToast } from '@/contexts/ToastContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { Filtros, PageHeader } from '@/components/PageHeader'
 import { AcoesLinha, BotaoAcao, DataTable, iconeFicha, type Coluna } from '@/components/DataTable'
 import { ConfirmDialog, Modal } from '@/components/Modal'
@@ -35,6 +36,7 @@ const vazio = {
 }
 
 export default function Produtos() {
+  const { pode } = useAuth()
   const { produtos, categorias, unidades, configuracoes } = useDb()
   const notificar = useToast()
   const [params, setParams] = useSearchParams()
@@ -208,8 +210,8 @@ export default function Produtos() {
       render: (p) => (
         <AcoesLinha
           extra={<BotaoAcao icone={iconeFicha} texto="Ficha" titulo="Histórico completo do produto" onClick={() => setFicha(p.id)} />}
-          onEditar={() => abrirEdicao(p)}
-          onExcluir={() => setExcluindo(p)}
+          onEditar={pode('produtosEditar') ? () => abrirEdicao(p) : undefined}
+          onExcluir={pode('produtosExcluir') ? () => setExcluindo(p) : undefined}
         />
       )
     }
@@ -227,10 +229,10 @@ export default function Produtos() {
         subtitulo="Listagem de produtos cadastrados"
         acoes={
           <>
-            <Button variante="secundario" icone={<Upload size={16} />} onClick={() => setImportando(true)}>Importar</Button>
+            {pode('produtosEditar') && <Button variante="secundario" icone={<Upload size={16} />} onClick={() => setImportando(true)}>Importar</Button>}
             <Button variante="secundario" icone={<FileSpreadsheet size={16} />} onClick={() => exportar()}>Excel</Button>
             <Button variante="secundario" icone={<Tags size={16} />} onClick={abrirEtiquetas}>Etiquetas</Button>
-            <Button data-atalho="novo" icone={<Plus size={16} />} onClick={abrirNovo}>Novo Produto</Button>
+            {pode('produtosEditar') && <Button data-atalho="novo" icone={<Plus size={16} />} onClick={abrirNovo}>Novo Produto</Button>}
           </>
         }
       />
@@ -281,32 +283,40 @@ export default function Produtos() {
         rotuloLinha={(p) => `${p.codigo} ${p.nome}`}
         acoesSelecao={
           <>
-            <Button tamanho="sm" variante="secundario" icone={<CheckCircle2 size={14} />} onClick={() => void emLote({ tipo: 'ativar' }, 'ativado')}>
-              Ativar
-            </Button>
-            <Button tamanho="sm" variante="secundario" icone={<Ban size={14} />} onClick={() => void emLote({ tipo: 'inativar' }, 'inativado')}>
-              Inativar
-            </Button>
-            <Button
-              tamanho="sm"
-              variante="secundario"
-              icone={<FolderInput size={14} />}
-              onClick={() => {
-                setNovaCategoria('')
-                setTrocandoCategoria(true)
-              }}
-            >
-              Mudar categoria
-            </Button>
+            {pode('produtosEditar') && (
+              <Button tamanho="sm" variante="secundario" icone={<CheckCircle2 size={14} />} onClick={() => void emLote({ tipo: 'ativar' }, 'ativado')}>
+                Ativar
+              </Button>
+            )}
+            {pode('produtosEditar') && (
+              <>
+                <Button tamanho="sm" variante="secundario" icone={<Ban size={14} />} onClick={() => void emLote({ tipo: 'inativar' }, 'inativado')}>
+                  Inativar
+                </Button>
+                <Button
+                  tamanho="sm"
+                  variante="secundario"
+                  icone={<FolderInput size={14} />}
+                  onClick={() => {
+                    setNovaCategoria('')
+                    setTrocandoCategoria(true)
+                  }}
+                >
+                  Mudar categoria
+                </Button>
+              </>
+            )}
             <Button tamanho="sm" variante="secundario" icone={<Tags size={14} />} onClick={() => setEtiquetas(escolhidos.map((p) => ({ produtoId: p.id, quantidade: 1 })))}>
               Etiquetas
             </Button>
             <Button tamanho="sm" variante="secundario" icone={<FileSpreadsheet size={14} />} onClick={() => exportar(escolhidos)}>
               Excel
             </Button>
-            <Button tamanho="sm" variante="perigo" icone={<Trash2 size={14} />} onClick={() => setExcluindoLote(true)}>
-              Excluir
-            </Button>
+            {pode('produtosExcluir') && (
+              <Button tamanho="sm" variante="perigo" icone={<Trash2 size={14} />} onClick={() => setExcluindoLote(true)}>
+                Excluir
+              </Button>
+            )}
           </>
         }
       />

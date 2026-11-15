@@ -1,3 +1,4 @@
+import type { Recurso } from './permissoes'
 import type { IdTema } from './temas'
 // Modelos do domínio, compartilhados entre o processo principal e a interface.
 // No banco as colunas usam snake_case; os mapeamentos ficam em src/main/servicos.
@@ -11,6 +12,8 @@ export interface Usuario {
   email: string
   login: string
   perfil: Perfil
+  /** Perfil "Personalizado": permissões escolhidas pelo administrador (null = as do perfil). */
+  permissoes: Recurso[] | null
   ativo: boolean
 }
 

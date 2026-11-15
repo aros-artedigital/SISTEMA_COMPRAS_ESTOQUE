@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { alterar, useDb } from '@/data/store'
 import { useToast } from '@/contexts/ToastContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { PageHeader } from '@/components/PageHeader'
 import { AcoesLinha, DataTable } from '@/components/DataTable'
 import { ConfirmDialog, Modal } from '@/components/Modal'
@@ -24,6 +25,7 @@ export default function CategoriasUnidades() {
 }
 
 function SecaoCategorias() {
+  const { pode } = useAuth()
   const { categorias, produtos } = useDb()
   const notificar = useToast()
   const [editando, setEditando] = useState<Categoria | null>(null)
@@ -61,7 +63,7 @@ function SecaoCategorias() {
     <section>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-lg font-semibold text-slate-800">Categorias</h2>
-        <Button data-atalho="novo" tamanho="sm" icone={<Plus size={14} />} onClick={() => abrir(null)}>Nova categoria</Button>
+        {pode('cadastrosEditar') && <Button data-atalho="novo" tamanho="sm" icone={<Plus size={14} />} onClick={() => abrir(null)}>Nova categoria</Button>}
       </div>
       <DataTable
         dados={categorias}
@@ -70,7 +72,7 @@ function SecaoCategorias() {
           { chave: 'nome', titulo: 'Nome', render: (c) => <span className="font-medium text-slate-800">{c.nome}</span> },
           { chave: 'descricao', titulo: 'Descrição', render: (c) => <span className="text-slate-500">{c.descricao || '—'}</span> },
           { chave: 'produtos', titulo: 'Produtos', alinhar: 'direita', render: (c) => qtdProdutos(c.id) },
-          { chave: 'acoes', titulo: '', alinhar: 'direita', render: (c) => <AcoesLinha onEditar={() => abrir(c)} onExcluir={() => setExcluindo(c)} /> }
+          { chave: 'acoes', titulo: '', alinhar: 'direita', render: (c) => <AcoesLinha onEditar={pode('cadastrosEditar') ? () => abrir(c) : undefined} onExcluir={pode('cadastrosExcluir') ? () => setExcluindo(c) : undefined} /> }
         ]}
       />
 
@@ -103,6 +105,7 @@ function SecaoCategorias() {
 }
 
 function SecaoUnidades() {
+  const { pode } = useAuth()
   const { unidades } = useDb()
   const notificar = useToast()
   const [editando, setEditando] = useState<Unidade | null>(null)
@@ -138,7 +141,7 @@ function SecaoUnidades() {
     <section>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-lg font-semibold text-slate-800">Unidades de medida</h2>
-        <Button tamanho="sm" icone={<Plus size={14} />} onClick={() => abrir(null)}>Nova unidade</Button>
+        {pode('cadastrosEditar') && <Button tamanho="sm" icone={<Plus size={14} />} onClick={() => abrir(null)}>Nova unidade</Button>}
       </div>
       <DataTable
         dados={unidades}
@@ -146,7 +149,7 @@ function SecaoUnidades() {
         colunas={[
           { chave: 'sigla', titulo: 'Sigla', largura: '90px', render: (u) => <span className="font-mono font-medium text-slate-800">{u.sigla}</span> },
           { chave: 'nome', titulo: 'Nome', render: (u) => u.nome },
-          { chave: 'acoes', titulo: '', alinhar: 'direita', render: (u) => <AcoesLinha onEditar={() => abrir(u)} onExcluir={() => setExcluindo(u)} /> }
+          { chave: 'acoes', titulo: '', alinhar: 'direita', render: (u) => <AcoesLinha onEditar={pode('cadastrosEditar') ? () => abrir(u) : undefined} onExcluir={pode('cadastrosExcluir') ? () => setExcluindo(u) : undefined} /> }
         ]}
       />
 

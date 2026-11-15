@@ -57,7 +57,7 @@ export function montarDados(tabela: TabelaSync, uuid: string): Dados | null {
   if (!r) return null
   switch (tabela) {
     case 'usuarios':
-      return { nome: r.nome, email: r.email, login: r.login, senhaHash: r.senha_hash, perfil: r.perfil, ativo: !!r.ativo }
+      return { nome: r.nome, email: r.email, login: r.login, senhaHash: r.senha_hash, perfil: r.perfil, permissoes: r.permissoes ?? null, ativo: !!r.ativo }
     case 'categorias':
       return { nome: r.nome, descricao: r.descricao }
     case 'unidades':
@@ -249,7 +249,7 @@ export function aplicarRemoto(tabela: TabelaSync, uuid: string, operacao: 'salva
   switch (tabela) {
     case 'usuarios':
       return comUnicos(uuid, () =>
-        upsert(tabela, uuid, { nome: txt(d.nome), email: txt(d.email), login: txt(d.login).toLowerCase(), senha_hash: txt(d.senhaHash), perfil: txt(d.perfil), ativo: bool(d.ativo) })
+        upsert(tabela, uuid, { nome: txt(d.nome), email: txt(d.email), login: txt(d.login).toLowerCase(), senha_hash: txt(d.senhaHash), perfil: txt(d.perfil), permissoes: typeof d.permissoes === 'string' ? d.permissoes : null, ativo: bool(d.ativo) })
       )
     case 'categorias':
       return comUnicos(uuid, () => upsert(tabela, uuid, { nome: txt(d.nome), descricao: txt(d.descricao) }))

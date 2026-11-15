@@ -11,6 +11,7 @@ import type {
   Venda,
   ItemVenda
 } from '@shared/tipos'
+import { limparPermissoes } from '@shared/permissoes'
 
 // Conversão das linhas do SQLite (snake_case, 0/1) para os modelos do domínio.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -22,8 +23,17 @@ export const usuario = (r: Linha): Usuario => ({
   email: r.email,
   login: r.login,
   perfil: r.perfil,
+  permissoes: r.perfil === 'admin' || !r.permissoes ? null : limparPermissoes(lerJson(r.permissoes)),
   ativo: !!r.ativo
 })
+
+function lerJson(v: string): unknown {
+  try {
+    return JSON.parse(v)
+  } catch {
+    return null
+  }
+}
 
 export const categoria = (r: Linha): Categoria => ({ id: r.id, nome: r.nome, descricao: r.descricao })
 

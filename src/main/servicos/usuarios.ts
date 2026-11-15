@@ -46,6 +46,10 @@ export function atualizarPerfil(usuarioId: number, d: z.output<typeof perfilSche
 const contarAdminsAtivos = (excetoId: number): number =>
   (banco().prepare(`SELECT COUNT(*) AS n FROM usuarios WHERE perfil = 'admin' AND ativo = 1 AND id <> ?`).get(excetoId) as { n: number }).n
 
+/** Administrador nunca é personalizado; os demais guardam a lista (ou NULL = permissões do perfil). */
+const permissoesJson = (d: { perfil: string; permissoes: string[] | null }): string | null =>
+  d.perfil === 'admin' || !d.permissoes ? null : JSON.stringify(d.permissoes)
+
 export function salvar(id: number | null, d: z.output<typeof usuarioSchema>, logadoId: number): Usuario {
   const db = banco()
   return db.transaction(() => {
@@ -56,8 +60,8 @@ export function salvar(id: number | null, d: z.output<typeof usuarioSchema>, log
 
     if (id === null) {
       const r = db
-        .prepare('INSERT INTO usuarios (nome, email, login, senha_hash, perfil, ativo) VALUES (?, ?, ?, ?, ?, ?)')
-        .run(d.nome, d.email, d.login, gerarHash(d.senha), d.perfil, map.bool(d.ativo))
+        .prepare('INSERT INTO usuarios (nome, email, login, senha_hash, perfil, permissoes, ativo) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .run(d.nome, d.email, d.login, gerarHash(d.senha), d.perfil, permissoesJson(d), map.bool(d.ativo))
       id = Number(r.lastInsertRowid)
     } else {
       if (id === logadoId && (!d.ativo || d.perfil !== 'admin')) {
@@ -70,8 +74,8 @@ export function salvar(id: number | null, d: z.output<typeof usuarioSchema>, log
         throw new ErroNegocio('O sistema precisa de pelo menos um administrador ativo.', 'perfil')
       }
       db.prepare(
-        `UPDATE usuarios SET nome = ?, email = ?, login = ?, perfil = ?, ativo = ?, atualizado_em = datetime('now', 'localtime') WHERE id = ?`
-      ).run(d.nome, d.email, d.login, d.perfil, map.bool(d.ativo), id)
+        `UPDATE usuarios SET nome = ?, email = ?, login = ?, perfil = ?, permissoes = ?, ativo = ?, atualizado_em = datetime('now', 'localtime') WHERE id = ?`
+      ).run(d.nome, d.email, d.login, d.perfil, permissoesJson(d), map.bool(d.ativo), id)
       if (d.senha) db.prepare('UPDATE usuarios SET senha_hash = ? WHERE id = ?').run(gerarHash(d.senha), id)
     }
     return map.usuario(db.prepare('SELECT * FROM usuarios WHERE id = ?').get(id) as map.Linha)

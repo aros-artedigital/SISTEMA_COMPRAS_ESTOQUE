@@ -1,5 +1,5 @@
 import type { AlteracaoAuditoria, FiltrosAuditoria, RegistroAuditoria } from '@shared/api'
-import { nomePerfil } from '@shared/permissoes'
+import { nomePerfil, nomeRecurso, type Recurso } from '@shared/permissoes'
 import { TEMAS } from '@shared/temas'
 import type { Perfil } from '@shared/tipos'
 import { banco } from '../db/conexao'
@@ -114,6 +114,7 @@ const ROTULOS: Record<string, string> = {
   documento: 'CPF/CNPJ',
   login: 'Login',
   perfil: 'Perfil',
+  permissoes: 'Permissões',
   fornecedorId: 'Fornecedor',
   data: 'Data',
   status: 'Status',
@@ -140,12 +141,14 @@ function nomeDe(tabela: string, coluna: string, id: unknown): string {
 }
 
 function formatar(campo: string, v: unknown): string {
+  if (campo === 'permissoes' && (v === null || v === undefined)) return '(as do perfil)'
   if (v === null || v === undefined || v === '') return '(vazio)'
   if (typeof v === 'boolean') return v ? 'Sim' : 'Não'
   if (MOEDA.has(campo)) return moeda.format(Number(v))
   if (campo === 'categoriaId') return nomeDe('categorias', 'nome', v)
   if (campo === 'unidadeId') return nomeDe('unidades', 'sigla', v)
   if (campo === 'fornecedorId') return nomeDe('fornecedores', "COALESCE(NULLIF(nome_fantasia, ''), razao_social)", v)
+  if (campo === 'permissoes') return Array.isArray(v) ? v.map((r) => nomeRecurso(r as Recurso)).join('; ') || '(nenhuma)' : '(as do perfil)'
   if (campo === 'tema') return TEMAS.find((t) => t.id === v)?.nome ?? 'Personalizado'
   if (campo === 'perfil') return nomePerfil[v as Perfil] ?? String(v)
   if (campo === 'custoAoReceber') return ({ medio: 'Custo médio', ultimo: 'Último preço', manter: 'Não alterar' } as Record<string, string>)[String(v)] ?? String(v)

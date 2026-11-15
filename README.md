@@ -112,6 +112,15 @@ Usuários de demonstração (só em desenvolvimento):
 - **Ações em lote em Produtos**: marque vários produtos (ou todos da página pela caixa do cabeçalho) e ative, inative,
   mude a categoria, imprima etiquetas, exporte para o Excel ou exclua de uma vez. Produtos com histórico não são
   excluídos — o sistema avisa quais e por quê. Cada alteração fica na auditoria.
+- **Notificações** (sino na barra superior): estoque zerado ou abaixo do mínimo, compras pedidas há mais de 7 dias e
+  não recebidas, inventário em aberto, senha padrão, código de recuperação, backup externo atrasado, conflitos de
+  sincronização e atualização disponível — cada usuário vê só o que diz respeito às telas que pode acessar. Avisos
+  novos também aparecem como mensagem; clicar leva à tela certa e marca como lido. Quando o problema é resolvido, o
+  aviso some; se voltar, aparece de novo como não lido.
+- **Permissões personalizadas** (Usuários → perfil "Personalizado"): marque, tela a tela, se o usuário pode ver,
+  cadastrar/editar e excluir, e as ações especiais (cancelar vendas, concluir inventário, estornar). Usuários,
+  Configurações e Auditoria continuam só para administradores. As regras valem também no processo principal: o que
+  não é permitido nem aparece na tela e, se chamado direto, é recusado.
 - **Configurações em abas**: Dados da empresa, Aparência, Estoque e compras, Segurança, Sincronização, Backup e dados.
 - **Atalhos de teclado** (`F1` ou o ícone de teclado mostra todos): `F2` nova venda de qualquer tela, `Ctrl+N` novo
   cadastro na tela atual, `Ctrl+F` vai para a busca, `Ctrl+1` a `Ctrl+9` abrem Início, Vendas, Produtos,

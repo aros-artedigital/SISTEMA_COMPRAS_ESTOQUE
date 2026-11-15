@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { FileSpreadsheet, Plus, Upload } from 'lucide-react'
 import { alterar, useDb } from '@/data/store'
 import { useToast } from '@/contexts/ToastContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { Filtros, PageHeader } from '@/components/PageHeader'
 import { AcoesLinha, DataTable, type Coluna } from '@/components/DataTable'
 import { ConfirmDialog, Modal } from '@/components/Modal'
@@ -19,6 +20,7 @@ import type { Cliente } from '@shared/tipos'
 const vazio = { nome: '', tipo: 'PF' as Cliente['tipo'], documento: '', telefone: '', email: '', cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '', ativo: true }
 
 export default function Clientes() {
+  const { pode } = useAuth()
   const { clientes, vendas } = useDb()
   const notificar = useToast()
   const [busca, setBusca] = useState('')
@@ -95,7 +97,7 @@ export default function Clientes() {
         )
       }
     },
-    { chave: 'acoes', titulo: 'Ações', alinhar: 'direita', render: (c) => <AcoesLinha onEditar={() => abrir(c)} onExcluir={() => setExcluindo(c)} /> }
+    { chave: 'acoes', titulo: 'Ações', alinhar: 'direita', render: (c) => <AcoesLinha onEditar={pode('clientesEditar') ? () => abrir(c) : undefined} onExcluir={pode('clientesExcluir') ? () => setExcluindo(c) : undefined} /> }
   ]
 
   return (
@@ -105,7 +107,7 @@ export default function Clientes() {
         subtitulo="Pessoas e empresas atendidas"
         acoes={
           <>
-            <Button variante="secundario" icone={<Upload size={16} />} onClick={() => setImportando(true)}>Importar</Button>
+            {pode('clientesEditar') && <Button variante="secundario" icone={<Upload size={16} />} onClick={() => setImportando(true)}>Importar</Button>}
             <Button
               variante="secundario"
               icone={<FileSpreadsheet size={16} />}
@@ -115,7 +117,7 @@ export default function Clientes() {
             >
               Excel
             </Button>
-            <Button data-atalho="novo" icone={<Plus size={16} />} onClick={() => abrir(null)}>Novo Cliente</Button>
+            {pode('clientesEditar') && <Button data-atalho="novo" icone={<Plus size={16} />} onClick={() => abrir(null)}>Novo Cliente</Button>}
           </>
         }
       />

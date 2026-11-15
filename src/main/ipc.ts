@@ -1,13 +1,14 @@
 import { app, ipcMain, shell } from 'electron'
 import { z } from 'zod'
 import type { ArgsDe, NomeCanal, Resposta, ResultadoLote, RetornoDe } from '@shared/api'
-import type { Recurso } from '@shared/permissoes'
+import { editar as permEditar, excluir as permExcluir, type Area, type Recurso } from '@shared/permissoes'
 import * as s from '@shared/schemas'
 import { banco, caminhoBanco } from './db/conexao'
 import { basename } from 'path'
 import { ErroNegocio, ErroPermissao, serializarErro } from './erros'
 import * as auditoria from './servicos/auditoria'
 import * as cep from './servicos/cep'
+import * as notificacoes from './servicos/notificacoes'
 import { escolherArquivo, escolherDestino, escolherPasta } from './janela'
 import * as backup from './servicos/backup'
 import * as backupExterno from './servicos/backupExterno'
@@ -59,6 +60,9 @@ const ENTIDADE: Record<auditoria.TabelaAuditada, string> = {
   compras: 'Compra'
 }
 
+/** Áreas com permissão separada para ver, cadastrar/editar e excluir. */
+const AREAS: Area[] = ['produtos', 'cadastros', 'compras', 'fornecedores', 'clientes']
+
 /** Gera os canais salvar/excluir de um cadastro simples, registrando cada alteração na auditoria. */
 function crud<Dados>(
   recurso: Recurso,
@@ -71,6 +75,7 @@ function crud<Dados>(
   return {
     salvar: (i: number | null, d: unknown) => {
       const u = exigir(recurso)
+      if (AREAS.includes(recurso as Area)) exigir(permEditar(recurso as Area))
       const idAlvo = idOuNovo(i)
       const dadosValidos = schema.parse(d)
       const antes = idAlvo === null ? null : auditoria.ler(tabela, idAlvo)
@@ -90,6 +95,7 @@ function crud<Dados>(
     },
     excluir: (i: number) => {
       const u = exigir(recurso)
+      if (AREAS.includes(recurso as Area)) exigir(permExcluir(recurso as Area))
       const idAlvo = id(i)
       const antes = auditoria.ler(tabela, idAlvo)
       excluir(idAlvo, u.id)
@@ -219,6 +225,7 @@ export function registrarCanais(): void {
         z.object({ tipo: z.literal('categoria'), categoriaId: s.idSchema })
       ])
       .parse(op)
+    exigir(operacao.tipo === 'excluir' ? 'produtosExcluir' : 'produtosEditar')
     const resultado: ResultadoLote = { feitos: 0, falhas: [] }
     for (const idProduto of lista) {
       const p = auditoria.ler('produtos', idProduto)
@@ -259,7 +266,7 @@ export function registrarCanais(): void {
   canal('compras:salvar', comp.salvar as Handler<'compras:salvar'>)
   canal('compras:excluir', comp.excluir)
   canal('compras:receber', (i, itens) => {
-    const u = exigir('compras')
+    const u = exigir('comprasEditar')
     const idCompra = id(i)
     const lista = z
       .array(z.object({ produtoId: s.idSchema, quantidade: z.number().int('Use números inteiros').min(0, 'Não pode ser negativo') }))
@@ -278,7 +285,7 @@ export function registrarCanais(): void {
     return custos
   })
   canal('compras:encerrar', (i) => {
-    const u = exigir('compras')
+    const u = exigir('comprasEditar')
     const idCompra = id(i)
     compras.encerrar(idCompra)
     auditoria.registrar({ usuario: u, acao: 'Encerramento', entidade: 'Compra', entidadeId: idCompra, descricao: `${auditoria.descrever('compras', auditoria.ler('compras', idCompra))} encerrada sem receber o restante` })
@@ -366,6 +373,9 @@ export function registrarCanais(): void {
     if (alteracoes.length) auditoria.registrar({ usuario: u, acao: 'Alteração', entidade: 'Configurações', descricao: 'Configurações do sistema', alteracoes })
   })
 
+  canal('notificacoes:listar', () => notificacoes.listar(usuarioLogado()))
+  canal('notificacoes:marcarLidas', (chaves) => notificacoes.marcarLidas(usuarioLogado(), z.array(z.string().max(200)).max(500).parse(chaves)))
+
   canal('cep:buscar', (c) => {
     usuarioLogado()
     return cep.buscar(z.string().max(20).parse(c))
@@ -419,6 +429,7 @@ export function registrarCanais(): void {
   canal('excel:previa', async (t) => {
     const tipo = tipoImportacao.parse(t)
     const u = exigir(tipo)
+    exigir(permEditar(tipo))
     const origem = await escolherArquivo('Importar planilha', filtroExcel)
     return origem ? excel.previa(tipo, origem, u.id) : null
   })
@@ -426,6 +437,7 @@ export function registrarCanais(): void {
     const t = z.string().uuid().parse(token)
     const tipo = excel.tipoPendente(t)
     const u = exigir(tipo)
+    exigir(permEditar(tipo))
     const r = excel.confirmar(t, u.id)
     auditoria.registrar({
       usuario: u,

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { FileSpreadsheet, Plus, Upload } from 'lucide-react'
 import { alterar, useDb } from '@/data/store'
 import { useToast } from '@/contexts/ToastContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { Filtros, PageHeader } from '@/components/PageHeader'
 import { AcoesLinha, DataTable, type Coluna } from '@/components/DataTable'
 import { ConfirmDialog, Modal } from '@/components/Modal'
@@ -18,6 +19,7 @@ import type { Fornecedor } from '@shared/tipos'
 const vazio = { razaoSocial: '', nomeFantasia: '', cnpj: '', telefone: '', email: '', cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '', ativo: true }
 
 export default function Fornecedores() {
+  const { pode } = useAuth()
   const { fornecedores, compras } = useDb()
   const notificar = useToast()
   const [busca, setBusca] = useState('')
@@ -76,7 +78,7 @@ export default function Fornecedores() {
     { chave: 'contato', titulo: 'Contato', render: (f) => <div className="text-xs"><p>{f.telefone}</p><p className="text-slate-500">{f.email}</p></div> },
     { chave: 'cidade', titulo: 'Cidade', render: (f) => (f.cidade ? `${f.cidade}/${f.uf}` : '—') },
     { chave: 'compras', titulo: 'Compras', alinhar: 'direita', render: (f) => compras.filter((c) => c.fornecedorId === f.id).length },
-    { chave: 'acoes', titulo: 'Ações', alinhar: 'direita', render: (f) => <AcoesLinha onEditar={() => abrir(f)} onExcluir={() => setExcluindo(f)} /> }
+    { chave: 'acoes', titulo: 'Ações', alinhar: 'direita', render: (f) => <AcoesLinha onEditar={pode('fornecedoresEditar') ? () => abrir(f) : undefined} onExcluir={pode('fornecedoresExcluir') ? () => setExcluindo(f) : undefined} /> }
   ]
 
   return (
@@ -86,7 +88,7 @@ export default function Fornecedores() {
         subtitulo="Empresas das quais você compra mercadorias"
         acoes={
           <>
-            <Button variante="secundario" icone={<Upload size={16} />} onClick={() => setImportando(true)}>Importar</Button>
+            {pode('fornecedoresEditar') && <Button variante="secundario" icone={<Upload size={16} />} onClick={() => setImportando(true)}>Importar</Button>}
             <Button
               variante="secundario"
               icone={<FileSpreadsheet size={16} />}
@@ -96,7 +98,7 @@ export default function Fornecedores() {
             >
               Excel
             </Button>
-            <Button data-atalho="novo" icone={<Plus size={16} />} onClick={() => abrir(null)}>Novo Fornecedor</Button>
+            {pode('fornecedoresEditar') && <Button data-atalho="novo" icone={<Plus size={16} />} onClick={() => abrir(null)}>Novo Fornecedor</Button>}
           </>
         }
       />

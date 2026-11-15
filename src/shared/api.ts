@@ -143,6 +143,9 @@ export interface Canais {
   /** Só administrador. Devolve até 1000 registros, do mais recente para o mais antigo. */
   'auditoria:listar': Canal<[filtros: FiltrosAuditoria], ConsultaAuditoria>
 
+  'notificacoes:listar': Canal<[], Notificacao[]>
+  'notificacoes:marcarLidas': Canal<[chaves: string[]], void>
+
   /** Consulta o endereço no ViaCEP (precisa de internet). */
   'cep:buscar': Canal<[cep: string], EnderecoCep>
 }
@@ -366,6 +369,22 @@ export interface ResultadoLote {
   feitos: number
   /** Itens que não puderam ser alterados, com o motivo (os demais seguem normalmente). */
   falhas: { item: string; motivo: string }[]
+}
+
+// ---------- Notificações ----------
+
+export interface Notificacao {
+  /** Identifica o aviso (ex.: "estoque-baixo:12"); o que já foi lido é lembrado por ela. */
+  chave: string
+  tipo: 'erro' | 'aviso' | 'info' | 'sucesso'
+  categoria: string
+  titulo: string
+  mensagem: string
+  /** Tela para onde o clique leva. */
+  link?: string
+  /** Data de referência (quando houver). */
+  em?: string
+  lida: boolean
 }
 
 // ---------- CEP ----------

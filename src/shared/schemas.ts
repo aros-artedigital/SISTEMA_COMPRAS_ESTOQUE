@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { somenteDigitos } from './format'
+import { limparPermissoes } from './permissoes'
 
 // Schemas de validação dos formulários. Serão reaproveitados no processo
 // principal (fase 2) para validar os dados recebidos via IPC.
@@ -85,6 +86,8 @@ export const usuarioSchema = z.object({
   login: obrigatorio('Login').regex(/^[a-z0-9._-]+$/, 'Use letras minúsculas, números, ponto ou traço'),
   senha: z.string(),
   perfil: z.enum(['admin', 'gerente', 'operador']),
+  /** Perfil personalizado: lista de permissões (null = as do perfil). Administrador nunca é personalizado. */
+  permissoes: z.array(z.string()).nullable().default(null).transform(limparPermissoes),
   ativo: z.boolean()
 })
 

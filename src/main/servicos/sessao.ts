@@ -35,6 +35,6 @@ export function usuarioLogado(): Usuario {
 
 export function exigir(recurso: Recurso): Usuario {
   const u = usuarioLogado()
-  if (!pode(u.perfil, recurso)) throw new ErroPermissao('Seu perfil não tem permissão para esta ação.')
+  if (!pode(u, recurso)) throw new ErroPermissao('Seu perfil não tem permissão para esta ação.')
   return u
 }

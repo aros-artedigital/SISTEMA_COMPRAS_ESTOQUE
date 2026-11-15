@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { aoEvento, chamar, ErroApp } from '@/data/api'
 import { limpar, recarregar, useDb } from '@/data/store'
-import { pode as podePerfil, type Recurso } from '@shared/permissoes'
+import { pode as podeUsuario, type Recurso } from '@shared/permissoes'
 import type { Usuario } from '@shared/tipos'
 
 interface AuthValue {
@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     usuario,
     entrar,
     sair,
-    pode: (recurso) => (usuario ? podePerfil(usuario.perfil, recurso) : false)
+    pode: (recurso) => (usuario ? podeUsuario(usuario, recurso) : false)
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

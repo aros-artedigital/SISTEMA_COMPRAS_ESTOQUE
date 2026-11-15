@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { FileSpreadsheet, PackageCheck, PackageX, Plus, Tags, Trash2 } from 'lucide-react'
 import { alterar, useDb } from '@/data/store'
 import { useToast } from '@/contexts/ToastContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { Filtros, PageHeader } from '@/components/PageHeader'
 import { AcoesLinha, DataTable, type Coluna } from '@/components/DataTable'
 import { ConfirmDialog, Modal } from '@/components/Modal'
@@ -28,6 +29,7 @@ let chaveLinha = 1
 const novaLinha = (): LinhaItem => ({ chave: chaveLinha++, produtoId: '', quantidade: '1', valorUnitario: '' })
 
 export default function Compras() {
+  const { pode } = useAuth()
   const { compras, fornecedores, produtos } = useDb()
   const notificar = useToast()
 
@@ -195,7 +197,7 @@ export default function Compras() {
       render: (c) => (
         <AcoesLinha
           extra={
-            c.status === 'pedido' ? (
+            c.status === 'pedido' && pode('comprasEditar') ? (
               <button
                 onClick={() => setRecebendo(c)}
                 className="inline-flex items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
@@ -214,8 +216,8 @@ export default function Compras() {
               )
             )
           }
-          onEditar={() => abrir(c)}
-          onExcluir={c.status !== 'recebida' && !recebidaEmParte(c) ? () => setExcluindo(c) : undefined}
+          onEditar={pode('comprasEditar') ? () => abrir(c) : undefined}
+          onExcluir={pode('comprasExcluir') && c.status !== 'recebida' && !recebidaEmParte(c) ? () => setExcluindo(c) : undefined}
         />
       )
     }
@@ -231,7 +233,7 @@ export default function Compras() {
             <Button variante="secundario" icone={<FileSpreadsheet size={16} />} onClick={exportar}>
               Excel
             </Button>
-            <Button data-atalho="novo" icone={<Plus size={16} />} onClick={() => abrir(null)}>Nova Compra</Button>
+            {pode('comprasEditar') && <Button data-atalho="novo" icone={<Plus size={16} />} onClick={() => abrir(null)}>Nova Compra</Button>}
           </>
         }
       />

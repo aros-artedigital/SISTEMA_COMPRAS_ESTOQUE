@@ -662,6 +662,111 @@ try {
   await page.getByText('Limpar seleção').click()
   await page.getByLabel('Itens por página').selectOption('10')
 
+  // ---------- Notificações ----------
+  console.log('Central de notificações')
+  let notif = (await ipc(page, 'notificacoes:listar')).dados
+  verificar(notif.some((n) => n.chave === 'senha-padrao') && notif.some((n) => n.chave.startsWith('estoque-')), `lista avisos do sistema (${notif.length}: senha padrão, estoque...)`)
+  const sino = page.getByRole('button', { name: /^Notificações/ })
+  const naoLidas = notif.filter((n) => !n.lida).length
+  verificar((await sino.getAttribute('aria-label')) === `Notificações (${naoLidas} não lidas)`, `sino mostra ${naoLidas} não lidas`)
+  await sino.click()
+  const painel = page.getByRole('dialog', { name: 'Notificações' })
+  await painel.waitFor()
+  await foto(page, '18-notificacoes')
+  await painel.getByRole('button', { name: 'Marcar todas como lidas' }).click()
+  await painel.getByText('Nenhuma notificação nova.').waitFor()
+  verificar((await sino.getAttribute('aria-label')) === 'Notificações', 'marcar todas como lidas zera o contador')
+  notif = (await ipc(page, 'notificacoes:listar')).dados
+  verificar(notif.every((n) => n.lida), 'lidas ficam guardadas')
+  await page.keyboard.press('Escape')
+  await page.mouse.click(5, 300)
+  // Produto que passa a ficar abaixo do mínimo: aviso novo + mensagem
+  dados = (await ipc(page, 'dados:carregar')).dados
+  const tecladoN = dados.produtos.find((p) => p.codigo === 'P0002')
+  await page.getByRole('link', { name: 'Clientes' }).click()
+  await page.getByRole('heading', { name: 'Clientes', exact: true }).waitFor()
+  await ipc(page, 'produtos:salvar', tecladoN.id, { ...tecladoN, estoqueMinimo: tecladoN.estoque + 5 })
+  await page.keyboard.press('Control+3')
+  await page.getByText(`Nova notificação: Estoque baixo: ${tecladoN.nome}`).waitFor()
+  verificar((await sino.getAttribute('aria-label')) === 'Notificações (1 não lidas)', 'aviso novo aparece no sino e como mensagem')
+  await sino.click()
+  await painel.getByRole('button', { name: new RegExp(`Estoque baixo: ${tecladoN.nome}`) }).click()
+  verificar(page.url().includes('/produtos') && (await sino.getAttribute('aria-label')) === 'Notificações', 'clicar no aviso leva à tela e marca como lido')
+  await ipc(page, 'produtos:salvar', tecladoN.id, { ...tecladoN })
+  notif = (await ipc(page, 'notificacoes:listar')).dados
+  verificar(!notif.some((n) => n.chave === `estoque-baixo:${tecladoN.id}`), 'situação resolvida: o aviso some')
+  await ipc(page, 'produtos:salvar', tecladoN.id, { ...tecladoN, estoqueMinimo: tecladoN.estoque + 5 })
+  notif = (await ipc(page, 'notificacoes:listar')).dados
+  verificar(notif.find((n) => n.chave === `estoque-baixo:${tecladoN.id}`)?.lida === false, 'se o problema voltar, o aviso volta como não lido')
+  await ipc(page, 'produtos:salvar', tecladoN.id, { ...tecladoN })
+
+  // ---------- Permissões personalizadas ----------
+  console.log('Permissões personalizadas')
+  await page.getByRole('link', { name: 'Usuários' }).click()
+  await page.keyboard.press('Control+n')
+  const janelaUsu = page.getByRole('dialog', { name: 'Novo usuário' })
+  await janelaUsu.getByLabel('Nome').fill('Estoquista Personalizado')
+  await janelaUsu.getByLabel('E-mail').fill('estoquista@empresa.local')
+  await janelaUsu.getByLabel('Login').fill('estoquista')
+  await janelaUsu.getByLabel('Senha').fill('estoque123')
+  await escolher(janelaUsu.getByLabel('Perfil'), 'Personalizado (escolher permissões)')
+  verificar(await janelaUsu.getByLabel('Produtos: cadastrar e editar').isChecked(), 'personalizado começa com as permissões do perfil anterior (operador)')
+  await janelaUsu.getByLabel('Vendas: ver').uncheck()
+  await janelaUsu.getByLabel('Clientes: ver').uncheck()
+  verificar(!(await janelaUsu.getByLabel('Clientes: excluir').isChecked()), 'tirar "ver" tira também editar e excluir da tela')
+  await janelaUsu.getByLabel('Produtos: cadastrar e editar').uncheck()
+  await janelaUsu.getByLabel('Produtos: excluir').uncheck()
+  await janelaUsu.getByLabel('Compras: cadastrar e editar').check()
+  verificar(await janelaUsu.getByLabel('Compras: ver').isChecked(), 'marcar "cadastrar" marca também "ver"')
+  await janelaUsu.getByLabel('Concluir inventário').check()
+  await foto(page, '19-permissoes-personalizadas')
+  await janelaUsu.getByRole('button', { name: 'Salvar' }).click()
+  await page.getByText('Usuário cadastrado.').waitFor()
+  dados = (await ipc(page, 'dados:carregar')).dados
+  const estoquista = dados.usuarios.find((u) => u.login === 'estoquista')
+  verificar(
+    JSON.stringify([...estoquista.permissoes].sort()) === JSON.stringify(['compras', 'comprasEditar', 'dashboard', 'estoque', 'inventarioConcluir', 'produtos'].sort()),
+    `permissões escolhidas gravadas (${estoquista.permissoes.join(', ')})`
+  )
+  verificar(await page.getByRole('row', { name: /Estoquista Personalizado/ }).getByText('Personalizado', { exact: true }).isVisible(), 'lista mostra o perfil Personalizado')
+  // Tentativas de se dar acesso de administrador pelo IPC são descartadas
+  r = await ipc(page, 'usuarios:salvar', estoquista.id, { ...estoquista, senha: '', permissoes: [...estoquista.permissoes, 'usuarios', 'configuracoes', 'clientesExcluir'] })
+  dados = (await ipc(page, 'dados:carregar')).dados
+  verificar(
+    r.ok && !dados.usuarios.find((u) => u.login === 'estoquista').permissoes.some((x) => ['usuarios', 'configuracoes', 'clientesExcluir'].includes(x)),
+    'permissões de administrador (e "excluir" sem "ver") não entram no personalizado'
+  )
+  await page.reload()
+  await page.waitForSelector('input[placeholder="seu.login"]')
+  await entrar(page, 'estoquista', 'estoque123')
+  await page.getByRole('link', { name: 'Produtos' }).waitFor()
+  const menu = await page.locator('aside nav a').allTextContents()
+  verificar(menu.includes('Compras') && menu.includes('Inventário') && !menu.includes('Vendas') && !menu.includes('Clientes') && !menu.includes('Usuários'), `menu mostra só o permitido (${menu.join(', ')})`)
+  await page.getByRole('link', { name: 'Produtos' }).click()
+  await page.getByRole('heading', { name: 'Produtos', exact: true }).waitFor()
+  verificar(
+    (await page.getByRole('button', { name: 'Novo Produto' }).count()) === 0 && (await page.getByRole('button', { name: 'Editar' }).count()) === 0,
+    'sem "cadastrar e editar", a tela de Produtos fica só para consulta'
+  )
+  r = await ipc(page, 'produtos:salvar', null, {
+    codigo: 'X0001', codigoBarras: '', nome: 'Invasor', categoriaId: dados.categorias[0].id, unidadeId: dados.unidades[0].id, precoCusto: 1, precoVenda: 2, estoque: 0, estoqueMinimo: 0, ativo: true
+  })
+  verificar(!r.ok && r.erro.tipo === 'permissao', 'e o processo principal também recusa cadastrar produto')
+  r = await ipc(page, 'vendas:registrar', { clienteId: null, formaPagamento: 'dinheiro', desconto: 0, observacao: '', itens: [{ produtoId: 1, quantidade: 1, valorUnitario: 49.9 }] })
+  verificar(!r.ok && r.erro.tipo === 'permissao', 'sem "Vendas", não registra venda')
+  r = await ipc(page, 'compras:encerrar', 999999)
+  verificar(r.ok || r.erro.tipo !== 'permissao', 'com "Compras: cadastrar e editar", pode mexer em compras')
+  await page.reload()
+  await page.waitForSelector('input[placeholder="seu.login"]')
+  await entrar(page, 'admin', 'admin123')
+  await page.getByText('Olá, Administrador').waitFor()
+  const estq = (await ipc(page, 'dados:carregar')).dados.usuarios.find((u) => u.login === 'estoquista')
+  await ipc(page, 'usuarios:salvar', estq.id, { ...estq, senha: '', permissoes: [...estq.permissoes, 'relatorios'] })
+  aud = (await ipc(page, 'auditoria:listar', { entidade: 'Usuário', acao: 'Alteração' })).dados
+  const mudPerm = aud.itens[0]?.alteracoes.find((a) => a.campo === 'Permissões')
+  verificar(mudPerm?.para.includes('Relatórios') && !mudPerm.de.includes('Relatórios'), 'mudança de permissões fica na auditoria (com os nomes das telas)')
+  await ipc(page, 'usuarios:excluir', estoquista.id)
+
   // ---------- Backup externo ----------
   console.log('Backup fora do computador')
   verificar((await ipc(page, 'backupExterno:estado')).dados.pasta === null, 'começa sem backup externo configurado')
