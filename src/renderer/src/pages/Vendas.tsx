@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Ban, CheckCircle2, FileDown, FileSpreadsheet, Plus, Printer, Trash2 } from 'lucide-react'
+import { Ban, CheckCircle2, Eye, FileDown, FileSpreadsheet, Plus, Printer, Trash2 } from 'lucide-react'
 import { alterar, useDb } from '@/data/store'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import { Filtros, PageHeader } from '@/components/PageHeader'
-import { DataTable, type Coluna } from '@/components/DataTable'
+import { BotaoAcao, DataTable, type Coluna } from '@/components/DataTable'
 import { LeitorCodigo } from '@/components/LeitorCodigo'
 import { Modal } from '@/components/Modal'
 import { Badge, Button, Input, SearchInput, Select, Textarea } from '@/components/ui'
@@ -96,12 +96,8 @@ export default function Vendas() {
       alinhar: 'direita',
       render: (v) => (
         <div className="flex justify-end gap-1.5">
-          <button onClick={() => void recibo.imprimir(v)} className="rounded-md border border-slate-300 bg-superficie px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
-            Recibo
-          </button>
-          <button onClick={() => setDetalhe(v)} className="rounded-md border border-slate-300 bg-superficie px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
-            Ver
-          </button>
+          <BotaoAcao icone={Printer} texto="Recibo" titulo="Imprimir o recibo" onClick={() => void recibo.imprimir(v)} />
+          <BotaoAcao icone={Eye} texto="Ver" onClick={() => setDetalhe(v)} />
         </div>
       )
     }

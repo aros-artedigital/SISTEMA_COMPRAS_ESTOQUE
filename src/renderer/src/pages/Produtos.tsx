@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { FileSpreadsheet, Plus, Tags, Upload } from 'lucide-react'
+import { Ban, CheckCircle2, FileSpreadsheet, FolderInput, Plus, Tags, Trash2, Upload } from 'lucide-react'
 import { alterar, useDb } from '@/data/store'
 import { useToast } from '@/contexts/ToastContext'
 import { Filtros, PageHeader } from '@/components/PageHeader'
-import { AcoesLinha, DataTable, type Coluna } from '@/components/DataTable'
+import { AcoesLinha, BotaoAcao, DataTable, iconeFicha, type Coluna } from '@/components/DataTable'
 import { ConfirmDialog, Modal } from '@/components/Modal'
 import { Badge, Button, Checkbox, Input, SearchInput, Select } from '@/components/ui'
 import { InputMoeda } from '@/components/InputMoeda'
@@ -19,6 +19,7 @@ import { FichaProduto } from '@/components/FichaProduto'
 import { buscarPorCodigo } from '@/components/LeitorCodigo'
 import * as fmt from '@shared/format'
 import type { Produto } from '@shared/tipos'
+import type { OperacaoLoteProduto } from '@shared/api'
 
 const vazio = {
   codigo: '',
@@ -49,6 +50,10 @@ export default function Produtos() {
   const [ficha, setFicha] = useState<number | null>(null)
   const [etiquetas, setEtiquetas] = useState<{ produtoId: number; quantidade: number }[] | null>(null)
   const form = useForm(vazio, produtoSchema)
+  const [selecionados, setSelecionados] = useState<Set<string | number>>(new Set())
+  const [excluindoLote, setExcluindoLote] = useState(false)
+  const [trocandoCategoria, setTrocandoCategoria] = useState(false)
+  const [novaCategoria, setNovaCategoria] = useState('')
 
   const nomeCategoria = (id: number): string => categorias.find((c) => c.id === id)?.nome ?? '—'
   const siglaUnidade = (id: number): string => unidades.find((u) => u.id === id)?.sigla ?? ''
@@ -66,7 +71,7 @@ export default function Produtos() {
   )
 
   // Mesmas colunas do modelo de importação: dá para exportar, editar no Excel e importar de volta.
-  function exportar(): void {
+  function exportar(itens: Produto[] = lista): void {
     void exportarExcel(
       {
         nome: 'Produtos',
@@ -82,11 +87,31 @@ export default function Produtos() {
           { titulo: 'Estoque', formato: 'numero' },
           { titulo: 'Ativo' }
         ],
-        linhas: lista.map((p) => [p.codigo, p.nome, p.codigoBarras, nomeCategoria(p.categoriaId), siglaUnidade(p.unidadeId), p.precoCusto, p.precoVenda, p.estoqueMinimo, p.estoque, p.ativo ? 'Sim' : 'Não'])
+        linhas: itens.map((p) => [p.codigo, p.nome, p.codigoBarras, nomeCategoria(p.categoriaId), siglaUnidade(p.unidadeId), p.precoCusto, p.precoVenda, p.estoqueMinimo, p.estoque, p.ativo ? 'Sim' : 'Não'])
       },
       `produtos_${fmt.hojeIso()}`,
       notificar
     )
+  }
+
+  const escolhidos = lista.filter((p) => selecionados.has(p.id))
+
+  /** Ação em lote: mostra o resumo (feitos e o que não deu, com o motivo) e limpa a seleção. */
+  async function emLote(operacao: OperacaoLoteProduto, verbo: string): Promise<void> {
+    const ids = escolhidos.map((p) => p.id)
+    let r: { feitos: number; falhas: { item: string; motivo: string }[] } | null = null
+    const ok = await executar(async () => (r = await alterar('produtos:emLote', ids, operacao)), { notificar })
+    if (!ok || !r) return
+    const { feitos, falhas } = r as { feitos: number; falhas: { item: string; motivo: string }[] }
+    if (feitos) notificar('sucesso', `${feitos} produto${feitos > 1 ? 's' : ''} ${verbo}${feitos > 1 ? 's' : ''}.`)
+    if (falhas.length) {
+      const lista = falhas
+        .slice(0, 3)
+        .map((f) => `${f.item}: ${f.motivo}`)
+        .join(' · ')
+      notificar('aviso', `${falhas.length} não ${falhas.length > 1 ? 'puderam' : 'pôde'} ser ${verbo}${falhas.length > 1 ? 's' : ''} — ${lista}${falhas.length > 3 ? ' …' : ''}`)
+    }
+    setSelecionados(new Set(falhas.length ? escolhidos.filter((p) => falhas.some((f) => f.item.startsWith(`${p.codigo} —`))).map((p) => p.id) : []))
   }
 
   function abrirEtiquetas(): void {
@@ -182,11 +207,7 @@ export default function Produtos() {
       alinhar: 'direita',
       render: (p) => (
         <AcoesLinha
-          extra={
-            <button onClick={() => setFicha(p.id)} className="rounded-md border border-slate-300 bg-superficie px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
-              Ficha
-            </button>
-          }
+          extra={<BotaoAcao icone={iconeFicha} texto="Ficha" titulo="Histórico completo do produto" onClick={() => setFicha(p.id)} />}
           onEditar={() => abrirEdicao(p)}
           onExcluir={() => setExcluindo(p)}
         />
@@ -207,7 +228,7 @@ export default function Produtos() {
         acoes={
           <>
             <Button variante="secundario" icone={<Upload size={16} />} onClick={() => setImportando(true)}>Importar</Button>
-            <Button variante="secundario" icone={<FileSpreadsheet size={16} />} onClick={exportar}>Excel</Button>
+            <Button variante="secundario" icone={<FileSpreadsheet size={16} />} onClick={() => exportar()}>Excel</Button>
             <Button variante="secundario" icone={<Tags size={16} />} onClick={abrirEtiquetas}>Etiquetas</Button>
             <Button data-atalho="novo" icone={<Plus size={16} />} onClick={abrirNovo}>Novo Produto</Button>
           </>
@@ -249,7 +270,46 @@ export default function Produtos() {
         <span className="ml-auto text-sm text-slate-500">{lista.length} produto(s)</span>
       </Filtros>
 
-      <DataTable colunas={colunas} dados={lista} chave={(p) => p.id} vazio="Nenhum produto encontrado com esses filtros." />
+      <DataTable
+        colunas={colunas}
+        dados={lista}
+        chave={(p) => p.id}
+        nomeItens="produtos"
+        vazio="Nenhum produto encontrado com esses filtros."
+        selecionados={selecionados}
+        onSelecionar={setSelecionados}
+        rotuloLinha={(p) => `${p.codigo} ${p.nome}`}
+        acoesSelecao={
+          <>
+            <Button tamanho="sm" variante="secundario" icone={<CheckCircle2 size={14} />} onClick={() => void emLote({ tipo: 'ativar' }, 'ativado')}>
+              Ativar
+            </Button>
+            <Button tamanho="sm" variante="secundario" icone={<Ban size={14} />} onClick={() => void emLote({ tipo: 'inativar' }, 'inativado')}>
+              Inativar
+            </Button>
+            <Button
+              tamanho="sm"
+              variante="secundario"
+              icone={<FolderInput size={14} />}
+              onClick={() => {
+                setNovaCategoria('')
+                setTrocandoCategoria(true)
+              }}
+            >
+              Mudar categoria
+            </Button>
+            <Button tamanho="sm" variante="secundario" icone={<Tags size={14} />} onClick={() => setEtiquetas(escolhidos.map((p) => ({ produtoId: p.id, quantidade: 1 })))}>
+              Etiquetas
+            </Button>
+            <Button tamanho="sm" variante="secundario" icone={<FileSpreadsheet size={14} />} onClick={() => exportar(escolhidos)}>
+              Excel
+            </Button>
+            <Button tamanho="sm" variante="perigo" icone={<Trash2 size={14} />} onClick={() => setExcluindoLote(true)}>
+              Excluir
+            </Button>
+          </>
+        }
+      />
 
       <Modal
         aberto={modalAberto}
@@ -317,6 +377,49 @@ export default function Produtos() {
       <ImportarModal tipo="produtos" aberto={importando} onFechar={() => setImportando(false)} />
       {ficha !== null && <FichaProduto produtoId={ficha} onFechar={() => setFicha(null)} />}
       <EtiquetasModal aberto={etiquetas !== null} inicial={etiquetas ?? []} onFechar={() => setEtiquetas(null)} />
+
+      <ConfirmDialog
+        aberto={excluindoLote}
+        titulo="Excluir produtos selecionados"
+        textoConfirmar={`Excluir ${escolhidos.length}`}
+        mensagem={
+          <>
+            Excluir <strong>{escolhidos.length} produto{escolhidos.length > 1 ? 's' : ''}</strong>? Produtos com movimentações, compras ou vendas no histórico não
+            podem ser excluídos — esses serão mantidos (você pode inativá-los).
+          </>
+        }
+        onConfirmar={() => {
+          setExcluindoLote(false)
+          void emLote({ tipo: 'excluir' }, 'excluído')
+        }}
+        onCancelar={() => setExcluindoLote(false)}
+      />
+
+      <Modal
+        aberto={trocandoCategoria}
+        titulo="Mudar categoria"
+        tamanho="sm"
+        onFechar={() => setTrocandoCategoria(false)}
+        rodape={
+          <>
+            <Button variante="secundario" onClick={() => setTrocandoCategoria(false)}>Cancelar</Button>
+            <Button
+              disabled={!novaCategoria}
+              onClick={() => {
+                setTrocandoCategoria(false)
+                void emLote({ tipo: 'categoria', categoriaId: Number(novaCategoria) }, 'alterado')
+              }}
+            >
+              Aplicar
+            </Button>
+          </>
+        }
+      >
+        <p className="mb-4 text-sm text-slate-600">
+          Os <strong>{escolhidos.length}</strong> produto{escolhidos.length > 1 ? 's selecionados passam' : ' selecionado passa'} para a categoria:
+        </p>
+        <Select label="Nova categoria" placeholder="Selecione..." opcoes={categorias.map((c) => ({ value: c.id, label: c.nome }))} value={novaCategoria} onChange={(e) => setNovaCategoria(e.target.value)} />
+      </Modal>
 
       <ConfirmDialog
         aberto={!!excluindo}

@@ -55,7 +55,12 @@ export function InputMoeda({ label, error, hint, obrigatorio, wrapperClassName, 
         value={exibido}
         onFocus={(e) => {
           setEditando(formatarMoeda(value))
-          requestAnimationFrame(() => e.target.select())
+          const campo = e.target
+          // select() também foca o campo: só seleciona se o foco ainda estiver aqui
+          // (com Tab rápido o foco já pode ter ido para o próximo campo).
+          requestAnimationFrame(() => {
+            if (document.activeElement === campo) campo.select()
+          })
         }}
         onChange={(e) => {
           const limpo = e.target.value.replace(/[^\d.,]/g, '')

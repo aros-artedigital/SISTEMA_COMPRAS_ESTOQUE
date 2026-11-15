@@ -112,7 +112,7 @@ try {
   await page.getByRole('button', { name: 'Salvar', exact: true }).click()
   await page.getByText('Produto cadastrado.').waitFor()
   await page.getByPlaceholder('Pesquisar por nome').fill('hub')
-  await page.getByRole('cell', { name: 'Hub USB 4 portas' }).waitFor()
+  await page.getByRole('cell', { name: 'Hub USB 4 portas', exact: true }).waitFor()
   verificar(true, 'produto cadastrado pelo formulário aparece na lista')
 
   // Código duplicado volta como erro no campo
@@ -578,7 +578,8 @@ try {
   // Seleção com busca: digitar filtra a lista e Enter escolhe
   await janelaProd.getByLabel('Categoria').click()
   await page.keyboard.type('armaz')
-  verificar((await page.getByRole('option').count()) === 1, 'digitar no campo de seleção filtra as opções')
+  await page.getByRole('option', { name: 'Armazenamento' }).waitFor()
+  verificar((await page.locator('ul[role=listbox] [role=option]').count()) === 1, 'digitar no campo de seleção filtra as opções')
   await page.keyboard.press('Enter')
   verificar((await janelaProd.getByLabel('Categoria').inputValue()) === 'Armazenamento', 'Enter escolhe a opção filtrada')
   await janelaProd.getByLabel('Unidade de medida').click()
@@ -591,6 +592,75 @@ try {
   const prodP2 = dados.produtos.find((p) => p.codigo === 'P0002')
   verificar(prodP2.precoVenda === 1234.5 && dados.categorias.find((c) => c.id === prodP2.categoriaId)?.nome === 'Armazenamento', 'preço e categoria escolhidos foram gravados')
   await ipc(page, 'produtos:salvar', prodP2.id, { ...prodP2, precoVenda: 89.9, categoriaId: dados.produtos.find((p) => p.codigo === 'P0001').categoriaId })
+
+  // ---------- Listas: paginação, cabeçalho fixo, seleção e ações em lote ----------
+  console.log('Listas (paginação, cabeçalho fixo, ações em lote)')
+  // Dois produtos novos, sem histórico (podem ser excluídos), para as ações em lote.
+  const catLote = dados.categorias[0]
+  for (const [codigo, nome] of [['L0001', 'Lote Alfa'], ['L0002', 'Lote Beta']]) {
+    await ipc(page, 'produtos:salvar', null, {
+      codigo, codigoBarras: '', nome, categoriaId: catLote.id, unidadeId: dados.unidades[0].id, precoCusto: 1, precoVenda: 2, estoque: 0, estoqueMinimo: 0, ativo: true
+    })
+  }
+  await page.reload()
+  await page.waitForSelector('input[placeholder="seu.login"]')
+  await entrar(page, 'admin', 'admin123')
+  await page.getByText('Olá, Administrador').waitFor()
+  await page.keyboard.press('Control+3')
+  dados = (await ipc(page, 'dados:carregar')).dados
+  const totalProd = dados.produtos.length
+  await page.getByText(`de ${totalProd} produtos`).waitFor()
+  verificar(await page.getByText(`Mostrando 1–10 de ${totalProd} produtos`).isVisible(), `rodapé mostra o total (1–10 de ${totalProd} produtos)`)
+  await page.getByLabel('Itens por página').selectOption('25')
+  verificar((await page.locator('main tbody tr').count()) === totalProd, 'escolher 25 por página mostra todos')
+  verificar((await page.locator('main thead th').first().evaluate((e) => getComputedStyle(e).position)) === 'sticky', 'cabeçalho da tabela fica fixo ao rolar')
+  await page.reload()
+  await page.waitForSelector('input[placeholder="seu.login"]')
+  await entrar(page, 'admin', 'admin123')
+  await page.getByText('Olá, Administrador').waitFor()
+  await page.keyboard.press('Control+3')
+  await page.getByText(`de ${totalProd} produtos`).waitFor()
+  verificar((await page.getByLabel('Itens por página').inputValue()) === '25', 'a quantidade por página escolhida fica guardada')
+
+  const busca = page.getByPlaceholder('Pesquisar por nome, código ou código de barras...')
+  await busca.fill('Lote')
+  await page.getByLabel('Selecionar todos desta página').check()
+  await page.getByText('2 selecionados').waitFor()
+  verificar(true, 'marcar o cabeçalho seleciona os produtos da página')
+  await page.getByRole('region', { name: 'Ações com os selecionados' }).getByRole('button', { name: 'Inativar' }).click()
+  await page.getByText('2 produtos inativados.').waitFor()
+  dados = (await ipc(page, 'dados:carregar')).dados
+  verificar(dados.produtos.filter((p) => p.codigo.startsWith('L000')).every((p) => !p.ativo), 'inativar em lote')
+  await busca.fill('')
+  await page.getByLabel('Selecionar L0001 Lote Alfa').check()
+  await page.getByLabel('Selecionar P0001 Mouse USB').check()
+  await page.getByRole('region', { name: 'Ações com os selecionados' }).getByRole('button', { name: 'Mudar categoria' }).click()
+  const catDestino = dados.categorias.find((c) => c.nome === 'Redes')
+  await escolher(page.getByRole('dialog', { name: 'Mudar categoria' }).getByLabel('Nova categoria'), 'Redes')
+  await page.getByRole('button', { name: 'Aplicar' }).click()
+  await page.getByText('2 produtos alterados.').waitFor()
+  dados = (await ipc(page, 'dados:carregar')).dados
+  verificar(['L0001', 'P0001'].every((c) => dados.produtos.find((p) => p.codigo === c).categoriaId === catDestino.id), 'mudar categoria em lote')
+  aud = (await ipc(page, 'auditoria:listar', { entidade: 'Produto', acao: 'Alteração' })).dados
+  verificar(aud.itens[0]?.alteracoes.some((a) => a.campo === 'Categoria' && a.para === 'Redes'), 'cada produto alterado em lote fica na auditoria')
+  await ipc(page, 'produtos:salvar', 1, { ...dados.produtos.find((p) => p.id === 1), categoriaId: catLote.id })
+  await page.getByLabel('Selecionar L0002 Lote Beta').check()
+  await page.getByText('Limpar seleção').click()
+  await page.getByLabel('Selecionar L0001 Lote Alfa').check()
+  await page.getByLabel('Selecionar L0002 Lote Beta').check()
+  await page.getByLabel('Selecionar P0001 Mouse USB').check()
+  await foto(page, '17-acoes-em-lote')
+  await page.getByRole('region', { name: 'Ações com os selecionados' }).getByRole('button', { name: 'Excluir' }).click()
+  await page.getByRole('button', { name: 'Excluir 3' }).click()
+  await page.getByText('2 produtos excluídos.').waitFor()
+  await page.getByText(/1 não pôde ser excluído — P0001/).waitFor()
+  dados = (await ipc(page, 'dados:carregar')).dados
+  verificar(
+    !dados.produtos.some((p) => p.codigo.startsWith('L000')) && dados.produtos.some((p) => p.codigo === 'P0001') && (await page.getByText('1 selecionado', { exact: true }).isVisible()),
+    'excluir em lote: exclui os que podem, mantém o com histórico (e explica o motivo)'
+  )
+  await page.getByText('Limpar seleção').click()
+  await page.getByLabel('Itens por página').selectOption('10')
 
   // ---------- Backup externo ----------
   console.log('Backup fora do computador')

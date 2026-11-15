@@ -77,6 +77,8 @@ export interface Canais {
   'unidades:excluir': Canal<[id: number], void>
   'produtos:salvar': Canal<[id: number | null, dados: Entrada<typeof produtoSchema>], Produto>
   'produtos:excluir': Canal<[id: number], void>
+  /** Ativar, inativar, trocar a categoria ou excluir vários produtos de uma vez. */
+  'produtos:emLote': Canal<[ids: number[], operacao: OperacaoLoteProduto], ResultadoLote>
   'fornecedores:salvar': Canal<[id: number | null, dados: Entrada<typeof fornecedorSchema>], Fornecedor>
   'fornecedores:excluir': Canal<[id: number], void>
   'clientes:salvar': Canal<[id: number | null, dados: Entrada<typeof clienteSchema>], Cliente>
@@ -354,6 +356,16 @@ export interface ItemInventario {
 
 export interface InventarioDetalhe extends InventarioResumo {
   lista: ItemInventario[]
+}
+
+// ---------- Ações em lote ----------
+
+export type OperacaoLoteProduto = { tipo: 'ativar' } | { tipo: 'inativar' } | { tipo: 'excluir' } | { tipo: 'categoria'; categoriaId: number }
+
+export interface ResultadoLote {
+  feitos: number
+  /** Itens que não puderam ser alterados, com o motivo (os demais seguem normalmente). */
+  falhas: { item: string; motivo: string }[]
 }
 
 // ---------- CEP ----------

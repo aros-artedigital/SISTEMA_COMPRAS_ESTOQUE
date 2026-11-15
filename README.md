@@ -107,6 +107,11 @@ Usuários de demonstração (só em desenvolvimento):
     bairro, cidade e UF, e o cursor vai para o número. Sem internet, o endereço é digitado normalmente;
   - todos os campos de seleção aceitam digitação para filtrar a lista (↑ ↓ e Enter escolhem, Esc fecha);
   - mensagens de sucesso, atenção e erro no canto superior direito; formulário com campo inválido também avisa.
+- **Listas**: rodapé com "Mostrando 1–10 de 57" e itens por página (10, 25, 50 ou 100 — cada tela lembra a escolha);
+  cabeçalho fixo ao rolar listas longas; botões de ação com ícones.
+- **Ações em lote em Produtos**: marque vários produtos (ou todos da página pela caixa do cabeçalho) e ative, inative,
+  mude a categoria, imprima etiquetas, exporte para o Excel ou exclua de uma vez. Produtos com histórico não são
+  excluídos — o sistema avisa quais e por quê. Cada alteração fica na auditoria.
 - **Configurações em abas**: Dados da empresa, Aparência, Estoque e compras, Segurança, Sincronização, Backup e dados.
 - **Atalhos de teclado** (`F1` ou o ícone de teclado mostra todos): `F2` nova venda de qualquer tela, `Ctrl+N` novo
   cadastro na tela atual, `Ctrl+F` vai para a busca, `Ctrl+1` a `Ctrl+9` abrem Início, Vendas, Produtos,

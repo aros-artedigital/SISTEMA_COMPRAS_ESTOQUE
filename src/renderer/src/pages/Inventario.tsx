@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Ban, CheckCircle2, ClipboardCheck, ClipboardList, Plus } from 'lucide-react'
+import { Ban, CheckCircle2, ClipboardCheck, ClipboardList, Eye, Plus } from 'lucide-react'
 import type { InventarioDetalhe, InventarioResumo, ItemInventario } from '@shared/api'
 import { chamar, ErroApp } from '@/data/api'
 import { alterar, useDb } from '@/data/store'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import { BarraSaida } from '@/components/BarraSaida'
-import { DataTable, type Coluna } from '@/components/DataTable'
+import { BotaoAcao, DataTable, type Coluna } from '@/components/DataTable'
 import { LeitorCodigo } from '@/components/LeitorCodigo'
 import { ConfirmDialog, Modal } from '@/components/Modal'
 import { Filtros, PageHeader } from '@/components/PageHeader'
@@ -85,9 +85,9 @@ function Historico({ lista, onAbrir }: { lista: InventarioResumo[]; onAbrir: (id
       titulo: '',
       alinhar: 'direita',
       render: (i) => (
-        <button onClick={() => onAbrir(i.id)} className="rounded-md border border-slate-300 bg-superficie px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
-          Ver
-        </button>
+        <div className="flex justify-end">
+          <BotaoAcao icone={Eye} texto="Ver" onClick={() => onAbrir(i.id)} />
+        </div>
       )
     }
   ]

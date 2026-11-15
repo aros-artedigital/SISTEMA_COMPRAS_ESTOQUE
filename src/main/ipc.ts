@@ -1,6 +1,6 @@
 import { app, ipcMain, shell } from 'electron'
 import { z } from 'zod'
-import type { ArgsDe, NomeCanal, Resposta, RetornoDe } from '@shared/api'
+import type { ArgsDe, NomeCanal, Resposta, ResultadoLote, RetornoDe } from '@shared/api'
 import type { Recurso } from '@shared/permissoes'
 import * as s from '@shared/schemas'
 import { banco, caminhoBanco } from './db/conexao'
@@ -206,6 +206,41 @@ export function registrarCanais(): void {
   const prod = crud('produtos', 'produtos', produtos.salvar, produtos.excluir, s.produtoSchema)
   canal('produtos:salvar', prod.salvar as Handler<'produtos:salvar'>)
   canal('produtos:excluir', prod.excluir)
+  // Ações em lote: cada produto passa pelas mesmas regras, permissões e auditoria do cadastro.
+  // Um produto que não pode ser alterado (ex.: excluir com histórico) não impede os outros.
+  canal('produtos:emLote', (ids, op) => {
+    exigir('produtos')
+    const lista = z.array(s.idSchema).min(1).max(5000).parse(ids)
+    const operacao = z
+      .discriminatedUnion('tipo', [
+        z.object({ tipo: z.literal('ativar') }),
+        z.object({ tipo: z.literal('inativar') }),
+        z.object({ tipo: z.literal('excluir') }),
+        z.object({ tipo: z.literal('categoria'), categoriaId: s.idSchema })
+      ])
+      .parse(op)
+    const resultado: ResultadoLote = { feitos: 0, falhas: [] }
+    for (const idProduto of lista) {
+      const p = auditoria.ler('produtos', idProduto)
+      if (!p) continue
+      try {
+        if (operacao.tipo === 'excluir') prod.excluir(idProduto)
+        else {
+          const dados = {
+            ...p,
+            estoque: Math.max(0, Number(p.estoque)),
+            ativo: operacao.tipo === 'ativar' ? true : operacao.tipo === 'inativar' ? false : p.ativo,
+            categoriaId: operacao.tipo === 'categoria' ? operacao.categoriaId : p.categoriaId
+          }
+          prod.salvar(idProduto, dados)
+        }
+        resultado.feitos++
+      } catch (e) {
+        resultado.falhas.push({ item: `${p.codigo} — ${p.nome}`, motivo: serializarErro(e).mensagem })
+      }
+    }
+    return resultado
+  })
 
   const forn = crud('fornecedores', 'fornecedores', cadastros.salvarFornecedor, cadastros.excluirFornecedor, s.fornecedorSchema)
   canal('fornecedores:salvar', forn.salvar as Handler<'fornecedores:salvar'>)
