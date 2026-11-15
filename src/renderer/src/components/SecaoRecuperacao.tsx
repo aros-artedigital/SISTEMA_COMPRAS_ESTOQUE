@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Copy, FileDown, LifeBuoy, Printer, ShieldCheck, ShieldAlert } from 'lucide-react'
+import { Copy, FileDown, KeyRound, LifeBuoy, Printer, ShieldCheck, ShieldAlert } from 'lucide-react'
 import type { EstadoRecuperacao } from '@shared/api'
 import { chamar } from '@/data/api'
 import { useDb } from '@/data/store'
@@ -53,7 +53,7 @@ export function SecaoRecuperacao() {
 
   return (
     <Card className="xl:col-span-2">
-      <CardHeader titulo="Recuperação de acesso" />
+      <CardHeader titulo="Recuperação de acesso" icone={KeyRound} />
       <div className="space-y-3 p-5 text-sm text-slate-600">
         <p className="flex items-start gap-2">
           {estado.existe ? (

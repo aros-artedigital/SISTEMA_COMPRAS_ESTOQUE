@@ -46,6 +46,8 @@ function variaveis(escuro) {
     }
   }
   linhas.push(`  --c-superficie: ${rgb(escuro ? '#151e2d' : '#ffffff')};`)
+  // Menu lateral (cor secundária do tema padrão). É igual nos dois modos.
+  if (!escuro) linhas.push(`  --c-sidebar: ${rgb('#13294b')};`, `  --c-sidebar-hover: ${rgb('#1c3a66')};`, `  --c-sidebar-borda: ${rgb('#1f3b63')};`)
   return linhas.join('\n')
 }
 

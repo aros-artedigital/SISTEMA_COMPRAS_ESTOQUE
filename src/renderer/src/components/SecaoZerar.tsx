@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AlertTriangle, Trash2 } from 'lucide-react'
+import { AlertTriangle, Eraser, Trash2 } from 'lucide-react'
 import { chamar } from '@/data/api'
 import { alterar } from '@/data/store'
 import { useEstadoSync } from '@/data/sync'
@@ -44,7 +44,7 @@ export function SecaoZerar() {
 
   return (
     <Card className="border-red-200 xl:col-span-2">
-      <CardHeader titulo="Zerar dados" />
+      <CardHeader titulo="Zerar dados" icone={Eraser} />
       <div className="flex flex-wrap items-center gap-4 p-5 text-sm text-slate-600">
         <p className="min-w-0 flex-1">
           Apaga <strong className="text-slate-800">produtos, estoque, movimentações, vendas, compras, categorias, fornecedores e clientes</strong> para começar a

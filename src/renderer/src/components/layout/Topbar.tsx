@@ -1,15 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
-import { ChevronDown, Keyboard, LogOut, UserCircle } from 'lucide-react'
-import { SeletorTema } from './SeletorTema'
+import { Link } from 'react-router-dom'
+import { Building2, ChevronDown, Keyboard, LogOut, UserCircle } from 'lucide-react'
+import { MenuAparencia } from './MenuAparencia'
 import { useAuth } from '@/contexts/AuthContext'
 import { useDb } from '@/data/store'
 import { nomePerfil } from '@shared/permissoes'
-import { titulos } from './navegacao'
 import { IndicadorSync } from './IndicadorSync'
 
 export function Topbar() {
-  const { pathname } = useLocation()
   const { usuario, sair } = useAuth()
   const { configuracoes } = useDb()
   const [aberto, setAberto] = useState(false)
@@ -33,11 +31,15 @@ export function Topbar() {
 
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-superficie px-6">
-      <span className="font-semibold text-slate-800">{titulos[pathname] ?? ''}</span>
+      {/* O título da tela fica só no cabeçalho da página; aqui, a empresa. */}
+      <span className="flex min-w-0 items-center gap-2 text-sm font-medium text-slate-600">
+        <Building2 size={16} className="shrink-0 text-slate-400" />
+        <span className="truncate">{configuracoes.nomeEmpresa}</span>
+      </span>
 
       <div className="flex items-center gap-4">
         <IndicadorSync />
-        <SeletorTema />
+        <MenuAparencia />
         <button
           onClick={() => window.dispatchEvent(new Event('abrir-atalhos'))}
           className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
@@ -46,7 +48,6 @@ export function Topbar() {
         >
           <Keyboard size={18} />
         </button>
-        <span className="hidden text-sm text-slate-600 xl:inline">{configuracoes.nomeEmpresa}</span>
         <div className="relative" ref={ref}>
           <button
             onClick={() => setAberto((v) => !v)}

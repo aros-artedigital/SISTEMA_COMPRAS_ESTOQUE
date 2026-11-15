@@ -1,3 +1,4 @@
+import type { IdTema } from './temas'
 // Modelos do domínio, compartilhados entre o processo principal e a interface.
 // No banco as colunas usam snake_case; os mapeamentos ficam em src/main/servicos.
 
@@ -136,4 +137,9 @@ export interface Configuracoes {
   prefixoCompra: string
   /** Como o preço de custo muda ao receber uma compra. */
   custoAoReceber: 'medio' | 'ultimo' | 'manter'
+  /** Tema de cores da empresa (ver shared/temas.ts). */
+  tema: IdTema
+  /** Usadas quando o tema é "personalizado" (hex, ex.: #2563eb). */
+  corPrincipal: string
+  corSecundaria: string
 }

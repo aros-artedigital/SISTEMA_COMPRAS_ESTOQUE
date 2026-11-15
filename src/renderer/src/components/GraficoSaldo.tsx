@@ -66,7 +66,7 @@ export function GraficoSaldo({ pontos, minimo, altura = 200 }: { pontos: PontoSa
   const p = hover !== null ? pontos[hover] : null
   return (
     <div ref={ref} className="relative">
-      <svg width={largura} height={altura} role="img" aria-label="Saldo do produto ao longo do tempo">
+      <svg width={largura} height={altura} className="block max-w-full" role="img" aria-label="Saldo do produto ao longo do tempo">
         {ticks.map((t) => (
           <g key={t}>
             <line x1={M.esquerda} x2={largura - M.direita} y1={y(t)} y2={y(t)} style={{ stroke: t === 0 ? 'rgb(var(--c-slate-300))' : 'rgb(var(--c-slate-200))' }} />

@@ -11,6 +11,7 @@ import {
   ShoppingCart,
   Tags,
   Truck,
+  UserCircle,
   UserCog,
   Users,
   type LucideIcon
@@ -71,20 +72,9 @@ export const menu: GrupoMenu[] = [
 
 export const iconeMarca = Boxes
 
-/** Título exibido na barra superior para cada rota. */
-export const titulos: Record<string, string> = {
-  '/': 'Início',
-  '/vendas': 'Vendas',
-  '/produtos': 'Produtos',
-  '/categorias': 'Categorias e Unidades',
-  '/estoque': 'Movimentações de Estoque',
-  '/inventario': 'Inventário',
-  '/compras': 'Compras',
-  '/fornecedores': 'Fornecedores',
-  '/clientes': 'Clientes',
-  '/usuarios': 'Usuários',
-  '/relatorios': 'Relatórios',
-  '/auditoria': 'Auditoria',
-  '/configuracoes': 'Configurações',
-  '/perfil': 'Meu Perfil'
+/** Ícone da tela (o mesmo do menu), usado no título de cada página. */
+export function iconeDaTela(caminho: string): LucideIcon | undefined {
+  if (caminho === '/perfil') return UserCircle
+  for (const g of menu) for (const item of g.itens) if (item.caminho === caminho) return item.icone
+  return undefined
 }

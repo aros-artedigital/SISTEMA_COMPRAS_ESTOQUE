@@ -1,5 +1,24 @@
-import { useEffect, useState } from 'react'
-import { DatabaseBackup, FolderOpen, History, Save, Upload } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import {
+  Boxes,
+  Building2,
+  CheckCircle2,
+  DatabaseBackup,
+  FolderOpen,
+  History,
+  Palette,
+  RefreshCw,
+  Save,
+  ShieldCheck,
+  Sun,
+  SunMoon,
+  Upload,
+  type LucideIcon
+} from 'lucide-react'
+import { coresDoTema, TEMAS, type IdTema } from '@shared/temas'
+import { aplicarCores } from '@/lib/tema'
+import { coresMenu, escala, rgbParaHex } from '@/lib/cores'
 import { alterar, useDb } from '@/data/store'
 import { chamar } from '@/data/api'
 import type { InfoBackup, InfoSistema } from '@shared/api'
@@ -18,12 +37,32 @@ import { useForm } from '@/lib/useForm'
 import { executar } from '@/lib/executar'
 import * as fmt from '@shared/format'
 
+type IdAba = 'empresa' | 'aparencia' | 'estoque' | 'seguranca' | 'sincronizacao' | 'backup'
+
+const ABAS: { id: IdAba; titulo: string; icone: LucideIcon }[] = [
+  { id: 'empresa', titulo: 'Dados da empresa', icone: Building2 },
+  { id: 'aparencia', titulo: 'Aparência', icone: Palette },
+  { id: 'estoque', titulo: 'Estoque e compras', icone: Boxes },
+  { id: 'seguranca', titulo: 'Segurança', icone: ShieldCheck },
+  { id: 'sincronizacao', titulo: 'Sincronização', icone: RefreshCw },
+  { id: 'backup', titulo: 'Backup e dados', icone: DatabaseBackup }
+]
+/** Abas com campos do formulário (as outras têm ações próprias e não usam "Salvar"). */
+const CAMPOS_DA_ABA: Partial<Record<IdAba, string[]>> = {
+  empresa: ['nomeEmpresa', 'cnpj', 'telefone', 'email', 'endereco'],
+  aparencia: ['tema', 'corPrincipal', 'corSecundaria'],
+  estoque: ['estoqueMinimoPadrao', 'prefixoCompra', 'custoAoReceber', 'alertarEstoqueMinimo']
+}
+
 export default function Configuracoes() {
   const { configuracoes, compras } = useDb()
   const terminal = useEstadoSync()?.codigo ?? ''
   const proximaCompra = terminal + String(compras.reduce((m, c) => Math.max(m, c.id), 0) + 1).padStart(4, '0')
   const notificar = useToast()
   const form = useForm({ ...configuracoes, estoqueMinimoPadrao: String(configuracoes.estoqueMinimoPadrao) }, configuracoesSchema)
+  const [params, setParams] = useSearchParams()
+  const aba: IdAba = ABAS.some((a) => a.id === params.get('aba')) ? (params.get('aba') as IdAba) : 'empresa'
+  const irPara = (id: IdAba): void => setParams({ aba: id }, { replace: true })
 
   const [info, setInfo] = useState<InfoSistema | null>(null)
 
@@ -31,23 +70,65 @@ export default function Configuracoes() {
     chamar('sistema:info').then(setInfo, () => setInfo(null))
   }, [])
 
+  // Pré-visualização: as cores escolhidas aparecem na hora; ao sair sem salvar, voltam as salvas.
+  const { tema, corPrincipal, corSecundaria } = form.values
+  useEffect(() => {
+    aplicarCores(coresDoTema(tema, corPrincipal, corSecundaria), false)
+  }, [tema, corPrincipal, corSecundaria])
+  const salvas = useRef(configuracoes)
+  salvas.current = configuracoes
+  useEffect(
+    () => () => {
+      const c = salvas.current
+      aplicarCores(coresDoTema(c.tema, c.corPrincipal, c.corSecundaria))
+    },
+    []
+  )
+
+  // Erro de validação em outra aba: leva até ela.
+  useEffect(() => {
+    const temErro = (id: string): boolean => (CAMPOS_DA_ABA[id as IdAba] ?? []).some((c) => form.errors[c as keyof typeof form.errors])
+    if (temErro(aba)) return
+    const comErro = Object.keys(CAMPOS_DA_ABA).find(temErro)
+    if (comErro) irPara(comErro as IdAba)
+  }, [form.errors]) // eslint-disable-line react-hooks/exhaustive-deps
+
   async function salvar(): Promise<void> {
     const dados = form.validate()
     if (!dados) return
     await executar(() => alterar('configuracoes:salvar', dados), { notificar, form, sucesso: 'Configurações salvas.' })
   }
 
+  const temFormulario = aba in CAMPOS_DA_ABA
+
   return (
     <>
       <PageHeader
         titulo="Configurações"
         subtitulo="Dados da empresa e preferências do sistema"
-        acoes={<Button icone={<Save size={16} />} onClick={salvar}>Salvar alterações</Button>}
+        acoes={temFormulario && <Button icone={<Save size={16} />} onClick={salvar}>Salvar alterações</Button>}
       />
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <Card>
-          <CardHeader titulo="Dados da empresa" />
+      <div className="mb-6 flex flex-wrap gap-1 rounded-xl border border-slate-200 bg-superficie p-1 shadow-sm" role="tablist" aria-label="Seções das configurações">
+        {ABAS.map(({ id, titulo, icone: Icone }) => (
+          <button
+            key={id}
+            role="tab"
+            aria-selected={aba === id}
+            onClick={() => irPara(id)}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+              aba === id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+            }`}
+          >
+            <Icone size={16} />
+            {titulo}
+          </button>
+        ))}
+      </div>
+
+      {aba === 'empresa' && (
+        <Card className="max-w-3xl">
+          <CardHeader titulo="Dados da empresa" icone={Building2} />
           <div className="grid grid-cols-2 gap-4 p-5">
             <Input label="Nome da empresa" obrigatorio wrapperClassName="col-span-2" {...form.bind('nomeEmpresa')} />
             <Input label="CNPJ" {...form.bind('cnpj')} onChange={(e) => form.set('cnpj', fmt.mascaraCnpj(e.target.value))} />
@@ -56,9 +137,32 @@ export default function Configuracoes() {
             <Input label="Endereço" wrapperClassName="col-span-2" {...form.bind('endereco')} />
           </div>
         </Card>
+      )}
 
-        <Card>
-          <CardHeader titulo="Estoque e compras" />
+      {aba === 'aparencia' && (
+        <SecaoAparencia
+          tema={tema}
+          principal={corPrincipal}
+          secundaria={corSecundaria}
+          erroPrincipal={form.errors.corPrincipal}
+          erroSecundaria={form.errors.corSecundaria}
+          onTema={(t) => {
+            // Ao personalizar, começa pelas cores do tema que estava escolhido.
+            if (t === 'personalizado' && tema !== 'personalizado') {
+              const atual = coresDoTema(tema, corPrincipal, corSecundaria)
+              form.set('corPrincipal', atual.principal)
+              form.set('corSecundaria', atual.secundaria)
+            }
+            form.set('tema', t)
+          }}
+          onPrincipal={(c) => form.set('corPrincipal', c)}
+          onSecundaria={(c) => form.set('corSecundaria', c)}
+        />
+      )}
+
+      {aba === 'estoque' && (
+        <Card className="max-w-3xl">
+          <CardHeader titulo="Estoque e compras" icone={Boxes} />
           <div className="grid grid-cols-2 gap-4 p-5">
             <Input label="Estoque mínimo padrão" type="number" min="0" hint="Sugerido ao cadastrar novos produtos" {...form.bind('estoqueMinimoPadrao')} />
             <Input label="Prefixo das compras" obrigatorio hint={`Próxima: ${form.values.prefixoCompra}${proximaCompra}`} {...form.bind('prefixoCompra')} />
@@ -91,14 +195,153 @@ export default function Configuracoes() {
             </div>
           </div>
         </Card>
+      )}
 
-        <SecaoRecuperacao />
-        <SecaoSincronizacao />
-        <SecaoBackup info={info} />
-        <SecaoBackupExterno />
-        <SecaoZerar />
-      </div>
+      {aba === 'seguranca' && (
+        <div className="grid gap-6 xl:grid-cols-2">
+          <SecaoRecuperacao />
+        </div>
+      )}
+      {aba === 'sincronizacao' && (
+        <div className="grid gap-6 xl:grid-cols-2">
+          <SecaoSincronizacao />
+        </div>
+      )}
+      {aba === 'backup' && (
+        <div className="grid gap-6 xl:grid-cols-2">
+          <SecaoBackup info={info} />
+          <SecaoBackupExterno />
+          <SecaoZerar />
+        </div>
+      )}
     </>
+  )
+}
+
+function SecaoAparencia(props: {
+  tema: IdTema
+  principal: string
+  secundaria: string
+  erroPrincipal?: string
+  erroSecundaria?: string
+  onTema: (t: IdTema) => void
+  onPrincipal: (c: string) => void
+  onSecundaria: (c: string) => void
+}) {
+  type Opcao = { id: IdTema; nome: string; principal: string; secundaria: string }
+  const lista: Opcao[] = [...TEMAS, { id: 'personalizado', nome: 'Personalizado', principal: props.principal, secundaria: props.secundaria }]
+  const opcoes = lista.map((t): Opcao => ({
+    ...t,
+    // A miniatura mostra a cor como vai ficar na tela (já com o ajuste de legibilidade).
+    principal: rgbParaHex(escala(t.principal)['600']),
+    secundaria: rgbParaHex(coresMenu(t.secundaria).fundo)
+  }))
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader titulo="Tema de cores da empresa" icone={Palette} />
+        <div className="p-5">
+          <p className="mb-4 text-sm text-slate-600">
+            Vale para todos os usuários (e para os outros computadores, se estiverem sincronizados). A mudança aparece na hora como prévia; clique em{' '}
+            <strong>Salvar alterações</strong> para manter.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" role="radiogroup" aria-label="Tema de cores">
+            {opcoes.map((t) => {
+              const ativo = props.tema === t.id
+              return (
+                <button
+                  key={t.id}
+                  role="radio"
+                  aria-checked={ativo}
+                  aria-label={t.nome}
+                  onClick={() => props.onTema(t.id)}
+                  className={`flex overflow-hidden rounded-xl border-2 text-left transition-shadow hover:shadow-md ${ativo ? 'border-blue-600 shadow-md' : 'border-slate-200'}`}
+                >
+                  {/* Miniatura: menu lateral na cor secundária e um botão na principal */}
+                  <span className="flex w-14 flex-col gap-1.5 p-2" style={{ background: t.secundaria }}>
+                    <span className="h-2 rounded-sm" style={{ background: t.principal }} />
+                    <span className="h-2 rounded-sm bg-white/25" />
+                    <span className="h-2 rounded-sm bg-white/25" />
+                    <span className="h-2 rounded-sm bg-white/25" />
+                  </span>
+                  <span className="flex flex-1 flex-col justify-between gap-3 bg-superficie p-3">
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold text-slate-800">{t.nome}</span>
+                      {ativo && <CheckCircle2 size={18} className="shrink-0 text-blue-600" />}
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <span className="rounded-md px-2.5 py-1 text-xs font-medium text-white" style={{ background: t.principal }}>
+                        Botão
+                      </span>
+                      <span className="text-xs font-medium" style={{ color: t.principal }}>
+                        Link
+                      </span>
+                    </span>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          {props.tema === 'personalizado' && (
+            <div className="mt-5 grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
+              <SeletorCor
+                rotulo="Cor principal"
+                dica="Botões, links, abas e o item ativo do menu"
+                valor={props.principal}
+                erro={props.erroPrincipal}
+                onChange={props.onPrincipal}
+              />
+              <SeletorCor rotulo="Cor secundária" dica="Fundo do menu lateral" valor={props.secundaria} erro={props.erroSecundaria} onChange={props.onSecundaria} />
+              <p className="text-xs text-slate-500 sm:col-span-2">
+                Se a cor for muito clara, o sistema a escurece um pouco na tela para os textos continuarem legíveis.
+              </p>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader titulo="Modo escuro e tamanho da letra" icone={SunMoon} />
+        <p className="p-5 text-sm text-slate-600">
+          Cada pessoa escolhe para si, no botão <Sun size={14} className="inline align-[-2px]" /> da barra superior: modo claro, escuro ou automático (igual ao
+          Windows) e letra pequena, normal ou grande. A escolha fica guardada neste computador.
+        </p>
+      </Card>
+    </div>
+  )
+}
+
+function SeletorCor({ rotulo, dica, valor, erro, onChange }: { rotulo: string; dica: string; valor: string; erro?: string; onChange: (c: string) => void }) {
+  const [texto, setTexto] = useState(valor)
+  useEffect(() => setTexto(valor), [valor])
+  return (
+    <div>
+      <p className="mb-1.5 text-sm font-medium text-slate-700">{rotulo}</p>
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          aria-label={`${rotulo} (seletor)`}
+          value={valor}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-10 w-14 cursor-pointer rounded-lg border border-slate-300 bg-superficie p-1"
+        />
+        <input
+          aria-label={rotulo}
+          value={texto}
+          maxLength={7}
+          onChange={(e) => {
+            const v = e.target.value.startsWith('#') ? e.target.value : `#${e.target.value}`
+            setTexto(v)
+            if (/^#[0-9a-fA-F]{6}$/.test(v)) onChange(v.toLowerCase())
+          }}
+          className={`h-10 w-28 rounded-lg border bg-superficie px-3 font-mono text-sm uppercase text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            erro ? 'border-red-400' : 'border-slate-300'
+          }`}
+        />
+      </div>
+      <p className={`mt-1 text-xs ${erro ? 'text-red-600' : 'text-slate-500'}`}>{erro ?? dica}</p>
+    </div>
   )
 }
 
@@ -142,7 +385,7 @@ function SecaoBackup({ info }: { info: InfoSistema | null }) {
 
   return (
     <Card className="xl:col-span-2">
-      <CardHeader titulo="Banco de dados e backup" />
+      <CardHeader titulo="Banco de dados e backup" icone={DatabaseBackup} />
       <div className="grid gap-6 p-5 lg:grid-cols-5">
         <div className="space-y-3 text-sm text-slate-600 lg:col-span-2">
           <p>Os dados ficam em um banco SQLite neste computador e o sistema funciona sem internet, mesmo quando sincronizado com o servidor.</p>

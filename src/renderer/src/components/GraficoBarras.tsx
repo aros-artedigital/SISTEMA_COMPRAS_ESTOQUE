@@ -81,7 +81,7 @@ export function GraficoBarras({ series, dados, formatar, formatarEixo = formatar
       </div>
       )}
       <div ref={ref} className="relative">
-        <svg width={largura} height={altura} role="img" aria-label="Gráfico de movimentações por mês">
+        <svg width={largura} height={altura} className="block max-w-full" role="img" aria-label="Gráfico de movimentações por mês">
           {ticks.map((t) => (
             <g key={t}>
               <line x1={M.esquerda} x2={largura - M.direita} y1={y(t)} y2={y(t)} style={{ stroke: t === 0 ? 'rgb(var(--c-slate-300))' : 'rgb(var(--c-slate-200))' }} strokeWidth={1} />

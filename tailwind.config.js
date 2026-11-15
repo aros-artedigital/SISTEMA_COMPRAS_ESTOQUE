@@ -15,10 +15,11 @@ module.exports = {
         ...paleta,
         // Fundo de cartões, campos e janelas (branco no tema claro).
         superficie: variavel('superficie'),
+        // Menu lateral: cor secundária do tema (definida em tempo de execução, ver lib/tema.ts).
         sidebar: {
-          DEFAULT: '#13294b',
-          hover: '#1c3a66',
-          border: '#1f3b63'
+          DEFAULT: variavel('sidebar'),
+          hover: variavel('sidebar-hover'),
+          border: variavel('sidebar-borda')
         }
       },
       fontFamily: {

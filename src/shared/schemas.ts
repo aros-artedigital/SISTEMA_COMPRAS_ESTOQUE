@@ -88,6 +88,8 @@ export const compraSchema = z.object({
   observacao: z.string().trim()
 })
 
+const corHex = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Cor inválida')
+
 export const configuracoesSchema = z.object({
   nomeEmpresa: obrigatorio('Nome da empresa'),
   cnpj: z.string(),
@@ -97,7 +99,10 @@ export const configuracoesSchema = z.object({
   estoqueMinimoPadrao: z.coerce.number().int().min(0, 'Não pode ser negativo'),
   alertarEstoqueMinimo: z.boolean(),
   prefixoCompra: obrigatorio('Prefixo').max(6, 'Máximo de 6 caracteres'),
-  custoAoReceber: z.enum(['medio', 'ultimo', 'manter'])
+  custoAoReceber: z.enum(['medio', 'ultimo', 'manter']),
+  tema: z.enum(['azul', 'verde', 'roxo', 'grafite', 'vinho', 'personalizado']).default('azul'),
+  corPrincipal: corHex.default('#2563eb'),
+  corSecundaria: corHex.default('#13294b')
 })
 
 export const senhaSchema = z

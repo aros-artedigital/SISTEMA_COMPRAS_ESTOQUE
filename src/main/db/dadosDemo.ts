@@ -99,5 +99,8 @@ export const configuracoes: Configuracoes = {
   estoqueMinimoPadrao: 5,
   alertarEstoqueMinimo: true,
   prefixoCompra: 'C-',
-  custoAoReceber: 'medio'
+  custoAoReceber: 'medio',
+  tema: 'azul',
+  corPrincipal: '#2563eb',
+  corSecundaria: '#13294b'
 }

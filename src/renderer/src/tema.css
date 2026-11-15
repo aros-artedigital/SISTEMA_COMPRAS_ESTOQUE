@@ -79,6 +79,9 @@
   --c-sky-900: 12 74 110;
   --c-sky-950: 8 47 73;
   --c-superficie: 255 255 255;
+  --c-sidebar: 19 41 75;
+  --c-sidebar-hover: 28 58 102;
+  --c-sidebar-borda: 31 59 99;
   color-scheme: light;
 }
 

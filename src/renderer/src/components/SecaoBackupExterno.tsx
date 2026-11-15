@@ -45,6 +45,7 @@ export function SecaoBackupExterno() {
     <Card className="xl:col-span-2">
       <CardHeader
         titulo="Backup fora deste computador"
+        icone={HardDriveUpload}
         acao={!estado.pasta ? <Badge cor="amarelo">Não configurado</Badge> : ok ? <Badge cor="verde">Ativo</Badge> : <Badge cor="vermelho">Com problema</Badge>}
       />
       <div className="grid gap-6 p-5 text-sm text-slate-600 lg:grid-cols-5">

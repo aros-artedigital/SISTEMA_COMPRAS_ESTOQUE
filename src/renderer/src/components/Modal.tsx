@@ -34,9 +34,10 @@ export function Modal({ aberto, titulo, onFechar, children, rodape, tamanho = 'm
         className={`flex max-h-[90vh] w-full flex-col rounded-xl bg-superficie shadow-xl ${larguras[tamanho]}`}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-          <h2 className="text-lg font-semibold text-slate-900">{titulo}</h2>
-          <button onClick={onFechar} className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600" aria-label="Fechar">
+        {/* Barra do título na cor principal do tema (azul no tema padrão). */}
+        <div className="paleta-clara flex items-center justify-between rounded-t-xl bg-blue-600 px-6 py-4 text-white">
+          <h2 className="text-lg font-semibold">{titulo}</h2>
+          <button onClick={onFechar} className="rounded-md p-1 text-white/80 hover:bg-white/15 hover:text-white" aria-label="Fechar">
             <X size={20} />
           </button>
         </div>

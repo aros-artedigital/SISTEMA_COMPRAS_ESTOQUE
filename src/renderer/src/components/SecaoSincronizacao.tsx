@@ -69,6 +69,7 @@ export function SecaoSincronizacao() {
     <Card className="xl:col-span-2">
       <CardHeader
         titulo="Sincronização entre terminais"
+        icone={Cloud}
         acao={estado.configurado ? <Badge cor={estado.ultimoErro ? 'amarelo' : 'verde'}>{estado.ultimoErro ? 'Sem conexão' : 'Conectado'}</Badge> : <Badge>Só neste computador</Badge>}
       />
       {!estado.configurado ? (

@@ -1,5 +1,5 @@
 import { forwardRef, useId, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
-import { Search } from 'lucide-react'
+import { Search, type LucideIcon } from 'lucide-react'
 
 // ---------- Botões ----------
 
@@ -176,10 +176,13 @@ export function Card({ className = '', children }: { className?: string; childre
   return <div className={`rounded-xl border border-slate-200 bg-superficie shadow-sm ${className}`}>{children}</div>
 }
 
-export function CardHeader({ titulo, acao }: { titulo: string; acao?: ReactNode }) {
+export function CardHeader({ titulo, acao, icone: Icone }: { titulo: string; acao?: ReactNode; icone?: LucideIcon }) {
   return (
     <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
-      <h2 className="text-sm font-semibold text-slate-800">{titulo}</h2>
+      <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+        {Icone && <Icone size={16} className="text-blue-600" />}
+        {titulo}
+      </h2>
       {acao}
     </div>
   )

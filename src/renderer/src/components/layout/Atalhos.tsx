@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Modal } from '@/components/Modal'
-import { alternarTema } from '@/lib/tema'
+import { alternarModo } from '@/lib/tema'
 import type { Recurso } from '@shared/permissoes'
 
 // Atalhos de teclado do sistema inteiro. Cada tela marca seu botão principal com
@@ -51,7 +51,7 @@ export function Atalhos() {
 
       if (ctrl && e.shiftKey && k === 'd') {
         e.preventDefault()
-        alternarTema()
+        alternarModo()
         return
       }
       if (e.key === 'F1') {

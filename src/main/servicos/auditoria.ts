@@ -1,5 +1,6 @@
 import type { AlteracaoAuditoria, FiltrosAuditoria, RegistroAuditoria } from '@shared/api'
 import { nomePerfil } from '@shared/permissoes'
+import { TEMAS } from '@shared/temas'
 import type { Perfil } from '@shared/tipos'
 import { banco } from '../db/conexao'
 import { lerConfiguracoes } from './dados'
@@ -118,7 +119,10 @@ const ROTULOS: Record<string, string> = {
   estoqueMinimoPadrao: 'Estoque mínimo padrão',
   alertarEstoqueMinimo: 'Alertas de estoque mínimo',
   prefixoCompra: 'Prefixo das compras',
-  custoAoReceber: 'Custo ao receber compras'
+  custoAoReceber: 'Custo ao receber compras',
+  tema: 'Tema de cores',
+  corPrincipal: 'Cor principal',
+  corSecundaria: 'Cor secundária'
 }
 // Campos que não entram na comparação (o saldo muda por movimentação, que já tem histórico próprio).
 const IGNORAR = new Set(['id', 'estoque', 'senha', 'numero'])
@@ -137,6 +141,7 @@ function formatar(campo: string, v: unknown): string {
   if (campo === 'categoriaId') return nomeDe('categorias', 'nome', v)
   if (campo === 'unidadeId') return nomeDe('unidades', 'sigla', v)
   if (campo === 'fornecedorId') return nomeDe('fornecedores', "COALESCE(NULLIF(nome_fantasia, ''), razao_social)", v)
+  if (campo === 'tema') return TEMAS.find((t) => t.id === v)?.nome ?? 'Personalizado'
   if (campo === 'perfil') return nomePerfil[v as Perfil] ?? String(v)
   if (campo === 'custoAoReceber') return ({ medio: 'Custo médio', ultimo: 'Último preço', manter: 'Não alterar' } as Record<string, string>)[String(v)] ?? String(v)
   if (campo === 'itens' && Array.isArray(v)) {
