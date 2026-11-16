@@ -16,6 +16,7 @@ export type TabelaSync =
   | 'produtos'
   | 'compras'
   | 'vendas'
+  | 'ordens_servico'
   | 'movimentacoes'
   | 'configuracoes'
   | 'recuperacao'
@@ -106,6 +107,36 @@ export function montarDados(tabela: TabelaSync, uuid: string): Dados | null {
         itens: itens.map((i) => ({ produto: uuidDe('produtos', i.produto_id), quantidade: i.quantidade, valorUnitario: i.valor_unitario }))
       }
     }
+    case 'ordens_servico': {
+      const itens = db().prepare('SELECT * FROM os_itens WHERE os_id = ? ORDER BY id').all(r.id) as Linha[]
+      const historico = db().prepare('SELECT * FROM os_historico WHERE os_id = ? ORDER BY id').all(r.id) as Linha[]
+      return {
+        numero: r.numero,
+        cliente: uuidDe('clientes', r.cliente_id),
+        status: r.status,
+        dataEntrada: r.data_entrada,
+        previsao: r.previsao,
+        tecnico: uuidDe('usuarios', r.tecnico_id),
+        equipTipo: r.equip_tipo,
+        equipMarca: r.equip_marca,
+        equipModelo: r.equip_modelo,
+        equipSerie: r.equip_serie,
+        acessorios: r.acessorios,
+        estadoFisico: r.estado_fisico,
+        defeito: r.defeito,
+        diagnostico: r.diagnostico,
+        laudo: r.laudo,
+        observacao: r.observacao,
+        desconto: r.desconto,
+        garantiaDias: r.garantia_dias,
+        estoqueBaixado: !!r.estoque_baixado,
+        concluidaEm: r.concluida_em,
+        entregueEm: r.entregue_em,
+        usuario: uuidDe('usuarios', r.usuario_id),
+        itens: itens.map((i) => ({ tipo: i.tipo, produto: uuidDe('produtos', i.produto_id), descricao: i.descricao, quantidade: i.quantidade, valorUnitario: i.valor_unitario })),
+        historico: historico.map((h) => ({ em: h.em, status: h.status, usuario: h.usuario_nome, observacao: h.observacao }))
+      }
+    }
     case 'movimentacoes':
       return {
         data: r.data,
@@ -116,6 +147,7 @@ export function montarDados(tabela: TabelaSync, uuid: string): Dados | null {
         usuario: uuidDe('usuarios', r.usuario_id),
         compra: uuidDe('compras', r.compra_id),
         venda: uuidDe('vendas', r.venda_id),
+        os: uuidDe('ordens_servico', r.os_id),
         estornoDe: uuidDe('movimentacoes', r.estorno_de)
       }
   }
@@ -134,6 +166,7 @@ export function descrever(tabela: string, uuid: string, dados?: Dados | null): s
     produtos: `Produto ${txt(r.codigo)} — ${txt(r.nome)}`,
     compras: `Compra ${txt(r.numero)}`,
     vendas: `Venda ${txt(r.numero)}`,
+    ordens_servico: `OS ${txt(r.numero)}`,
     movimentacoes: `Movimentação: ${txt(r.motivo)}`,
     configuracoes: 'Configurações da empresa',
     recuperacao: 'Código de recuperação do administrador'
@@ -152,7 +185,8 @@ const UNICOS: Record<string, Record<string, (v: string) => string>> = {
   fornecedores: { cnpj: (v) => `${v} (conflito)` },
   clientes: { documento: (v) => `${v} (conflito)` },
   compras: { numero: (v) => `${v}-${sufixo()}` },
-  vendas: { numero: (v) => `${v}-${sufixo()}` }
+  vendas: { numero: (v) => `${v}-${sufixo()}` },
+  ordens_servico: { numero: (v) => `${v}-${sufixo()}` }
 }
 const sufixo = (): string => randomBytes(2).toString('hex').toUpperCase()
 
@@ -357,12 +391,61 @@ export function aplicarRemoto(tabela: TabelaSync, uuid: string, operacao: 'salva
       for (const i of resolvidos) ins.run(id, i.produtoId, i.quantidade, i.valor)
       return conflito
     }
+    case 'ordens_servico': {
+      const clienteId = idDe('clientes', d.cliente, 'O cliente da OS')
+      const usuarioId = idDe('usuarios', d.usuario, 'O usuário que abriu a OS')
+      const tecnicoId = d.tecnico ? idDe('usuarios', d.tecnico, 'O técnico da OS') : null
+      const itens = (Array.isArray(d.itens) ? d.itens : []) as Dados[]
+      const resolvidos = itens.map((i) => ({
+        tipo: i.tipo === 'peca' ? 'peca' : 'servico',
+        produtoId: i.tipo === 'peca' ? idDe('produtos', i.produto, 'Uma peça da OS') : null,
+        descricao: txt(i.descricao),
+        quantidade: num(i.quantidade),
+        valor: num(i.valorUnitario)
+      }))
+      const historico = (Array.isArray(d.historico) ? d.historico : []) as Dados[]
+      let id = 0
+      const conflito = comUnicos(uuid, () => {
+        id = upsert(tabela, uuid, {
+          numero: txt(d.numero),
+          cliente_id: clienteId,
+          status: txt(d.status),
+          data_entrada: txt(d.dataEntrada),
+          previsao: d.previsao ? txt(d.previsao) : null,
+          tecnico_id: tecnicoId,
+          equip_tipo: txt(d.equipTipo),
+          equip_marca: txt(d.equipMarca),
+          equip_modelo: txt(d.equipModelo),
+          equip_serie: txt(d.equipSerie),
+          acessorios: txt(d.acessorios),
+          estado_fisico: txt(d.estadoFisico),
+          defeito: txt(d.defeito),
+          diagnostico: txt(d.diagnostico),
+          laudo: txt(d.laudo),
+          observacao: txt(d.observacao),
+          desconto: num(d.desconto),
+          garantia_dias: num(d.garantiaDias),
+          estoque_baixado: bool(d.estoqueBaixado),
+          concluida_em: d.concluidaEm ? txt(d.concluidaEm) : null,
+          entregue_em: d.entregueEm ? txt(d.entregueEm) : null,
+          usuario_id: usuarioId
+        })
+      })
+      db().prepare('DELETE FROM os_itens WHERE os_id = ?').run(id)
+      const ins = db().prepare('INSERT INTO os_itens (os_id, tipo, produto_id, descricao, quantidade, valor_unitario) VALUES (?, ?, ?, ?, ?, ?)')
+      for (const i of resolvidos) ins.run(id, i.tipo, i.produtoId, i.descricao, i.quantidade, i.valor)
+      db().prepare('DELETE FROM os_historico WHERE os_id = ?').run(id)
+      const insH = db().prepare('INSERT INTO os_historico (os_id, em, status, usuario_nome, observacao) VALUES (?, ?, ?, ?, ?)')
+      for (const h of historico) insH.run(id, txt(h.em), txt(h.status), txt(h.usuario), txt(h.observacao))
+      return conflito
+    }
     case 'movimentacoes': {
       if (linhaPorUuid(tabela, uuid)) return null // já aplicada
       const produtoId = idDe('produtos', d.produto, 'O produto da movimentação')
       const usuarioId = idDe('usuarios', d.usuario, 'O usuário da movimentação')
       const compraId = d.compra ? idDe('compras', d.compra, 'A compra da movimentação') : null
       const vendaId = d.venda ? idDe('vendas', d.venda, 'A venda da movimentação') : null
+      const osId = d.os ? idDe('ordens_servico', d.os, 'A ordem de serviço da movimentação') : null
       const estornoDe = d.estornoDe ? idDe('movimentacoes', d.estornoDe, 'A movimentação estornada') : null
       const quantidade = num(d.quantidade)
       const delta = d.tipo === 'saida' ? -quantidade : quantidade
@@ -370,9 +453,9 @@ export function aplicarRemoto(tabela: TabelaSync, uuid: string, operacao: 'salva
       const { estoque } = db().prepare('SELECT estoque FROM produtos WHERE id = ?').get(produtoId) as { estoque: number }
       db()
         .prepare(
-          `INSERT INTO movimentacoes (uuid, data, produto_id, tipo, quantidade, saldo_apos, motivo, usuario_id, compra_id, venda_id, estorno_de) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          `INSERT INTO movimentacoes (uuid, data, produto_id, tipo, quantidade, saldo_apos, motivo, usuario_id, compra_id, venda_id, os_id, estorno_de) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
-        .run(uuid, txt(d.data), produtoId, txt(d.tipo), quantidade, estoque, txt(d.motivo), usuarioId, compraId, vendaId, estornoDe)
+        .run(uuid, txt(d.data), produtoId, txt(d.tipo), quantidade, estoque, txt(d.motivo), usuarioId, compraId, vendaId, osId, estornoDe)
       return null
     }
   }

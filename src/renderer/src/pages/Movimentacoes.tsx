@@ -40,7 +40,7 @@ export default function Movimentacoes() {
   const [erroEstorno, setErroEstorno] = useState('')
   // Movimentações que já têm estorno (para marcar e esconder o botão).
   const estornadas = useMemo(() => new Set(movimentacoes.filter((m) => m.estornoDe).map((m) => m.estornoDe!)), [movimentacoes])
-  const podeEstornar = (m: Movimentacao): boolean => !m.compraId && !m.vendaId && !m.estornoDe && !estornadas.has(m.id)
+  const podeEstornar = (m: Movimentacao): boolean => !m.compraId && !m.vendaId && !m.osId && !m.estornoDe && !estornadas.has(m.id)
 
   async function estornar(): Promise<void> {
     if (!estornando) return

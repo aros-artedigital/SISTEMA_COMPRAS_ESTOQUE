@@ -16,6 +16,7 @@ final class Regras
         'clientes' => ['nome', 'tipo', 'documento'],
         'compras' => ['numero', 'fornecedor', 'data', 'status', 'itens'],
         'vendas' => ['numero', 'data', 'status', 'formaPagamento', 'usuario', 'itens'],
+        'ordens_servico' => ['numero', 'cliente', 'status', 'dataEntrada', 'usuario'],
         'movimentacoes' => ['data', 'produto', 'tipo', 'quantidade', 'usuario'],
         'configuracoes' => ['nomeEmpresa'],
         'recuperacao' => ['codigoHash'],
@@ -43,6 +44,9 @@ final class Regras
         if ($tabela === 'vendas' && !in_array($dados['status'], ['concluida', 'cancelada'], true)) {
             return 'Status de venda inválido';
         }
+        if ($tabela === 'ordens_servico' && !in_array($dados['status'], ['aberta', 'em_analise', 'aguardando_aprovacao', 'em_execucao', 'pronta', 'entregue', 'cancelada'], true)) {
+            return 'Status de ordem de serviço inválido';
+        }
         return null;
     }
 
@@ -64,6 +68,7 @@ final class Regras
             'compras' => ['numero' => $minusculo($d['numero'])],
             // Cada item de compra só pode ser recebido uma vez, mesmo que dois terminais recebam a compra sem internet.
             'vendas' => ['numero' => $minusculo($d['numero'])],
+            'ordens_servico' => ['numero' => $minusculo($d['numero'])],
             // Item de venda cancelada só volta ao estoque uma vez, mesmo cancelando em dois terminais sem internet.
             'movimentacoes' => match (true) {
                 // Cada movimentação só pode ser estornada uma vez, mesmo por terminais diferentes sem internet.

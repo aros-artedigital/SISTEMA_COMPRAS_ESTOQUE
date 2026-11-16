@@ -6,6 +6,7 @@ import type {
   configuracoesSchema,
   fornecedorSchema,
   movimentacaoSchema,
+  osEntradaSchema,
   perfilSchema,
   produtoSchema,
   unidadeSchema,
@@ -19,8 +20,10 @@ import type {
   Configuracoes,
   Fornecedor,
   Movimentacao,
+  OrdemServico,
   Produto,
   Unidade,
+  StatusOS,
   Usuario,
   Venda
 } from './tipos'
@@ -39,6 +42,7 @@ export interface Snapshot {
   compras: Compra[]
   movimentacoes: Movimentacao[]
   vendas: Venda[]
+  ordensServico: OrdemServico[]
   configuracoes: Configuracoes
 }
 
@@ -99,6 +103,11 @@ export interface Canais {
 
   'vendas:registrar': Canal<[dados: Entrada<typeof vendaSchema>], Venda>
   'vendas:cancelar': Canal<[id: number, motivo: string], void>
+
+  'os:salvar': Canal<[id: number | null, dados: Entrada<typeof osEntradaSchema>], OrdemServico>
+  'os:excluir': Canal<[id: number], void>
+  /** Muda o status (registra no histórico). Pronta/entregue dá baixa nas peças; reabrir ou cancelar devolve. */
+  'os:status': Canal<[id: number, status: StatusOS, observacao: string], OrdemServico>
 
   'inventario:listar': Canal<[], InventarioResumo[]>
   'inventario:obter': Canal<[id: number], InventarioDetalhe>
@@ -367,7 +376,7 @@ export interface InventarioDetalhe extends InventarioResumo {
 
 export type OperacaoLoteProduto = { tipo: 'ativar' } | { tipo: 'inativar' } | { tipo: 'excluir' } | { tipo: 'categoria'; categoriaId: number }
 
-export type TabelaLote = 'clientes' | 'fornecedores' | 'compras' | 'categorias' | 'unidades'
+export type TabelaLote = 'clientes' | 'fornecedores' | 'compras' | 'categorias' | 'unidades' | 'os'
 
 export interface ResultadoLote {
   feitos: number

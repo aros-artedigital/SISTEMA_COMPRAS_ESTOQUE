@@ -184,3 +184,54 @@ export const vendaSchema = z
   })
 
 export const cancelamentoSchema = z.string().trim().min(3, 'Informe o motivo do cancelamento').max(300)
+
+// ---------- Ordens de serviço ----------
+
+const textoOS = (max: number) => z.string().trim().max(max, `Máximo de ${max} caracteres`).default('')
+
+/** Campos do formulário (valores como texto; o schema converte). */
+export const osSchema = z.object({
+  clienteId: id('o cliente'),
+  tecnicoId: z
+    .union([z.literal(''), z.coerce.number().int().positive()])
+    .nullable()
+    .default(null)
+    .transform((v) => (v ? Number(v) : null)),
+  previsao: z
+    .union([z.literal(''), z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida')])
+    .nullable()
+    .default(null)
+    .transform((v) => v || null),
+  equipTipo: obrigatorio('Tipo do equipamento').max(60),
+  equipMarca: textoOS(60),
+  equipModelo: textoOS(80),
+  equipSerie: textoOS(80),
+  acessorios: textoOS(300),
+  estadoFisico: textoOS(500),
+  defeito: obrigatorio('Defeito relatado').max(2000),
+  diagnostico: textoOS(2000),
+  laudo: textoOS(2000),
+  observacao: textoOS(2000),
+  desconto: z.coerce.number({ invalid_type_error: 'Desconto inválido' }).min(0, 'Desconto não pode ser negativo').default(0),
+  garantiaDias: z.coerce.number({ invalid_type_error: 'Garantia inválida' }).int('Use número inteiro de dias').min(0, 'Não pode ser negativa').max(3650, 'Máximo de 3650 dias').default(90)
+})
+
+export const itemOsSchema = z
+  .object({
+    tipo: z.enum(['peca', 'servico']),
+    produtoId: idSchema.nullable(),
+    descricao: z.string().trim().max(200).default(''),
+    quantidade: z.number().int('Quantidades devem ser inteiras').positive('Quantidade deve ser maior que zero'),
+    valorUnitario: z.number().min(0, 'Valor não pode ser negativo')
+  })
+  .refine((i) => (i.tipo === 'peca' ? i.produtoId !== null : i.descricao.length > 0), 'Escolha o produto da peça ou descreva o serviço')
+  .transform((i) => (i.tipo === 'peca' ? { ...i, descricao: '' } : { ...i, produtoId: null }))
+
+export const osEntradaSchema = osSchema
+  .extend({ itens: z.array(itemOsSchema).max(200, 'Máximo de 200 itens') })
+  .refine((o) => o.desconto <= o.itens.reduce((s, i) => s + i.quantidade * i.valorUnitario, 0), {
+    path: ['desconto'],
+    message: 'Desconto maior que o total da OS'
+  })
+
+export const statusOsSchema = z.enum(['aberta', 'em_analise', 'aguardando_aprovacao', 'em_execucao', 'pronta', 'entregue', 'cancelada'])

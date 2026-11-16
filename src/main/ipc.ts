@@ -1,6 +1,7 @@
 import { app, ipcMain, shell } from 'electron'
 import { z } from 'zod'
 import type { ArgsDe, NomeCanal, Resposta, ResultadoLote, RetornoDe } from '@shared/api'
+import { rotuloStatusOS } from '@shared/dominio'
 import { editar as permEditar, excluir as permExcluir, type Area, type Recurso } from '@shared/permissoes'
 import * as s from '@shared/schemas'
 import { banco, caminhoBanco } from './db/conexao'
@@ -22,6 +23,7 @@ import * as produtos from './servicos/produtos'
 import { exigir, usuarioLogado } from './servicos/sessao'
 import * as usuarios from './servicos/usuarios'
 import * as vendas from './servicos/vendas'
+import * as ordens from './servicos/os'
 import * as inventario from './servicos/inventario'
 import * as sync from './servicos/sync/motor'
 import * as atualizacao from './atualizacao'
@@ -57,11 +59,12 @@ const ENTIDADE: Record<auditoria.TabelaAuditada, string> = {
   fornecedores: 'Fornecedor',
   clientes: 'Cliente',
   usuarios: 'Usuário',
-  compras: 'Compra'
+  compras: 'Compra',
+  ordens_servico: 'Ordem de serviço'
 }
 
 /** Áreas com permissão separada para ver, cadastrar/editar e excluir. */
-const AREAS: Area[] = ['produtos', 'cadastros', 'compras', 'fornecedores', 'clientes']
+const AREAS: Area[] = ['produtos', 'cadastros', 'compras', 'fornecedores', 'clientes', 'os']
 
 /** Gera os canais salvar/excluir de um cadastro simples, registrando cada alteração na auditoria. */
 function crud<Dados>(
@@ -266,6 +269,29 @@ export function registrarCanais(): void {
   canal('compras:salvar', comp.salvar as Handler<'compras:salvar'>)
   canal('compras:excluir', comp.excluir)
 
+  // ---------- Ordens de serviço ----------
+  const ordem = crud('os', 'ordens_servico', ordens.salvar, ordens.excluir, s.osEntradaSchema)
+  canal('os:salvar', ordem.salvar as Handler<'os:salvar'>)
+  canal('os:excluir', ordem.excluir)
+  canal('os:status', (i, st, obs) => {
+    const u = exigir('osEditar')
+    const idOs = id(i)
+    const novo = s.statusOsSchema.parse(st)
+    const observacao = z.string().max(500).parse(obs ?? '')
+    const antes = ordens.buscar(idOs)
+    const o = ordens.mudarStatus(idOs, novo, observacao, u.id)
+    auditoria.registrar({
+      usuario: u,
+      acao: 'Mudança de status',
+      entidade: 'Ordem de serviço',
+      entidadeId: idOs,
+      descricao: `OS ${o.numero}: ${rotuloStatusOS[antes.status]} → ${rotuloStatusOS[novo]}${observacao.trim() ? `. ${observacao.trim()}` : ''}${
+        o.estoqueBaixado !== antes.estoqueBaixado ? (o.estoqueBaixado ? '. Peças baixadas do estoque' : '. Peças devolvidas ao estoque') : ''
+      }`
+    })
+    return o
+  })
+
   // Ações em lote dos demais cadastros: cada item passa pelo mesmo caminho do cadastro individual
   // (permissões, regras e auditoria); o que não pode ser feito volta na lista de falhas com o motivo.
   const lotes = {
@@ -273,10 +299,11 @@ export function registrarCanais(): void {
     fornecedores: { crud: forn, tabela: 'fornecedores', ativo: true },
     compras: { crud: comp, tabela: 'compras', ativo: false },
     categorias: { crud: cat, tabela: 'categorias', ativo: false },
-    unidades: { crud: un, tabela: 'unidades', ativo: false }
+    unidades: { crud: un, tabela: 'unidades', ativo: false },
+    os: { crud: ordem, tabela: 'ordens_servico', ativo: false }
   } as const
   canal('cadastros:emLote', (t, ids, op) => {
-    const alvo = lotes[z.enum(['clientes', 'fornecedores', 'compras', 'categorias', 'unidades']).parse(t)]
+    const alvo = lotes[z.enum(['clientes', 'fornecedores', 'compras', 'categorias', 'unidades', 'os']).parse(t)]
     const lista = z.array(s.idSchema).min(1).max(5000).parse(ids)
     const operacao = z.enum(['ativar', 'inativar', 'excluir']).parse(op)
     if (operacao !== 'excluir' && !alvo.ativo) throw new ErroNegocio('Esta lista não tem ativar/inativar.')

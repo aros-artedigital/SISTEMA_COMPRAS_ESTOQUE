@@ -109,5 +109,8 @@ export function excluirCliente(id: number): void {
   if (banco().prepare('SELECT 1 FROM vendas WHERE cliente_id = ? LIMIT 1').get(id)) {
     throw new ErroNegocio('Cliente possui vendas registradas. Inative-o em vez de excluir.')
   }
+  if (banco().prepare('SELECT 1 FROM ordens_servico WHERE cliente_id = ? LIMIT 1').get(id)) {
+    throw new ErroNegocio('Cliente possui ordens de serviço registradas. Inative-o em vez de excluir.')
+  }
   exigirAlterado(banco().prepare('DELETE FROM clientes WHERE id = ?').run(id).changes, 'Cliente')
 }

@@ -110,6 +110,8 @@ export interface Movimentacao {
   usuarioId: number
   compraId?: number
   vendaId?: number
+  /** Peça usada numa ordem de serviço. */
+  osId?: number
   /** Esta movimentação é o estorno da movimentação indicada. */
   estornoDe?: number
 }
@@ -137,6 +139,57 @@ export interface Venda {
   canceladaEm: string | null
   motivoCancelamento: string
   itens: ItemVenda[]
+}
+
+// ---------- Ordens de serviço ----------
+
+export type StatusOS = 'aberta' | 'em_analise' | 'aguardando_aprovacao' | 'em_execucao' | 'pronta' | 'entregue' | 'cancelada'
+
+export interface ItemOS {
+  /** Peça sai do estoque (produto); serviço é mão de obra (descrição livre). */
+  tipo: 'peca' | 'servico'
+  produtoId: number | null
+  descricao: string
+  quantidade: number
+  valorUnitario: number
+}
+
+export interface HistoricoOS {
+  em: string // ISO com hora
+  status: StatusOS
+  usuario: string
+  observacao: string
+}
+
+export interface OrdemServico {
+  id: number
+  numero: string
+  clienteId: number
+  status: StatusOS
+  dataEntrada: string // ISO com hora
+  /** Previsão de entrega (yyyy-mm-dd). */
+  previsao: string | null
+  tecnicoId: number | null
+  equipTipo: string
+  equipMarca: string
+  equipModelo: string
+  /** Número de série ou IMEI. */
+  equipSerie: string
+  acessorios: string
+  estadoFisico: string
+  defeito: string
+  diagnostico: string
+  laudo: string
+  observacao: string
+  desconto: number
+  garantiaDias: number
+  /** As peças já saíram do estoque (OS pronta ou entregue). */
+  estoqueBaixado: boolean
+  concluidaEm: string | null
+  entregueEm: string | null
+  usuarioId: number
+  itens: ItemOS[]
+  historico: HistoricoOS[]
 }
 
 export interface Configuracoes {

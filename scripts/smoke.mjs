@@ -806,6 +806,7 @@ try {
   verificar(await janelaUsu.getByLabel('Produtos: cadastrar e editar').isChecked(), 'personalizado começa com as permissões do perfil anterior (operador)')
   await janelaUsu.getByLabel('Vendas: ver').uncheck()
   await janelaUsu.getByLabel('Clientes: ver').uncheck()
+  await janelaUsu.getByLabel('Ordens de Serviço: ver').uncheck()
   verificar(!(await janelaUsu.getByLabel('Clientes: excluir').isChecked()), 'tirar "ver" tira também editar e excluir da tela')
   await janelaUsu.getByLabel('Produtos: cadastrar e editar').uncheck()
   await janelaUsu.getByLabel('Produtos: excluir').uncheck()
@@ -859,6 +860,117 @@ try {
   const mudPerm = aud.itens[0]?.alteracoes.find((a) => a.campo === 'Permissões')
   verificar(mudPerm?.para.includes('Relatórios') && !mudPerm.de.includes('Relatórios'), 'mudança de permissões fica na auditoria (com os nomes das telas)')
   await ipc(page, 'usuarios:excluir', estoquista.id)
+
+  // ---------- Ordens de serviço ----------
+  console.log('Ordens de serviço')
+  dados = (await ipc(page, 'dados:carregar')).dados
+  const mouseOs = () => dados.produtos.find((p) => p.id === 1).estoque
+  const mouseAntesOs = mouseOs()
+  await page.keyboard.press('Control+0')
+  await page.getByRole('heading', { name: 'Ordens de Serviço', exact: true }).waitFor()
+  verificar((await page.locator('aside nav a').allTextContents()).includes('Ordens de Serviço'), 'menu tem "Ordens de Serviço" e Ctrl+0 abre a tela')
+  await page.keyboard.press('Control+n')
+  const janelaOs = page.getByRole('dialog', { name: 'Nova ordem de serviço' })
+  await janelaOs.waitFor()
+  await janelaOs.getByRole('button', { name: 'Abrir OS' }).click()
+  await janelaOs.getByText('Selecione o cliente').waitFor()
+  verificar(await janelaOs.getByText('Defeito relatado é obrigatório').isVisible(), 'sem cliente e defeito, a OS não é aberta (campos destacados)')
+  await escolher(janelaOs.getByLabel(/^Cliente \*$/), 'João Pereira — 123.456.789-00')
+  await escolher(janelaOs.getByLabel('Técnico responsável'), 'Administrador')
+  await janelaOs.getByLabel(/^Tipo/).fill('Celular')
+  await janelaOs.getByLabel('Marca', { exact: true }).fill('Samsung')
+  await janelaOs.getByLabel('Modelo', { exact: true }).fill('Galaxy A54')
+  await janelaOs.getByLabel('Nº de série / IMEI').fill('356789012345678')
+  await janelaOs.getByLabel('Acessórios entregues').fill('Capa e carregador')
+  await janelaOs.getByLabel(/^Defeito relatado/).fill('Não carrega')
+  const leitorOs = janelaOs.getByLabel('Código de barras')
+  await leitorOs.fill('7891000100011')
+  await leitorOs.press('Enter')
+  await janelaOs.getByRole('button', { name: 'Adicionar serviço' }).click()
+  await janelaOs.getByLabel('Descrição do serviço').fill('Troca do conector de carga')
+  await janelaOs.getByLabel('Valor unitário').last().fill('80')
+  await janelaOs.getByLabel('Desconto', { exact: true }).fill('10')
+  await foto(page, '21-os-formulario')
+  await janelaOs.getByRole('button', { name: 'Abrir OS' }).click()
+  await page.getByText('Ordem de serviço OS-0001 aberta.').waitFor()
+  const fichaOs = page.getByRole('dialog', { name: 'Ordem de serviço OS-0001' })
+  await fichaOs.waitFor()
+  dados = (await ipc(page, 'dados:carregar')).dados
+  let os1 = dados.ordensServico.find((o) => o.numero === 'OS-0001')
+  verificar(
+    os1?.status === 'aberta' && os1.itens.length === 2 && os1.itens[0].tipo === 'peca' && os1.itens[1].descricao === 'Troca do conector de carga' && os1.desconto === 10 && os1.historico.length === 1 && os1.tecnicoId === 1,
+    'OS aberta pela tela: equipamento, peça (pelo leitor), serviço, desconto, técnico e histórico'
+  )
+  verificar(mouseOs() === mouseAntesOs, 'abrir a OS não mexe no estoque')
+  await escolher(fichaOs.getByLabel('Novo status'), 'Pronta — serviço concluído')
+  verificar(await fichaOs.getByText('será baixada do estoque').isVisible(), 'a ficha avisa que as peças vão sair do estoque')
+  await fichaOs.getByLabel('Observação do andamento').fill('Conector trocado e testado')
+  await fichaOs.getByRole('button', { name: 'Atualizar status' }).click()
+  await page.getByText('OS-0001: pronta.').waitFor()
+  await foto(page, '22-os-ficha')
+  dados = (await ipc(page, 'dados:carregar')).dados
+  os1 = dados.ordensServico.find((o) => o.id === os1.id)
+  const movOs = dados.movimentacoes.find((m) => m.osId === os1.id && m.tipo === 'saida')
+  verificar(os1.status === 'pronta' && os1.estoqueBaixado && mouseOs() === mouseAntesOs - 1 && movOs?.motivo === 'Ordem de serviço OS-0001', 'pronta: a peça sai do estoque ligada à OS')
+  verificar(os1.historico.at(-1).observacao === 'Conector trocado e testado', 'mudança de status fica no histórico com a observação')
+  r = await ipc(page, 'os:salvar', os1.id, { ...os1, laudo: 'Alterado depois de pronta' })
+  verificar(!r.ok && r.erro.mensagem.includes('Reabra'), 'OS pronta não pode ser editada (precisa reabrir)')
+  r = await ipc(page, 'estoque:estornar', movOs.id, 'teste')
+  verificar(!r.ok && r.erro.mensagem.includes('ordem de serviço'), 'baixa de peça da OS não é estornada pela tela de movimentações')
+  r = await ipc(page, 'os:status', os1.id, 'em_execucao', 'Cliente voltou com o mesmo defeito')
+  dados = (await ipc(page, 'dados:carregar')).dados
+  verificar(r.ok && !r.dados.estoqueBaixado && mouseOs() === mouseAntesOs, 'reabrir devolve a peça ao estoque')
+  r = await ipc(page, 'os:status', os1.id, 'entregue', '')
+  dados = (await ipc(page, 'dados:carregar')).dados
+  verificar(r.ok && r.dados.entregueEm && r.dados.estoqueBaixado && mouseOs() === mouseAntesOs - 1, 'entregue direto: baixa a peça e registra a data de entrega')
+  r = await ipc(page, 'os:status', os1.id, 'cancelada', 'Tentativa')
+  verificar(!r.ok, 'OS entregue não muda mais de status')
+  r = await ipc(page, 'os:excluir', os1.id)
+  verificar(!r.ok, 'OS entregue não pode ser excluída')
+  await aoSalvar(join(pasta, 'os.pdf'))
+  await fichaOs.getByRole('button', { name: 'PDF' }).click()
+  verificar((await esperarArquivo(join(pasta, 'os.pdf'))) && ehPdf(join(pasta, 'os.pdf')), 'OS salva em PDF (folha para o cliente assinar)')
+  await page.keyboard.press('Escape')
+
+  // Peça sem saldo: a OS não fica pronta e nada muda
+  const semSaldo = dados.produtos.find((p) => p.codigo === 'P0010')
+  const base = { clienteId: 1, tecnicoId: null, previsao: null, equipTipo: 'Notebook', equipMarca: 'Dell', equipModelo: 'Inspiron', equipSerie: '', acessorios: '', estadoFisico: '', defeito: 'Não liga', diagnostico: '', laudo: '', observacao: '', desconto: 0, garantiaDias: 90 }
+  const os2 = (await ipc(page, 'os:salvar', null, { ...base, itens: [{ tipo: 'peca', produtoId: semSaldo.id, descricao: '', quantidade: semSaldo.estoque + 1, valorUnitario: 50 }] })).dados
+  r = await ipc(page, 'os:status', os2.id, 'pronta', '')
+  dados = (await ipc(page, 'dados:carregar')).dados
+  verificar(!r.ok && r.erro.mensagem.includes('Saldo insuficiente') && dados.ordensServico.find((o) => o.id === os2.id).status === 'aberta', 'sem saldo da peça, a OS não fica pronta')
+  r = await ipc(page, 'os:salvar', null, { ...base, desconto: 999, itens: [{ tipo: 'servico', produtoId: null, descricao: 'Limpeza', quantidade: 1, valorUnitario: 50 }] })
+  verificar(!r.ok && r.erro.campo === 'desconto', 'desconto maior que o total é recusado')
+
+  // Atrasada: aviso no sino e filtro
+  await ipc(page, 'os:salvar', os2.id, { ...base, previsao: '2026-01-10', itens: [] })
+  notif = (await ipc(page, 'notificacoes:listar')).dados
+  verificar(notif.some((n) => n.chave === `os-atrasada:${os2.id}`), 'previsão vencida gera aviso de OS atrasada')
+  await page.reload()
+  await page.waitForSelector('input[placeholder="seu.login"]')
+  await entrar(page, 'admin', 'admin123')
+  await page.getByText('Olá, Administrador').waitFor()
+  await page.keyboard.press('Control+0')
+  await page.getByRole('button', { name: /^Atrasadas/ }).click()
+  await page.getByRole('cell', { name: os2.numero, exact: true }).waitFor()
+  verificar((await page.locator('main tbody tr').count()) === 1, 'o quadro "Atrasadas" filtra a lista')
+  r = await ipc(page, 'os:status', os2.id, 'cancelada', '')
+  verificar(!r.ok && r.erro.campo === 'observacao', 'cancelar exige o motivo')
+  r = await ipc(page, 'os:status', os2.id, 'cancelada', 'Cliente não aprovou o orçamento')
+  notif = (await ipc(page, 'notificacoes:listar')).dados
+  verificar(r.ok && !notif.some((n) => n.chave === `os-atrasada:${os2.id}`), 'OS cancelada deixa de aparecer como atrasada')
+
+  // Cliente com OS não é excluído; OS sem peças baixadas pode ser excluída
+  const cliOs = (await ipc(page, 'clientes:salvar', null, { nome: 'Cliente da Assistência', tipo: 'PF', documento: '390.533.447-05', telefone: '', email: '', cidade: '', uf: '', ativo: true })).dados
+  const os3 = (await ipc(page, 'os:salvar', null, { ...base, clienteId: cliOs.id, itens: [] })).dados
+  r = await ipc(page, 'clientes:excluir', cliOs.id)
+  verificar(!r.ok && r.erro.mensagem.includes('ordens de serviço'), 'cliente com OS não pode ser excluído')
+  r = await ipc(page, 'cadastros:emLote', 'os', [os3.id, os1.id], 'excluir')
+  verificar(r.ok && r.dados.feitos === 1 && r.dados.falhas.length === 1 && r.dados.falhas[0].id === os1.id, 'exclusão em lote: exclui a OS sem movimento e mantém a entregue')
+  r = await ipc(page, 'clientes:excluir', cliOs.id)
+  verificar(r.ok, 'sem OS, o cliente pode ser excluído')
+  aud = (await ipc(page, 'auditoria:listar', { entidade: 'Ordem de serviço' })).dados
+  verificar(aud.itens.some((a) => a.acao === 'Mudança de status' && a.descricao.includes('Aberta → Pronta') && a.descricao.includes('Peças baixadas')) && aud.itens.some((a) => a.acao === 'Inclusão'), 'abertura e mudanças de status ficam na auditoria')
 
   // ---------- Backup externo ----------
   console.log('Backup fora do computador')
@@ -935,6 +1047,7 @@ try {
   verificar(r.ok && existsSync(arq('modelo.xlsx')), 'modelo de importação gerado')
 
   // Planilha de importação: 1 novo (com categoria nova), 1 atualização, 1 inválido.
+  const mouseAntesImp = (await ipc(page, 'dados:carregar')).dados.produtos.find((p) => p.id === 1).estoque
   const wbImp = new ExcelJS.Workbook()
   const ws = wbImp.addWorksheet('Produtos')
   ws.addRow(['Código *', 'Nome *', 'Categoria *', 'Unidade *', 'Preço de custo *', 'Preço de venda *', 'Estoque inicial'])
@@ -955,7 +1068,7 @@ try {
   const cadeira = dados.produtos.find((p) => p.codigo === 'P0900')
   const mouse = dados.produtos.find((p) => p.id === 1)
   verificar(cadeira?.estoque === 3 && dados.categorias.some((c) => c.nome === 'Móveis'), 'produto novo com estoque inicial e categoria criada')
-  verificar(mouse?.nome === 'Mouse USB Óptico' && mouse?.estoque === 18, 'produto existente atualizado sem mexer no estoque')
+  verificar(mouse?.nome === 'Mouse USB Óptico' && mouse?.estoque === mouseAntesImp, 'produto existente atualizado sem mexer no estoque')
   r = await ipc(page, 'excel:importar', prev.token)
   verificar(!r.ok, 'a mesma prévia não pode ser importada duas vezes')
 

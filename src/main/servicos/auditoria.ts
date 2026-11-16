@@ -1,7 +1,8 @@
 import type { AlteracaoAuditoria, FiltrosAuditoria, RegistroAuditoria } from '@shared/api'
 import { nomePerfil, nomeRecurso, type Recurso } from '@shared/permissoes'
+import { rotuloStatusOS } from '@shared/dominio'
 import { TEMAS } from '@shared/temas'
-import type { Perfil } from '@shared/tipos'
+import type { ItemOS, Perfil, StatusOS } from '@shared/tipos'
 import { banco } from '../db/conexao'
 import { lerConfiguracoes } from './dados'
 import * as map from './mapeadores'
@@ -9,7 +10,7 @@ import * as map from './mapeadores'
 // Registro de auditoria. Os valores já são gravados em texto legível (nomes, moeda, Sim/Não),
 // para a consulta continuar fazendo sentido mesmo depois que os cadastros mudarem.
 
-export type TabelaAuditada = 'produtos' | 'categorias' | 'unidades' | 'fornecedores' | 'clientes' | 'usuarios' | 'compras'
+export type TabelaAuditada = 'produtos' | 'categorias' | 'unidades' | 'fornecedores' | 'clientes' | 'usuarios' | 'compras' | 'ordens_servico'
 
 interface NovoRegistro {
   usuario: { id: number; nome: string } | null
@@ -69,6 +70,11 @@ export function ler(tabela: TabelaAuditada, id: number): Objeto | null {
       const itens = (db.prepare('SELECT * FROM compra_itens WHERE compra_id = ? ORDER BY id').all(id) as map.Linha[]).map(map.itemCompra)
       return map.compra(r, itens) as unknown as Objeto
     }
+    case 'ordens_servico': {
+      // O histórico de status já é registrado à parte (ação "Mudança de status").
+      const itens = (db.prepare('SELECT * FROM os_itens WHERE os_id = ? ORDER BY id').all(id) as map.Linha[]).map(map.itemOS)
+      return map.ordemServico(r, itens, []) as unknown as Objeto
+    }
   }
 }
 
@@ -82,7 +88,8 @@ export function descrever(tabela: TabelaAuditada, o: Objeto | null): string {
     fornecedores: `Fornecedor ${t('razaoSocial')}`,
     clientes: `Cliente ${t('nome')}`,
     usuarios: `Usuário ${t('nome')} (${t('login')})`,
-    compras: `Compra ${t('numero')}`
+    compras: `Compra ${t('numero')}`,
+    ordens_servico: `OS ${t('numero')}`
   }[tabela]
 }
 
@@ -128,11 +135,25 @@ const ROTULOS: Record<string, string> = {
   custoAoReceber: 'Custo ao receber compras',
   tema: 'Tema de cores',
   corPrincipal: 'Cor principal',
-  corSecundaria: 'Cor secundária'
+  corSecundaria: 'Cor secundária',
+  clienteId: 'Cliente',
+  tecnicoId: 'Técnico',
+  previsao: 'Previsão de entrega',
+  equipTipo: 'Equipamento',
+  equipMarca: 'Marca',
+  equipModelo: 'Modelo',
+  equipSerie: 'Nº de série / IMEI',
+  acessorios: 'Acessórios',
+  estadoFisico: 'Estado físico',
+  defeito: 'Defeito relatado',
+  diagnostico: 'Diagnóstico',
+  laudo: 'Laudo técnico',
+  desconto: 'Desconto',
+  garantiaDias: 'Garantia (dias)'
 }
 // Campos que não entram na comparação (o saldo muda por movimentação, que já tem histórico próprio).
-const IGNORAR = new Set(['id', 'estoque', 'senha', 'numero'])
-const MOEDA = new Set(['precoCusto', 'precoVenda'])
+const IGNORAR = new Set(['id', 'estoque', 'senha', 'numero', 'historico', 'estoqueBaixado', 'concluidaEm', 'entregueEm', 'dataEntrada', 'usuarioId'])
+const MOEDA = new Set(['precoCusto', 'precoVenda', 'desconto'])
 const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
 function nomeDe(tabela: string, coluna: string, id: unknown): string {
@@ -147,11 +168,19 @@ function formatar(campo: string, v: unknown): string {
   if (MOEDA.has(campo)) return moeda.format(Number(v))
   if (campo === 'categoriaId') return nomeDe('categorias', 'nome', v)
   if (campo === 'unidadeId') return nomeDe('unidades', 'sigla', v)
+  if (campo === 'clienteId') return nomeDe('clientes', 'nome', v)
+  if (campo === 'tecnicoId') return nomeDe('usuarios', 'nome', v)
+  if (campo === 'status' && String(v) in rotuloStatusOS) return rotuloStatusOS[v as StatusOS]
   if (campo === 'fornecedorId') return nomeDe('fornecedores', "COALESCE(NULLIF(nome_fantasia, ''), razao_social)", v)
   if (campo === 'permissoes') return Array.isArray(v) ? v.map((r) => nomeRecurso(r as Recurso)).join('; ') || '(nenhuma)' : '(as do perfil)'
   if (campo === 'tema') return TEMAS.find((t) => t.id === v)?.nome ?? 'Personalizado'
   if (campo === 'perfil') return nomePerfil[v as Perfil] ?? String(v)
   if (campo === 'custoAoReceber') return ({ medio: 'Custo médio', ultimo: 'Último preço', manter: 'Não alterar' } as Record<string, string>)[String(v)] ?? String(v)
+  if (campo === 'itens' && Array.isArray(v) && v.some((i) => 'tipo' in i)) {
+    return (v as ItemOS[])
+      .map((i) => `${i.tipo === 'peca' ? nomeDe('produtos', 'codigo', i.produtoId) : i.descricao} ×${i.quantidade} a ${moeda.format(i.valorUnitario)}`)
+      .join('; ')
+  }
   if (campo === 'itens' && Array.isArray(v)) {
     return v
       .map((i: { produtoId: number; quantidade: number; valorUnitario: number }) => `${nomeDe('produtos', 'codigo', i.produtoId)} ×${i.quantidade} a ${moeda.format(i.valorUnitario)}`)

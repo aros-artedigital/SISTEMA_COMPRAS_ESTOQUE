@@ -14,6 +14,7 @@ import {
   UserCircle,
   UserCog,
   Users,
+  Wrench,
   type LucideIcon
 } from 'lucide-react'
 import type { Recurso } from '@shared/permissoes'
@@ -34,7 +35,8 @@ export const menu: GrupoMenu[] = [
   {
     itens: [
       { caminho: '/', titulo: 'Início', icone: LayoutDashboard, recurso: 'dashboard' },
-      { caminho: '/vendas', titulo: 'Vendas', icone: Receipt, recurso: 'vendas' }
+      { caminho: '/vendas', titulo: 'Vendas', icone: Receipt, recurso: 'vendas' },
+      { caminho: '/os', titulo: 'Ordens de Serviço', icone: Wrench, recurso: 'os' }
     ]
   },
   {

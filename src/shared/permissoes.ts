@@ -26,6 +26,9 @@ export type Recurso =
   | 'clientes'
   | 'clientesEditar'
   | 'clientesExcluir'
+  | 'os'
+  | 'osEditar'
+  | 'osExcluir'
   | 'relatorios'
   | 'usuarios'
   | 'configuracoes'
@@ -53,6 +56,9 @@ export const TODOS_RECURSOS: Recurso[] = [
   'clientes',
   'clientesEditar',
   'clientesExcluir',
+  'os',
+  'osEditar',
+  'osExcluir',
   'relatorios',
   'usuarios',
   'configuracoes',
@@ -63,7 +69,7 @@ export const TODOS_RECURSOS: Recurso[] = [
 export const SO_ADMIN: Recurso[] = ['usuarios', 'configuracoes', 'auditoria']
 
 /** Áreas com "ver / cadastrar e editar / excluir" separados. */
-export type Area = 'produtos' | 'cadastros' | 'compras' | 'fornecedores' | 'clientes'
+export type Area = 'produtos' | 'cadastros' | 'compras' | 'fornecedores' | 'clientes' | 'os'
 export const editar = (a: Area): Recurso => `${a}Editar` as Recurso
 export const excluir = (a: Area): Recurso => `${a}Excluir` as Recurso
 const area = (a: Area): Recurso[] => [a, editar(a), excluir(a)]
@@ -71,7 +77,7 @@ const area = (a: Area): Recurso[] => [a, editar(a), excluir(a)]
 const permissoes: Record<Perfil, Recurso[]> = {
   admin: TODOS_RECURSOS,
   gerente: TODOS_RECURSOS.filter((r) => !SO_ADMIN.includes(r)),
-  operador: ['dashboard', 'vendas', ...area('produtos'), 'estoque', ...area('clientes')]
+  operador: ['dashboard', 'vendas', ...area('produtos'), 'estoque', ...area('clientes'), 'os', 'osEditar']
 }
 
 /** Permissões de um perfil padrão. */
@@ -110,6 +116,7 @@ export const nomeDoUsuarioPerfil = (u: { perfil: Perfil; permissoes?: Recurso[] 
 export const GRUPOS_PERMISSAO: { tela: string; ver: Recurso; editar?: Recurso; excluir?: Recurso; extras?: { recurso: Recurso; nome: string }[] }[] = [
   { tela: 'Início (painel)', ver: 'dashboard' },
   { tela: 'Vendas', ver: 'vendas', extras: [{ recurso: 'vendasCancelar', nome: 'Cancelar vendas' }] },
+  { tela: 'Ordens de Serviço', ver: 'os', editar: 'osEditar', excluir: 'osExcluir' },
   { tela: 'Produtos', ver: 'produtos', editar: 'produtosEditar', excluir: 'produtosExcluir' },
   { tela: 'Categorias e Unidades', ver: 'cadastros', editar: 'cadastrosEditar', excluir: 'cadastrosExcluir' },
   {

@@ -9,7 +9,10 @@ import type {
   Unidade,
   Usuario,
   Venda,
-  ItemVenda
+  ItemVenda,
+  OrdemServico,
+  ItemOS,
+  HistoricoOS
 } from '@shared/tipos'
 import { limparPermissoes } from '@shared/permissoes'
 
@@ -115,6 +118,7 @@ export const movimentacao = (r: Linha): Movimentacao => ({
   usuarioId: r.usuario_id,
   ...(r.compra_id ? { compraId: r.compra_id } : {}),
   ...(r.venda_id ? { vendaId: r.venda_id } : {}),
+  ...(r.os_id ? { osId: r.os_id } : {}),
   ...(r.estorno_de ? { estornoDe: r.estorno_de } : {})
 })
 
@@ -134,6 +138,44 @@ export const venda = (r: Linha, itens: ItemVenda[]): Venda => ({
 })
 
 export const itemVenda = (r: Linha): ItemVenda => ({ produtoId: r.produto_id, quantidade: r.quantidade, valorUnitario: r.valor_unitario })
+
+export const ordemServico = (r: Linha, itens: ItemOS[], historico: HistoricoOS[]): OrdemServico => ({
+  id: r.id,
+  numero: r.numero,
+  clienteId: r.cliente_id,
+  status: r.status,
+  dataEntrada: r.data_entrada,
+  previsao: r.previsao ?? null,
+  tecnicoId: r.tecnico_id ?? null,
+  equipTipo: r.equip_tipo,
+  equipMarca: r.equip_marca,
+  equipModelo: r.equip_modelo,
+  equipSerie: r.equip_serie,
+  acessorios: r.acessorios,
+  estadoFisico: r.estado_fisico,
+  defeito: r.defeito,
+  diagnostico: r.diagnostico,
+  laudo: r.laudo,
+  observacao: r.observacao,
+  desconto: r.desconto,
+  garantiaDias: r.garantia_dias,
+  estoqueBaixado: !!r.estoque_baixado,
+  concluidaEm: r.concluida_em ?? null,
+  entregueEm: r.entregue_em ?? null,
+  usuarioId: r.usuario_id,
+  itens,
+  historico
+})
+
+export const itemOS = (r: Linha): ItemOS => ({
+  tipo: r.tipo,
+  produtoId: r.produto_id ?? null,
+  descricao: r.descricao,
+  quantidade: r.quantidade,
+  valorUnitario: r.valor_unitario
+})
+
+export const historicoOS = (r: Linha): HistoricoOS => ({ em: r.em, status: r.status, usuario: r.usuario_nome, observacao: r.observacao })
 
 export const bool = (v: boolean): number => (v ? 1 : 0)
 

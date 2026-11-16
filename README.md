@@ -94,6 +94,15 @@ Usuários de demonstração (só em desenvolvimento):
   deixa vender sem saldo. Recibo em cupom de 80 mm (impressão ou PDF, sem valor fiscal). Uma venda não é editada:
   o cancelamento devolve os itens ao estoque e fica registrado com o motivo. Atalho **F2** abre uma nova venda.
   Relatório de vendas por venda, por cliente ou por produto; total comprado por cliente na tela de Clientes.
+- **Ordens de Serviço** (assistência técnica; menu ou `Ctrl+0`): entrada do equipamento (tipo, marca, modelo, nº de
+  série/IMEI, acessórios e estado físico), defeito relatado, diagnóstico e laudo, técnico responsável, previsão de
+  entrega e garantia. Orçamento com peças do estoque (inclusive pelo leitor de código de barras) e serviços de mão de
+  obra, com desconto. Andamento: Aberta → Em análise → Aguardando aprovação → Em execução → Pronta → Entregue (ou
+  Cancelada, com motivo), com histórico de quem mudou e quando. As peças saem do estoque quando a OS fica pronta;
+  reabrir ou cancelar uma OS pronta devolve as peças. Ficha com as etapas, impressão/PDF em A4 com espaço para as
+  assinaturas, quadros de "em andamento", "prontas" e "atrasadas", avisos no sino (OS atrasada, pronta há 7 dias sem
+  retirada), Excel, exclusão em lote, auditoria e sincronização entre terminais (número OS-A0001 por terminal).
+  Permissões próprias: ver, cadastrar e editar (inclui mudar o status), excluir.
 - **Aparência** (botão de sol/lua na barra superior, cada computador guarda a sua escolha): modo Claro, Escuro ou
   Automático (segue o Windows) — `Ctrl+Shift+D` alterna na hora — e tamanho da letra Pequena, Normal ou Grande.
 - **Tema de cores da empresa** (Configurações → Aparência, só administrador): 5 temas prontos (Azul clássico, Verde
@@ -198,7 +207,7 @@ Regras garantidas pelo banco/main (não só pela tela):
 - Itens com histórico (produto, fornecedor, usuário) não podem ser excluídos; inative-os.
 - **Estorno** (Movimentações, administrador e gerente): desfaz um lançamento manual criando a movimentação inversa,
   ligada à original, com motivo. A original fica no histórico marcada como "Estornada". Não se estorna um estorno,
-  nem movimentos de venda (cancele a venda) ou de recebimento de compra; cada movimentação só é estornada uma vez,
+  nem movimentos de venda (cancele a venda), de ordem de serviço (reabra ou cancele a OS) ou de recebimento de compra; cada movimentação só é estornada uma vez,
   mesmo entre terminais.
 - Códigos, CNPJ/CPF, logins e siglas são únicos.
 - Sempre existe pelo menos um administrador ativo.

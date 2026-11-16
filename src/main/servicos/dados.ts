@@ -1,5 +1,5 @@
 import type { Snapshot } from '@shared/api'
-import type { Configuracoes, ItemCompra, ItemVenda } from '@shared/tipos'
+import type { Configuracoes, HistoricoOS, ItemCompra, ItemOS, ItemVenda } from '@shared/tipos'
 import { banco } from '../db/conexao'
 import { configuracoesPadrao } from '../db/seed'
 import * as map from './mapeadores'
@@ -34,6 +34,9 @@ export function carregar(): Snapshot {
     itensVenda.set(r.venda_id, lista)
   }
 
+  const itensOS = agrupar('SELECT * FROM os_itens ORDER BY id', map.itemOS)
+  const historicoOS = agrupar('SELECT * FROM os_historico ORDER BY id', map.historicoOS)
+
   return {
     usuarios: todas('SELECT * FROM usuarios ORDER BY nome').map(map.usuario),
     categorias: todas('SELECT * FROM categorias ORDER BY nome').map(map.categoria),
@@ -44,6 +47,18 @@ export function carregar(): Snapshot {
     compras: todas('SELECT * FROM compras ORDER BY id').map((r) => map.compra(r, itens.get(r.id) ?? [])),
     movimentacoes: todas('SELECT * FROM movimentacoes ORDER BY id').map(map.movimentacao),
     vendas: todas('SELECT * FROM vendas ORDER BY id').map((r) => map.venda(r, itensVenda.get(r.id) ?? [])),
+    ordensServico: todas('SELECT * FROM ordens_servico ORDER BY id').map((r) => map.ordemServico(r, itensOS.get(r.id) ?? [], historicoOS.get(r.id) ?? [])),
     configuracoes: lerConfiguracoes()
   }
+}
+
+/** Linhas filhas (itens, histórico) agrupadas pela OS a que pertencem. */
+function agrupar<T extends ItemOS | HistoricoOS>(sql: string, mapear: (r: map.Linha) => T): Map<number, T[]> {
+  const grupos = new Map<number, T[]>()
+  for (const r of todas(sql)) {
+    const lista = grupos.get(r.os_id) ?? []
+    lista.push(mapear(r))
+    grupos.set(r.os_id, lista)
+  }
+  return grupos
 }

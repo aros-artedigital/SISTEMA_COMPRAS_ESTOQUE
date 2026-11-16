@@ -282,6 +282,48 @@ try {
   verificar(dA.vendas.find((v) => v.numero === vendaB.numero).status === 'cancelada' && dB.vendas.find((v) => v.numero === vendaB.numero).status === 'cancelada', 'venda aparece cancelada nos dois')
   verificar(saldoBate(dA) && saldoBate(dB), 'saldos continuam batendo com as movimentações')
 
+  // ---------- Ordens de serviço ----------
+  console.log('Ordens de serviço')
+  const osAntes = cabo(dB).estoque
+  const osB = await B.ok('os:salvar', null, {
+    clienteId: dB.clientes.find((c) => c.ativo).id,
+    tecnicoId: null,
+    previsao: null,
+    equipTipo: 'Celular',
+    equipMarca: 'Motorola',
+    equipModelo: 'G54',
+    equipSerie: '',
+    acessorios: '',
+    estadoFisico: '',
+    defeito: 'Tela quebrada',
+    diagnostico: '',
+    laudo: '',
+    observacao: '',
+    desconto: 0,
+    garantiaDias: 90,
+    itens: [
+      { tipo: 'peca', produtoId: cabo(dB).id, descricao: '', quantidade: 2, valorUnitario: 5 },
+      { tipo: 'servico', produtoId: null, descricao: 'Troca de tela', quantidade: 1, valorUnitario: 150 }
+    ]
+  })
+  verificar(osB.numero.startsWith('OS-B'), `número da OS inclui o terminal (${osB.numero})`)
+  await B.ok('os:status', osB.id, 'pronta', 'Tela trocada')
+  await B.sync()
+  await A.sync()
+  dA = await A.dados()
+  const osEmA = dA.ordensServico.find((o) => o.numero === osB.numero)
+  verificar(
+    osEmA?.status === 'pronta' && osEmA.itens.length === 2 && osEmA.historico.length === 2 && cabo(dA).estoque === osAntes - 2,
+    'OS feita em B chega em A com peças, serviços e histórico, e a peça sai do estoque lá'
+  )
+  verificar(dA.movimentacoes.some((m) => m.osId === osEmA?.id && m.tipo === 'saida'), 'em A, a baixa da peça fica ligada à OS')
+  await A.ok('os:status', osEmA.id, 'entregue', '')
+  await A.sync()
+  await B.sync()
+  dB = await B.dados()
+  verificar(dB.ordensServico.find((o) => o.id === osB.id).status === 'entregue' && cabo(dB).estoque === osAntes - 2, 'entrega registrada em A aparece em B (sem baixar a peça de novo)')
+  verificar(saldoBate(dA) && saldoBate(dB), 'saldos continuam batendo com as movimentações')
+
   // ---------- Recuperação de acesso entre terminais ----------
   console.log('Recuperação de acesso')
   const codigo = await A.ok('recuperacao:gerar')

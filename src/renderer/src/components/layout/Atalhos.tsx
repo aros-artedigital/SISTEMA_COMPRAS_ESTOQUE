@@ -17,7 +17,8 @@ const TELAS: { tecla: string; caminho: string; titulo: string; recurso: Recurso 
   { tecla: '6', caminho: '/compras', titulo: 'Compras', recurso: 'compras' },
   { tecla: '7', caminho: '/fornecedores', titulo: 'Fornecedores', recurso: 'fornecedores' },
   { tecla: '8', caminho: '/clientes', titulo: 'Clientes', recurso: 'clientes' },
-  { tecla: '9', caminho: '/relatorios', titulo: 'Relatórios', recurso: 'relatorios' }
+  { tecla: '9', caminho: '/relatorios', titulo: 'Relatórios', recurso: 'relatorios' },
+  { tecla: '0', caminho: '/os', titulo: 'Ordens de Serviço', recurso: 'os' }
 ]
 
 const GERAIS: { teclas: string[]; acao: string }[] = [

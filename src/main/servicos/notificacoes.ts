@@ -15,6 +15,8 @@ import * as sync from './sync/motor'
 // voltar, o aviso aparece de novo como não lido.
 
 const DIAS_COMPRA_ATRASADA = 7
+/** OS pronta há este tempo sem o cliente buscar. */
+const DIAS_OS_SEM_RETIRADA = 7
 const MAXIMO = 60
 
 const dias = (de: string): number => Math.floor((Date.now() - new Date(de.length === 10 ? `${de}T00:00:00` : de).getTime()) / 86_400_000)
@@ -61,6 +63,44 @@ function calcular(u: Usuario): Omit<Notificacao, 'lida'>[] {
         link: '/compras',
         em: c.data
       })
+    }
+  }
+
+  // Ordens de serviço: previsão de entrega vencida e equipamento pronto esperando o cliente.
+  if (pode(u, 'os')) {
+    const hoje = agoraIso().slice(0, 10)
+    const ordens = db
+      .prepare(
+        `SELECT o.id, o.numero, o.status, o.previsao, o.concluida_em, c.nome AS cliente FROM ordens_servico o JOIN clientes c ON c.id = o.cliente_id
+         WHERE (o.status IN ('aberta', 'em_analise', 'aguardando_aprovacao', 'em_execucao') AND o.previsao IS NOT NULL AND o.previsao < ?) OR o.status = 'pronta'
+         ORDER BY o.previsao, o.id`
+      )
+      .all(hoje) as { id: number; numero: string; status: string; previsao: string | null; concluida_em: string | null; cliente: string }[]
+    for (const o of ordens) {
+      if (o.status === 'pronta') {
+        const d = o.concluida_em ? dias(o.concluida_em) : 0
+        if (d < DIAS_OS_SEM_RETIRADA) continue
+        lista.push({
+          chave: `os-sem-retirada:${o.id}`,
+          tipo: 'info',
+          categoria: 'Ordens de serviço',
+          titulo: `OS ${o.numero} pronta aguardando retirada`,
+          mensagem: `O equipamento de ${o.cliente} está pronto há ${d} dias.`,
+          link: '/os?filtro=pronta',
+          em: o.concluida_em ?? undefined
+        })
+      } else {
+        const d = dias(o.previsao!)
+        lista.push({
+          chave: `os-atrasada:${o.id}`,
+          tipo: 'aviso',
+          categoria: 'Ordens de serviço',
+          titulo: `OS ${o.numero} atrasada`,
+          mensagem: `A entrega para ${o.cliente} estava prevista para ${o.previsao!.split('-').reverse().join('/')} (${d} dia${d > 1 ? 's' : ''} de atraso).`,
+          link: '/os?filtro=atrasadas',
+          em: o.previsao!
+        })
+      }
     }
   }
 

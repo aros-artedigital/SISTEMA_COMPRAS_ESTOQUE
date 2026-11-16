@@ -17,6 +17,7 @@ const vazio: Snapshot = {
   compras: [],
   movimentacoes: [],
   vendas: [],
+  ordensServico: [],
   configuracoes: configuracoesPadrao
 }
 
