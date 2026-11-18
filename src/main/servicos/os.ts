@@ -1,9 +1,10 @@
 import type { z } from 'zod'
 import type { osEntradaSchema } from '@shared/schemas'
 import { osEmAndamento, proximosStatusOS, rotuloStatusOS } from '@shared/dominio'
-import type { OrdemServico, StatusOS } from '@shared/tipos'
+import type { OrdemServico, SenhaOS, StatusOS } from '@shared/tipos'
 import { banco } from '../db/conexao'
 import { ErroNegocio } from '../erros'
+import { lerConfiguracoes } from './dados'
 import { lancarMovimentacao } from './estoque'
 import * as map from './mapeadores'
 import { lerConfig } from './sync/config'
@@ -95,6 +96,9 @@ export function salvar(id: number | null, d: DadosOS, usuarioId: number): OrdemS
       db.prepare('DELETE FROM os_itens WHERE os_id = ?').run(id)
     }
 
+    // Senha só muda quando a tela manda (ausente = mantém a atual).
+    if (d.senha) db.prepare('UPDATE ordens_servico SET senha_tipo = ?, senha = ? WHERE id = ?').run(d.senha.tipo, d.senha.tipo === 'nenhuma' ? '' : d.senha.valor, id)
+
     const ins = db.prepare('INSERT INTO os_itens (os_id, tipo, produto_id, descricao, quantidade, valor_unitario) VALUES (?, ?, ?, ?, ?, ?)')
     for (const i of d.itens) ins.run(id, i.tipo, i.produtoId, i.descricao, i.quantidade, map.dinheiro(i.valorUnitario))
     return buscar(id)
@@ -135,12 +139,24 @@ export function mudarStatus(id: number, novo: StatusOS, observacao: string, usua
       concluidaEm = null
     }
 
+    // O equipamento voltou para o cliente: a senha dele deixa de ser guardada (se configurado).
+    if ((novo === 'entregue' || novo === 'cancelada') && o.senhaTipo !== 'nenhuma' && lerConfiguracoes().apagarSenhaOs) {
+      db.prepare(`UPDATE ordens_servico SET senha_tipo = 'nenhuma', senha = '' WHERE id = ?`).run(id)
+    }
+
     db.prepare(
       `UPDATE ordens_servico SET status = ?, estoque_baixado = ?, concluida_em = ?, entregue_em = ?, atualizado_em = datetime('now', 'localtime') WHERE id = ?`
     ).run(novo, map.bool(estoqueBaixado), concluidaEm, novo === 'entregue' ? agora : null, id)
     anotar(id, novo, usuarioId, observacao.trim())
     return buscar(id)
   })()
+}
+
+/** Senha do equipamento (quem chama confere a permissão e registra na auditoria). */
+export function verSenha(id: number): SenhaOS {
+  const r = banco().prepare('SELECT senha_tipo, senha FROM ordens_servico WHERE id = ?').get(id) as { senha_tipo: SenhaOS['tipo']; senha: string } | undefined
+  if (!r) throw new ErroNegocio('Ordem de serviço não encontrada.')
+  return { tipo: r.senha_tipo, valor: r.senha }
 }
 
 export function excluir(id: number): void {

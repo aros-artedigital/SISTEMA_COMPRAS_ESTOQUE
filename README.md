@@ -102,7 +102,14 @@ Usuários de demonstração (só em desenvolvimento):
   reabrir ou cancelar uma OS pronta devolve as peças. Ficha com as etapas, impressão/PDF em A4 com espaço para as
   assinaturas, quadros de "em andamento", "prontas" e "atrasadas", avisos no sino (OS atrasada, pronta há 7 dias sem
   retirada), Excel, exclusão em lote, auditoria e sincronização entre terminais (número OS-A0001 por terminal).
-  Permissões próprias: ver, cadastrar e editar (inclui mudar o status), excluir.
+  Permissões próprias: ver, cadastrar e editar (inclui mudar o status), excluir e ver a senha do equipamento.
+- **Senha do equipamento na OS**: desenho (grade 3×3 como no celular — arrastando o mouse ou clicando nos pontos;
+  passar por cima de um ponto o inclui, como no Android), PIN ou senha em texto. A senha não vem junto com os dados
+  das telas: só quem tem a permissão "Ver senha do equipamento" (administrador e gerente; no Personalizado, quem for
+  marcado) clica em "Mostrar senha" na ficha, e cada visualização vai para a auditoria. Ela nunca aparece na
+  impressão/PDF, no Excel nem no texto da auditoria. Ao editar a OS, a senha atual é mantida (há "Trocar" e
+  "Remover"). Por padrão é apagada quando a OS é entregue ou cancelada (Configurações → Segurança). Com sincronização,
+  a senha vai para o servidor junto com a OS, para o técnico de outro terminal poder vê-la.
 - **Aparência** (botão de sol/lua na barra superior, cada computador guarda a sua escolha): modo Claro, Escuro ou
   Automático (segue o Windows) — `Ctrl+Shift+D` alterna na hora — e tamanho da letra Pequena, Normal ou Grande.
 - **Tema de cores da empresa** (Configurações → Aparência, só administrador): 5 temas prontos (Azul clássico, Verde

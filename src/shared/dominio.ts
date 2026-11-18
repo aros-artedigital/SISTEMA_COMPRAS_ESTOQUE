@@ -1,4 +1,4 @@
-import type { Compra, FormaPagamento, OrdemServico, Produto, StatusCompra, StatusOS, StatusVenda, TipoMovimentacao, Venda } from '@shared/tipos'
+import type { Compra, FormaPagamento, OrdemServico, Produto, StatusCompra, StatusOS, StatusVenda, TipoMovimentacao, TipoSenhaOS, Venda } from '@shared/tipos'
 
 // Regras e rótulos do domínio compartilhados entre telas.
 
@@ -115,3 +115,13 @@ export function osAtrasada(o: Pick<OrdemServico, 'status' | 'previsao'>, hoje: s
 }
 
 export const TIPOS_EQUIPAMENTO = ['Celular', 'Tablet', 'Notebook', 'Computador', 'Monitor', 'Impressora', 'Videogame', 'Smartwatch', 'Televisão', 'Outro']
+
+export const rotuloSenhaOS: Record<TipoSenhaOS, string> = {
+  nenhuma: 'Sem senha',
+  desenho: 'Desenho (padrão)',
+  pin: 'PIN (números)',
+  texto: 'Senha (texto)'
+}
+
+/** Desenho guardado ("1-5-9-6") → pontos [1, 5, 9, 6]. */
+export const pontosDoDesenho = (valor: string): number[] => (valor ? valor.split('-').map(Number).filter((n) => n >= 1 && n <= 9) : [])

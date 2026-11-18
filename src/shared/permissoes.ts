@@ -29,6 +29,7 @@ export type Recurso =
   | 'os'
   | 'osEditar'
   | 'osExcluir'
+  | 'osSenha'
   | 'relatorios'
   | 'usuarios'
   | 'configuracoes'
@@ -59,6 +60,7 @@ export const TODOS_RECURSOS: Recurso[] = [
   'os',
   'osEditar',
   'osExcluir',
+  'osSenha',
   'relatorios',
   'usuarios',
   'configuracoes',
@@ -116,7 +118,7 @@ export const nomeDoUsuarioPerfil = (u: { perfil: Perfil; permissoes?: Recurso[] 
 export const GRUPOS_PERMISSAO: { tela: string; ver: Recurso; editar?: Recurso; excluir?: Recurso; extras?: { recurso: Recurso; nome: string }[] }[] = [
   { tela: 'Início (painel)', ver: 'dashboard' },
   { tela: 'Vendas', ver: 'vendas', extras: [{ recurso: 'vendasCancelar', nome: 'Cancelar vendas' }] },
-  { tela: 'Ordens de Serviço', ver: 'os', editar: 'osEditar', excluir: 'osExcluir' },
+  { tela: 'Ordens de Serviço', ver: 'os', editar: 'osEditar', excluir: 'osExcluir', extras: [{ recurso: 'osSenha', nome: 'Ver senha do equipamento' }] },
   { tela: 'Produtos', ver: 'produtos', editar: 'produtosEditar', excluir: 'produtosExcluir' },
   { tela: 'Categorias e Unidades', ver: 'cadastros', editar: 'cadastrosEditar', excluir: 'cadastrosExcluir' },
   {

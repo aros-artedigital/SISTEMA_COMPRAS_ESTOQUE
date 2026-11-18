@@ -301,6 +301,7 @@ try {
     observacao: '',
     desconto: 0,
     garantiaDias: 90,
+    senha: { tipo: 'desenho', valor: '7-4-1-2-3' },
     itens: [
       { tipo: 'peca', produtoId: cabo(dB).id, descricao: '', quantidade: 2, valorUnitario: 5 },
       { tipo: 'servico', produtoId: null, descricao: 'Troca de tela', quantidade: 1, valorUnitario: 150 }
@@ -317,11 +318,13 @@ try {
     'OS feita em B chega em A com peças, serviços e histórico, e a peça sai do estoque lá'
   )
   verificar(dA.movimentacoes.some((m) => m.osId === osEmA?.id && m.tipo === 'saida'), 'em A, a baixa da peça fica ligada à OS')
+  verificar((await A.ok('os:verSenha', osEmA.id)).valor === '7-4-1-2-3', 'a senha do equipamento cadastrada em B pode ser vista em A')
   await A.ok('os:status', osEmA.id, 'entregue', '')
   await A.sync()
   await B.sync()
   dB = await B.dados()
   verificar(dB.ordensServico.find((o) => o.id === osB.id).status === 'entregue' && cabo(dB).estoque === osAntes - 2, 'entrega registrada em A aparece em B (sem baixar a peça de novo)')
+  verificar((await B.ok('os:verSenha', osB.id)).tipo === 'nenhuma', 'senha apagada na entrega em A também some de B')
   verificar(saldoBate(dA) && saldoBate(dB), 'saldos continuam batendo com as movimentações')
 
   // ---------- Recuperação de acesso entre terminais ----------

@@ -1,8 +1,8 @@
 import type { AlteracaoAuditoria, FiltrosAuditoria, RegistroAuditoria } from '@shared/api'
 import { nomePerfil, nomeRecurso, type Recurso } from '@shared/permissoes'
-import { rotuloStatusOS } from '@shared/dominio'
+import { rotuloSenhaOS, rotuloStatusOS } from '@shared/dominio'
 import { TEMAS } from '@shared/temas'
-import type { ItemOS, Perfil, StatusOS } from '@shared/tipos'
+import type { ItemOS, Perfil, StatusOS, TipoSenhaOS } from '@shared/tipos'
 import { banco } from '../db/conexao'
 import { lerConfiguracoes } from './dados'
 import * as map from './mapeadores'
@@ -149,7 +149,9 @@ const ROTULOS: Record<string, string> = {
   diagnostico: 'Diagnóstico',
   laudo: 'Laudo técnico',
   desconto: 'Desconto',
-  garantiaDias: 'Garantia (dias)'
+  garantiaDias: 'Garantia (dias)',
+  senhaTipo: 'Senha do equipamento',
+  apagarSenhaOs: 'Apagar senha do equipamento ao entregar'
 }
 // Campos que não entram na comparação (o saldo muda por movimentação, que já tem histórico próprio).
 const IGNORAR = new Set(['id', 'estoque', 'senha', 'numero', 'historico', 'estoqueBaixado', 'concluidaEm', 'entregueEm', 'dataEntrada', 'usuarioId'])
@@ -168,6 +170,7 @@ function formatar(campo: string, v: unknown): string {
   if (MOEDA.has(campo)) return moeda.format(Number(v))
   if (campo === 'categoriaId') return nomeDe('categorias', 'nome', v)
   if (campo === 'unidadeId') return nomeDe('unidades', 'sigla', v)
+  if (campo === 'senhaTipo') return rotuloSenhaOS[v as TipoSenhaOS] ?? String(v)
   if (campo === 'clienteId') return nomeDe('clientes', 'nome', v)
   if (campo === 'tecnicoId') return nomeDe('usuarios', 'nome', v)
   if (campo === 'status' && String(v) in rotuloStatusOS) return rotuloStatusOS[v as StatusOS]

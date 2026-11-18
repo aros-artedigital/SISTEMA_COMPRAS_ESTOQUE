@@ -119,7 +119,8 @@ export const configuracoesSchema = z.object({
   custoAoReceber: z.enum(['medio', 'ultimo', 'manter']),
   tema: z.enum(['azul', 'verde', 'roxo', 'grafite', 'vinho', 'personalizado']).default('azul'),
   corPrincipal: corHex.default('#2563eb'),
-  corSecundaria: corHex.default('#13294b')
+  corSecundaria: corHex.default('#13294b'),
+  apagarSenhaOs: z.boolean().default(true)
 })
 
 export const senhaSchema = z
@@ -227,8 +228,25 @@ export const itemOsSchema = z
   .refine((i) => (i.tipo === 'peca' ? i.produtoId !== null : i.descricao.length > 0), 'Escolha o produto da peça ou descreva o serviço')
   .transform((i) => (i.tipo === 'peca' ? { ...i, descricao: '' } : { ...i, produtoId: null }))
 
+export const senhaOsSchema = z.discriminatedUnion('tipo', [
+  z.object({ tipo: z.literal('nenhuma'), valor: z.string().max(0).default('') }),
+  z.object({
+    tipo: z.literal('desenho'),
+    valor: z
+      .string()
+      .regex(/^[1-9](-[1-9]){3,8}$/, 'O desenho precisa ligar pelo menos 4 pontos')
+      .refine((v) => new Set(v.split('-')).size === v.split('-').length, 'Cada ponto só pode ser usado uma vez no desenho')
+  }),
+  z.object({ tipo: z.literal('pin'), valor: z.string().regex(/^\d{4,16}$/, 'O PIN deve ter de 4 a 16 números') }),
+  z.object({ tipo: z.literal('texto'), valor: z.string().min(1, 'Informe a senha').max(64, 'Máximo de 64 caracteres') })
+])
+
 export const osEntradaSchema = osSchema
-  .extend({ itens: z.array(itemOsSchema).max(200, 'Máximo de 200 itens') })
+  .extend({
+    itens: z.array(itemOsSchema).max(200, 'Máximo de 200 itens'),
+    /** Ausente = mantém a senha atual (a tela só manda quando o usuário mexe nela). */
+    senha: senhaOsSchema.optional()
+  })
   .refine((o) => o.desconto <= o.itens.reduce((s, i) => s + i.quantidade * i.valorUnitario, 0), {
     path: ['desconto'],
     message: 'Desconto maior que o total da OS'

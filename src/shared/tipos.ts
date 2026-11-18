@@ -145,6 +145,15 @@ export interface Venda {
 
 export type StatusOS = 'aberta' | 'em_analise' | 'aguardando_aprovacao' | 'em_execucao' | 'pronta' | 'entregue' | 'cancelada'
 
+/** Como o equipamento é desbloqueado. O valor da senha nunca vem na lista (ver canal os:verSenha). */
+export type TipoSenhaOS = 'nenhuma' | 'desenho' | 'pin' | 'texto'
+
+export interface SenhaOS {
+  tipo: TipoSenhaOS
+  /** Desenho: pontos de 1 a 9 na ordem, separados por traço ("1-5-9-6"); PIN: só números; texto: livre. */
+  valor: string
+}
+
 export interface ItemOS {
   /** Peça sai do estoque (produto); serviço é mão de obra (descrição livre). */
   tipo: 'peca' | 'servico'
@@ -177,6 +186,8 @@ export interface OrdemServico {
   equipSerie: string
   acessorios: string
   estadoFisico: string
+  /** Só o tipo: o valor é lido à parte, por quem tem permissão. */
+  senhaTipo: TipoSenhaOS
   defeito: string
   diagnostico: string
   laudo: string
@@ -210,4 +221,6 @@ export interface Configuracoes {
   /** Usadas quando o tema é "personalizado" (hex, ex.: #2563eb). */
   corPrincipal: string
   corSecundaria: string
+  /** Apaga a senha do equipamento quando a OS é entregue ou cancelada. */
+  apagarSenhaOs: boolean
 }

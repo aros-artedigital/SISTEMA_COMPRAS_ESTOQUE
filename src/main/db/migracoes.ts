@@ -8,6 +8,7 @@ import { migracao8 } from './migracao8'
 import { migracao9 } from './migracao9'
 import { migracao10 } from './migracao10'
 import { migracao11 } from './migracao11'
+import { migracao12 } from './migracao12'
 
 // Cada item é uma versão do schema. Nunca altere uma migração já publicada:
 // adicione uma nova no fim da lista. A versão atual fica em PRAGMA user_version.
@@ -146,7 +147,8 @@ const migracoes: (string | ((db: Database.Database) => void))[] = [
   /* 8 — auditoria (quem alterou o quê) */ migracao8,
   /* 9 — endereço completo de clientes e fornecedores */ migracao9,
   /* 10 — permissões personalizadas e notificações lidas */ migracao10,
-  /* 11 — ordens de serviço */ migracao11
+  /* 11 — ordens de serviço */ migracao11,
+  /* 12 — senha do equipamento na OS */ migracao12
 ]
 
 /** Versão de schema que este build do app conhece. */

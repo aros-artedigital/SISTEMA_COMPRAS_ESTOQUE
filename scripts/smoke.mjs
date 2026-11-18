@@ -877,7 +877,7 @@ try {
   verificar(await janelaOs.getByText('Defeito relatado é obrigatório').isVisible(), 'sem cliente e defeito, a OS não é aberta (campos destacados)')
   await escolher(janelaOs.getByLabel(/^Cliente \*$/), 'João Pereira — 123.456.789-00')
   await escolher(janelaOs.getByLabel('Técnico responsável'), 'Administrador')
-  await janelaOs.getByLabel(/^Tipo/).fill('Celular')
+  await janelaOs.getByPlaceholder('Celular, notebook...').fill('Celular')
   await janelaOs.getByLabel('Marca', { exact: true }).fill('Samsung')
   await janelaOs.getByLabel('Modelo', { exact: true }).fill('Galaxy A54')
   await janelaOs.getByLabel('Nº de série / IMEI').fill('356789012345678')
@@ -890,6 +890,16 @@ try {
   await janelaOs.getByLabel('Descrição do serviço').fill('Troca do conector de carga')
   await janelaOs.getByLabel('Valor unitário').last().fill('80')
   await janelaOs.getByLabel('Desconto', { exact: true }).fill('10')
+  await janelaOs.getByRole('radio', { name: 'Desenho (padrão)' }).click()
+  const grade = janelaOs.getByRole('group', { name: /^Desenho da senha/ })
+  const caixaGrade = await grade.boundingBox()
+  const ponto = (n) => ({ x: caixaGrade.x + ((50 + ((n - 1) % 3) * 100) / 300) * caixaGrade.width, y: caixaGrade.y + ((50 + Math.floor((n - 1) / 3) * 100) / 300) * caixaGrade.height })
+  // Arrasta de 1 até 3 (passa pelo 2), depois 6 e 9 — como no celular.
+  await page.mouse.move(ponto(1).x, ponto(1).y)
+  await page.mouse.down()
+  for (const n of [3, 6, 9]) await page.mouse.move(ponto(n).x, ponto(n).y, { steps: 8 })
+  await page.mouse.up()
+  verificar(await janelaOs.getByText('Sequência: 1 → 2 → 3 → 6 → 9').isVisible(), 'senha por desenho: arrastar o mouse marca os pontos (passando pelo 2 de 1 para 3)')
   await foto(page, '21-os-formulario')
   await janelaOs.getByRole('button', { name: 'Abrir OS' }).click()
   await page.getByText('Ordem de serviço OS-0001 aberta.').waitFor()
@@ -902,6 +912,12 @@ try {
     'OS aberta pela tela: equipamento, peça (pelo leitor), serviço, desconto, técnico e histórico'
   )
   verificar(mouseOs() === mouseAntesOs, 'abrir a OS não mexe no estoque')
+  verificar(os1.senhaTipo === 'desenho' && !JSON.stringify(dados).includes('1-2-3-6-9'), 'a senha é gravada, mas não vem junto com os dados das telas')
+  await fichaOs.getByRole('button', { name: 'Mostrar senha' }).click()
+  await fichaOs.getByText('Sequência: 1 → 2 → 3 → 6 → 9').waitFor()
+  aud = (await ipc(page, 'auditoria:listar', { acao: 'Visualização de senha' })).dados
+  verificar(aud.itens[0]?.descricao.includes('OS-0001'), 'quem tem permissão vê o desenho na ficha, e a visualização vai para a auditoria')
+  await fichaOs.getByRole('button', { name: 'Ocultar' }).click()
   await escolher(fichaOs.getByLabel('Novo status'), 'Pronta — serviço concluído')
   verificar(await fichaOs.getByText('será baixada do estoque').isVisible(), 'a ficha avisa que as peças vão sair do estoque')
   await fichaOs.getByLabel('Observação do andamento').fill('Conector trocado e testado')
@@ -923,6 +939,8 @@ try {
   r = await ipc(page, 'os:status', os1.id, 'entregue', '')
   dados = (await ipc(page, 'dados:carregar')).dados
   verificar(r.ok && r.dados.entregueEm && r.dados.estoqueBaixado && mouseOs() === mouseAntesOs - 1, 'entregue direto: baixa a peça e registra a data de entrega')
+  r = await ipc(page, 'os:verSenha', os1.id)
+  verificar(r.ok && r.dados.tipo === 'nenhuma' && r.dados.valor === '', 'ao entregar, a senha do equipamento é apagada')
   r = await ipc(page, 'os:status', os1.id, 'cancelada', 'Tentativa')
   verificar(!r.ok, 'OS entregue não muda mais de status')
   r = await ipc(page, 'os:excluir', os1.id)
@@ -935,7 +953,11 @@ try {
   // Peça sem saldo: a OS não fica pronta e nada muda
   const semSaldo = dados.produtos.find((p) => p.codigo === 'P0010')
   const base = { clienteId: 1, tecnicoId: null, previsao: null, equipTipo: 'Notebook', equipMarca: 'Dell', equipModelo: 'Inspiron', equipSerie: '', acessorios: '', estadoFisico: '', defeito: 'Não liga', diagnostico: '', laudo: '', observacao: '', desconto: 0, garantiaDias: 90 }
-  const os2 = (await ipc(page, 'os:salvar', null, { ...base, itens: [{ tipo: 'peca', produtoId: semSaldo.id, descricao: '', quantidade: semSaldo.estoque + 1, valorUnitario: 50 }] })).dados
+  r = await ipc(page, 'os:salvar', null, { ...base, senha: { tipo: 'pin', valor: '12' }, itens: [] })
+  verificar(!r.ok && r.erro.tipo === 'validacao', 'PIN com menos de 4 números é recusado')
+  r = await ipc(page, 'os:salvar', null, { ...base, senha: { tipo: 'desenho', valor: '1-2-1-3' }, itens: [] })
+  verificar(!r.ok, 'desenho repetindo ponto é recusado')
+  const os2 = (await ipc(page, 'os:salvar', null, { ...base, senha: { tipo: 'pin', valor: '4321' }, itens: [{ tipo: 'peca', produtoId: semSaldo.id, descricao: '', quantidade: semSaldo.estoque + 1, valorUnitario: 50 }] })).dados
   r = await ipc(page, 'os:status', os2.id, 'pronta', '')
   dados = (await ipc(page, 'dados:carregar')).dados
   verificar(!r.ok && r.erro.mensagem.includes('Saldo insuficiente') && dados.ordensServico.find((o) => o.id === os2.id).status === 'aberta', 'sem saldo da peça, a OS não fica pronta')
@@ -944,6 +966,8 @@ try {
 
   // Atrasada: aviso no sino e filtro
   await ipc(page, 'os:salvar', os2.id, { ...base, previsao: '2026-01-10', itens: [] })
+  r = await ipc(page, 'os:verSenha', os2.id)
+  verificar(r.dados?.tipo === 'pin' && r.dados.valor === '4321', 'editar a OS sem mexer na senha mantém a senha')
   notif = (await ipc(page, 'notificacoes:listar')).dados
   verificar(notif.some((n) => n.chave === `os-atrasada:${os2.id}`), 'previsão vencida gera aviso de OS atrasada')
   await page.reload()
@@ -959,6 +983,7 @@ try {
   r = await ipc(page, 'os:status', os2.id, 'cancelada', 'Cliente não aprovou o orçamento')
   notif = (await ipc(page, 'notificacoes:listar')).dados
   verificar(r.ok && !notif.some((n) => n.chave === `os-atrasada:${os2.id}`), 'OS cancelada deixa de aparecer como atrasada')
+  verificar((await ipc(page, 'os:verSenha', os2.id)).dados.tipo === 'nenhuma', 'ao cancelar, a senha também é apagada')
 
   // Cliente com OS não é excluído; OS sem peças baixadas pode ser excluída
   const cliOs = (await ipc(page, 'clientes:salvar', null, { nome: 'Cliente da Assistência', tipo: 'PF', documento: '390.533.447-05', telefone: '', email: '', cidade: '', uf: '', ativo: true })).dados
@@ -971,6 +996,26 @@ try {
   verificar(r.ok, 'sem OS, o cliente pode ser excluído')
   aud = (await ipc(page, 'auditoria:listar', { entidade: 'Ordem de serviço' })).dados
   verificar(aud.itens.some((a) => a.acao === 'Mudança de status' && a.descricao.includes('Aberta → Pronta') && a.descricao.includes('Peças baixadas')) && aud.itens.some((a) => a.acao === 'Inclusão'), 'abertura e mudanças de status ficam na auditoria')
+  verificar(!JSON.stringify(aud.itens).includes('4321') && !JSON.stringify(aud.itens).includes('1-2-3-6-9'), 'o valor da senha nunca aparece na auditoria')
+
+  // Sem a permissão "Ver senha do equipamento" (operador): vê que existe, mas não vê a senha.
+  const os4 = (await ipc(page, 'os:salvar', null, { ...base, senha: { tipo: 'texto', valor: 'segredo' }, itens: [] })).dados
+  await ipc(page, 'usuarios:salvar', null, { nome: 'Balcão', email: 'balcao@empresa.local', login: 'balcao', senha: 'balcao123', perfil: 'operador', permissoes: null, ativo: true })
+  await page.reload()
+  await page.waitForSelector('input[placeholder="seu.login"]')
+  await entrar(page, 'balcao', 'balcao123')
+  await page.getByRole('link', { name: 'Ordens de Serviço' }).click()
+  await page.getByRole('row', { name: new RegExp(os4.numero) }).getByRole('button', { name: 'Ficha' }).click()
+  await page.getByText('Senha (texto) cadastrada. Você não tem permissão para ver.').waitFor()
+  r = await ipc(page, 'os:verSenha', os4.id)
+  verificar(!r.ok && r.erro.tipo === 'permissao', 'operador vê que há senha, mas não consegue ver (nem pelo processo principal)')
+  await page.keyboard.press('Escape')
+  await page.reload()
+  await page.waitForSelector('input[placeholder="seu.login"]')
+  await entrar(page, 'admin', 'admin123')
+  await page.getByText('Olá, Administrador').waitFor()
+  await ipc(page, 'os:excluir', os4.id)
+  await ipc(page, 'usuarios:excluir', (await ipc(page, 'dados:carregar')).dados.usuarios.find((u) => u.login === 'balcao').id)
 
   // ---------- Backup externo ----------
   console.log('Backup fora do computador')

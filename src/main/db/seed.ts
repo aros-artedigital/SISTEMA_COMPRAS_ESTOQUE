@@ -17,7 +17,8 @@ export const configuracoesPadrao: Configuracoes = {
   custoAoReceber: 'medio',
   tema: 'azul',
   corPrincipal: '#2563eb',
-  corSecundaria: '#13294b'
+  corSecundaria: '#13294b',
+  apagarSenhaOs: true
 }
 
 /**

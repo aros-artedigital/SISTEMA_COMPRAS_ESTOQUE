@@ -1,7 +1,7 @@
 import { app, ipcMain, shell } from 'electron'
 import { z } from 'zod'
 import type { ArgsDe, NomeCanal, Resposta, ResultadoLote, RetornoDe } from '@shared/api'
-import { rotuloStatusOS } from '@shared/dominio'
+import { descreverEquipamento, rotuloStatusOS } from '@shared/dominio'
 import { editar as permEditar, excluir as permExcluir, type Area, type Recurso } from '@shared/permissoes'
 import * as s from '@shared/schemas'
 import { banco, caminhoBanco } from './db/conexao'
@@ -90,6 +90,11 @@ function crud<Dados>(
         const alteracoes = auditoria.diferencas(antes, depois)
         const senha = (dadosValidos as { senha?: string }).senha
         if (tabela === 'usuarios' && senha) alteracoes.push({ campo: 'Senha', de: '•••', para: '(alterada)' })
+        // Senha do equipamento: o valor nunca vai para a auditoria, só o fato de ter sido trocada.
+        const senhaOs = (dadosValidos as { senha?: { tipo: string } }).senha
+        if (tabela === 'ordens_servico' && senhaOs && senhaOs.tipo !== 'nenhuma' && !alteracoes.some((a) => a.campo === 'Senha do equipamento')) {
+          alteracoes.push({ campo: 'Senha do equipamento', de: '•••', para: '(alterada)' })
+        }
         if (alteracoes.length) {
           auditoria.registrar({ usuario: u, acao: 'Alteração', entidade, entidadeId: salvo.id, descricao: auditoria.descrever(tabela, depois), alteracoes })
         }
@@ -273,6 +278,20 @@ export function registrarCanais(): void {
   const ordem = crud('os', 'ordens_servico', ordens.salvar, ordens.excluir, s.osEntradaSchema)
   canal('os:salvar', ordem.salvar as Handler<'os:salvar'>)
   canal('os:excluir', ordem.excluir)
+  canal('os:verSenha', (i) => {
+    const u = exigir('osSenha')
+    const idOs = id(i)
+    const senha = ordens.verSenha(idOs)
+    const o = ordens.buscar(idOs)
+    auditoria.registrar({
+      usuario: u,
+      acao: 'Visualização de senha',
+      entidade: 'Ordem de serviço',
+      entidadeId: idOs,
+      descricao: `Viu a senha do equipamento da OS ${o.numero} (${descreverEquipamento(o)})`
+    })
+    return senha
+  })
   canal('os:status', (i, st, obs) => {
     const u = exigir('osEditar')
     const idOs = id(i)
@@ -287,7 +306,7 @@ export function registrarCanais(): void {
       entidadeId: idOs,
       descricao: `OS ${o.numero}: ${rotuloStatusOS[antes.status]} → ${rotuloStatusOS[novo]}${observacao.trim() ? `. ${observacao.trim()}` : ''}${
         o.estoqueBaixado !== antes.estoqueBaixado ? (o.estoqueBaixado ? '. Peças baixadas do estoque' : '. Peças devolvidas ao estoque') : ''
-      }`
+      }${antes.senhaTipo !== 'nenhuma' && o.senhaTipo === 'nenhuma' ? '. Senha do equipamento apagada' : ''}`
     })
     return o
   })

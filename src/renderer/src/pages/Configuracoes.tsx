@@ -1,21 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import {
-  Boxes,
-  Building2,
-  CheckCircle2,
-  DatabaseBackup,
-  FolderOpen,
-  History,
-  Palette,
-  RefreshCw,
-  Save,
-  ShieldCheck,
-  Sun,
-  SunMoon,
-  Upload,
-  type LucideIcon
-} from 'lucide-react'
+import { Boxes, Building2, CheckCircle2, DatabaseBackup, FolderOpen, History, KeyRound, Palette, RefreshCw, Save, ShieldCheck, Sun, SunMoon, Upload, type LucideIcon } from 'lucide-react'
 import { coresDoTema, TEMAS, type IdTema } from '@shared/temas'
 import { aplicarCores } from '@/lib/tema'
 import { coresMenu, escala, rgbParaHex } from '@/lib/cores'
@@ -51,7 +36,8 @@ const ABAS: { id: IdAba; titulo: string; icone: LucideIcon }[] = [
 const CAMPOS_DA_ABA: Partial<Record<IdAba, string[]>> = {
   empresa: ['nomeEmpresa', 'cnpj', 'telefone', 'email', 'cep', 'endereco'],
   aparencia: ['tema', 'corPrincipal', 'corSecundaria'],
-  estoque: ['estoqueMinimoPadrao', 'prefixoCompra', 'custoAoReceber', 'alertarEstoqueMinimo']
+  estoque: ['estoqueMinimoPadrao', 'prefixoCompra', 'custoAoReceber', 'alertarEstoqueMinimo'],
+  seguranca: ['apagarSenhaOs']
 }
 
 export default function Configuracoes() {
@@ -205,6 +191,20 @@ export default function Configuracoes() {
 
       {aba === 'seguranca' && (
         <div className="grid gap-6 xl:grid-cols-2">
+          <Card>
+            <CardHeader titulo="Senhas dos equipamentos (ordens de serviço)" icone={KeyRound} />
+            <div className="space-y-2 p-5 text-sm text-slate-600">
+              <p>
+                A senha de desbloqueio que o cliente informa fica guardada só para quem tem a permissão "Ver senha do equipamento"; cada visualização vai para a
+                auditoria e ela nunca sai na impressão.
+              </p>
+              <Checkbox
+                label="Apagar a senha quando a OS for entregue ou cancelada (recomendado)"
+                checked={form.values.apagarSenhaOs}
+                onChange={(v) => form.set('apagarSenhaOs', v)}
+              />
+            </div>
+          </Card>
           <SecaoRecuperacao />
         </div>
       )}

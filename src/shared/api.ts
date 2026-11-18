@@ -23,6 +23,7 @@ import type {
   OrdemServico,
   Produto,
   Unidade,
+  SenhaOS,
   StatusOS,
   Usuario,
   Venda
@@ -106,6 +107,8 @@ export interface Canais {
 
   'os:salvar': Canal<[id: number | null, dados: Entrada<typeof osEntradaSchema>], OrdemServico>
   'os:excluir': Canal<[id: number], void>
+  /** Lê a senha do equipamento (permissão "Ver senha do equipamento"; cada leitura vai para a auditoria). */
+  'os:verSenha': Canal<[id: number], SenhaOS>
   /** Muda o status (registra no histórico). Pronta/entregue dá baixa nas peças; reabrir ou cancelar devolve. */
   'os:status': Canal<[id: number, status: StatusOS, observacao: string], OrdemServico>
 

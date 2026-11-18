@@ -153,6 +153,7 @@ export const ordemServico = (r: Linha, itens: ItemOS[], historico: HistoricoOS[]
   equipSerie: r.equip_serie,
   acessorios: r.acessorios,
   estadoFisico: r.estado_fisico,
+  senhaTipo: r.senha_tipo ?? 'nenhuma',
   defeito: r.defeito,
   diagnostico: r.diagnostico,
   laudo: r.laudo,

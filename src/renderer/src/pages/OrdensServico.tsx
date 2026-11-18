@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Check, FileDown, FileSpreadsheet, History, Pencil, Plus, Printer, Trash2, Wrench } from 'lucide-react'
+import { Check, FileDown, FileSpreadsheet, History, KeyRound, Lock, Pencil, Plus, Printer, Trash2, Wrench } from 'lucide-react'
 import { alterar, useDb } from '@/data/store'
 import { useToast } from '@/contexts/ToastContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -11,6 +11,7 @@ import { Badge, Button, Input, SearchInput, Select, Textarea } from '@/component
 import { InputMoeda } from '@/components/InputMoeda'
 import { LeitorCodigo } from '@/components/LeitorCodigo'
 import { AcoesLote } from '@/components/AcoesLote'
+import { EditorSenha, erroSenha, VerSenha } from '@/components/SenhaEquipamento'
 import {
   corStatusOS,
   descreverEquipamento,
@@ -18,6 +19,7 @@ import {
   osAtrasada,
   osEmAndamento,
   proximosStatusOS,
+  rotuloSenhaOS,
   rotuloStatusOS,
   subtotalOS,
   TIPOS_EQUIPAMENTO,
@@ -30,7 +32,7 @@ import { useLote } from '@/lib/lote'
 import { exportarExcel, imprimir, salvarPdf } from '@/lib/saida'
 import { htmlOS } from '@/lib/htmlOS'
 import * as fmt from '@shared/format'
-import type { ItemOS, OrdemServico, StatusOS } from '@shared/tipos'
+import type { ItemOS, OrdemServico, SenhaOS, StatusOS } from '@shared/tipos'
 
 // Ordens de serviço (assistência técnica): recepção do equipamento, diagnóstico, orçamento,
 // execução e entrega. As peças saem do estoque quando a OS fica pronta.
@@ -83,6 +85,9 @@ export default function OrdensServico() {
   const [aberto, setAberto] = useState(false)
   const [itens, setItens] = useState<LinhaItem[]>([])
   const [erroItens, setErroItens] = useState('')
+  // Senha do equipamento: null = não mexeu (ao editar, a senha atual é mantida e nunca é carregada na tela).
+  const [senha, setSenha] = useState<SenhaOS | null>(null)
+  const [erroSenhaForm, setErroSenhaForm] = useState('')
   const [fichaId, setFichaId] = useState<number | null>(null)
   const [excluindo, setExcluindo] = useState<OrdemServico | null>(null)
   const form = useForm(vazio, osSchema)
@@ -149,6 +154,8 @@ export default function OrdensServico() {
       form.reset(vazio)
       setItens([])
     }
+    setSenha(null)
+    setErroSenhaForm('')
     setFichaId(null)
     setAberto(true)
   }
@@ -197,9 +204,13 @@ export default function OrdensServico() {
   async function salvar(): Promise<void> {
     const dados = form.validate()
     const itensValidos = validarItens()
-    if (!dados || !itensValidos) return
+    const problemaSenha = senha ? erroSenha(senha) : null
+    setErroSenhaForm(problemaSenha ?? '')
+    if (!dados || !itensValidos || problemaSenha) return
+    // Só manda a senha quando ela foi mexida (e não é "sem senha" numa OS que já não tinha).
+    const enviarSenha = senha && !(senha.tipo === 'nenhuma' && (editando?.senhaTipo ?? 'nenhuma') === 'nenhuma') ? senha : undefined
     let salva: OrdemServico | null = null
-    const ok = await executar(async () => (salva = await alterar('os:salvar', editando?.id ?? null, { ...dados, itens: itensValidos })), { notificar, form })
+    const ok = await executar(async () => (salva = await alterar('os:salvar', editando?.id ?? null, { ...dados, itens: itensValidos, senha: enviarSenha })), { notificar, form })
     if (ok && salva) {
       const o = salva as OrdemServico
       notificar('sucesso', `Ordem de serviço ${o.numero} ${editando ? 'atualizada' : 'aberta'}.`)
@@ -269,7 +280,10 @@ export default function OrdensServico() {
       titulo: 'Equipamento',
       render: (o) => (
         <div className="min-w-0">
-          <p className="truncate text-slate-800">{descreverEquipamento(o)}</p>
+          <p className="flex items-center gap-1 truncate text-slate-800">
+            {descreverEquipamento(o)}
+            {o.senhaTipo !== 'nenhuma' && <Lock size={12} className="shrink-0 text-slate-400" aria-label="Tem senha cadastrada" />}
+          </p>
           <p className="truncate text-xs text-slate-500">{o.defeito}</p>
         </div>
       )
@@ -435,6 +449,38 @@ export default function OrdensServico() {
               <Input label="Acessórios entregues" wrapperClassName="col-span-2" placeholder="Carregador, capa, cartão de memória..." {...form.bind('acessorios')} />
               <Input label="Estado físico" wrapperClassName="col-span-2" placeholder="Riscos, trincas, amassados..." {...form.bind('estadoFisico')} />
             </div>
+          </Secao>
+
+          <Secao titulo="Senha do equipamento">
+            {senha === null && editando && editando.senhaTipo !== 'nenhuma' ? (
+              <div className="flex flex-wrap items-center gap-3 text-sm">
+                <span className="flex items-center gap-1.5 text-slate-700">
+                  <Lock size={14} /> {rotuloSenhaOS[editando.senhaTipo]} cadastrada (não aparece aqui).
+                </span>
+                <Button tamanho="sm" variante="secundario" icone={<KeyRound size={14} />} onClick={() => setSenha({ tipo: editando.senhaTipo, valor: '' })}>
+                  Trocar senha
+                </Button>
+                <Button tamanho="sm" variante="fantasma" onClick={() => setSenha({ tipo: 'nenhuma', valor: '' })}>
+                  Remover senha
+                </Button>
+              </div>
+            ) : (
+              <>
+                <EditorSenha
+                  valor={senha ?? { tipo: 'nenhuma', valor: '' }}
+                  erro={erroSenhaForm}
+                  onChange={(s) => {
+                    setSenha(s)
+                    setErroSenhaForm('')
+                  }}
+                />
+                {senha !== null && editando && editando.senhaTipo !== 'nenhuma' && (
+                  <button className="mt-2 text-xs font-medium text-blue-700 hover:underline" onClick={() => setSenha(null)}>
+                    Manter a senha atual
+                  </button>
+                )}
+              </>
+            )}
           </Secao>
 
           <Secao titulo="Problema e solução">
@@ -795,12 +841,22 @@ function FichaOS({ os: o, onFechar, onEditar }: { os: OrdemServico; onFechar: ()
                 />
                 {erroObs && <p className="text-xs text-red-600">{erroObs}</p>}
                 {aviso && <p className="text-xs text-amber-800">{aviso}</p>}
+                {(novo === 'entregue' || novo === 'cancelada') && o.senhaTipo !== 'nenhuma' && db.configuracoes.apagarSenhaOs && (
+                  <p className="text-xs text-slate-600">A senha do equipamento será apagada (o aparelho volta para o cliente).</p>
+                )}
                 <Button className="w-full" variante={novo === 'cancelada' ? 'perigo' : 'primario'} disabled={!novo} onClick={aplicar}>
                   Atualizar status
                 </Button>
               </div>
             </div>
           )}
+
+          <div className="rounded-lg border border-slate-200 p-3">
+            <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-slate-800">
+              <KeyRound size={15} className="text-blue-600" /> Senha do equipamento
+            </h3>
+            <VerSenha osId={o.id} tipo={o.senhaTipo} />
+          </div>
 
           <div>
             <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-slate-800">
