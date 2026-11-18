@@ -160,7 +160,9 @@ Usuários de demonstração (só em desenvolvimento):
   - **busca de CEP** (ViaCEP, precisa de internet): em clientes, fornecedores e dados da empresa, o CEP preenche rua,
     bairro, cidade e UF, e o cursor vai para o número. Sem internet, o endereço é digitado normalmente;
   - todos os campos de seleção aceitam digitação para filtrar a lista (↑ ↓ e Enter escolhem, Esc fecha);
-  - mensagens de sucesso, atenção e erro no canto superior direito; formulário com campo inválido também avisa.
+  - mensagens de sucesso, atenção e erro no canto superior direito, com visual de vidro fosco (transparência e
+    desfoque), entrada com efeito de mola, leve tremida (mais forte nos erros), halo e reflexo de luz ao surgir e saída
+    suave; com "reduzir movimento" do Windows, só esmaecem. Formulário com campo inválido também avisa.
 - **Listas**: rodapé com "Mostrando 1–10 de 57" e itens por página (10, 25, 50 ou 100 — cada tela lembra a escolha);
   cabeçalho fixo ao rolar listas longas; botões de ação com ícones.
 - **Ações em lote em Produtos**: marque vários produtos (ou todos da página pela caixa do cabeçalho) e ative, inative,

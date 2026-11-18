@@ -28,28 +28,113 @@ body {
   @apply bg-slate-400;
 }
 
-/* Mensagens (toasts): entrada deslizando e barrinha do tempo restante */
-@keyframes toast-entrada {
-  from {
-    opacity: 0;
-    transform: translateX(24px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+/* ---------- Mensagens (toasts) ----------
+   Vidro fosco (fundo translúcido + desfoque do que está atrás), cor do tipo em --toast-cor,
+   entrada com mola, tremidinha, halo e reflexo de luz; saída suave. Tudo com transform/opacity
+   (placa de vídeo). Com "reduzir movimento" do Windows, só um esmaecimento. */
+.toast {
+  --toast-cor: var(--c-blue-500);
+  --tremida: 4px;
+  background: linear-gradient(135deg, rgb(var(--c-superficie) / 0.86), rgb(var(--c-superficie) / 0.68));
+  -webkit-backdrop-filter: blur(16px) saturate(170%);
+  backdrop-filter: blur(16px) saturate(170%);
+  border: 1px solid rgb(255 255 255 / 0.6);
+  box-shadow:
+    0 14px 34px -10px rgb(15 23 42 / 0.3),
+    0 0 0 1px rgb(var(--toast-cor) / 0.2),
+    inset 0 1px 0 rgb(255 255 255 / 0.7);
 }
+.dark .toast {
+  background: linear-gradient(135deg, rgb(var(--c-superficie) / 0.82), rgb(var(--c-superficie) / 0.62));
+  border-color: rgb(255 255 255 / 0.1);
+  box-shadow:
+    0 16px 36px -10px rgb(0 0 0 / 0.65),
+    0 0 0 1px rgb(var(--toast-cor) / 0.32),
+    inset 0 1px 0 rgb(255 255 255 / 0.06);
+}
+.toast-sucesso { --toast-cor: var(--c-emerald-500); }
+.toast-info { --toast-cor: var(--c-blue-500); }
+.toast-aviso { --toast-cor: var(--c-amber-500); --tremida: 5px; }
+.toast-erro { --toast-cor: var(--c-red-500); --tremida: 7px; }
+
+/* Leve tinta da cor do tipo no canto do vidro */
+.toast-tinta {
+  background: radial-gradient(120% 140% at 0% 0%, rgb(var(--toast-cor) / 0.16), transparent 55%);
+}
+.toast-icone {
+  background: rgb(var(--toast-cor) / 0.14);
+  color: rgb(var(--toast-cor));
+  box-shadow: 0 0 16px rgb(var(--toast-cor) / 0.35), inset 0 0 0 1px rgb(var(--toast-cor) / 0.25);
+}
+.toast-barra {
+  background: linear-gradient(90deg, rgb(var(--toast-cor)), rgb(var(--toast-cor) / 0.35));
+}
+
+/* Entrada: mola (passa um pouco do ponto e assenta) e, em seguida, a tremidinha */
+@keyframes toast-mola {
+  from { opacity: 0; transform: translateX(110%) scale(0.92); filter: blur(3px); }
+  60% { opacity: 1; filter: blur(0); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+@keyframes toast-tremida {
+  0%, 100% { transform: translateX(0); }
+  18% { transform: translateX(calc(var(--tremida) * -1)) rotate(-0.4deg); }
+  36% { transform: translateX(calc(var(--tremida) * 0.8)) rotate(0.3deg); }
+  54% { transform: translateX(calc(var(--tremida) * -0.55)); }
+  72% { transform: translateX(calc(var(--tremida) * 0.3)); }
+}
+.toast-entrando {
+  animation:
+    toast-mola 0.5s cubic-bezier(0.22, 1.25, 0.36, 1) both,
+    toast-tremida 0.42s ease-in-out 0.5s;
+}
+
+/* Halo: um anel de luz na cor do tipo que se expande e apaga, uma vez */
+@keyframes toast-halo {
+  0% { opacity: 0; box-shadow: 0 0 0 0 rgb(var(--toast-cor) / 0.55); }
+  25% { opacity: 1; }
+  100% { opacity: 0; box-shadow: 0 0 0 14px rgb(var(--toast-cor) / 0), 0 0 28px 6px rgb(var(--toast-cor) / 0); }
+}
+.toast-halo {
+  animation: toast-halo 1.1s ease-out 0.25s both;
+}
+
+/* Reflexo de luz atravessando o vidro, uma vez */
+@keyframes toast-brilho {
+  from { transform: translateX(-130%) skewX(-18deg); opacity: 0; }
+  15% { opacity: 1; }
+  to { transform: translateX(260%) skewX(-18deg); opacity: 0; }
+}
+.toast-brilho {
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.65), transparent);
+  animation: toast-brilho 0.95s ease-out 0.35s both;
+}
+.dark .toast-brilho {
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.16), transparent);
+}
+
+/* Saída: desliza, encolhe um pouco e esmaece (as de baixo sobem com suavidade) */
+@keyframes toast-saida {
+  to { opacity: 0; transform: translateX(35%) scale(0.94); filter: blur(2px); }
+}
+.toast-saindo {
+  animation: toast-saida 0.28s ease-in forwards;
+}
+
 @keyframes toast-tempo {
-  from {
-    width: 100%;
-  }
-  to {
-    width: 0;
-  }
-}
-.toast-entrada {
-  animation: toast-entrada 0.2s ease-out;
+  from { width: 100%; }
+  to { width: 0; }
 }
 .toast-tempo {
   animation: toast-tempo linear forwards;
+}
+
+@keyframes toast-esmaecer {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast-entrando { animation: toast-esmaecer 0.2s ease-out both; }
+  .toast-saindo { animation: none; opacity: 0; transition: opacity 0.15s; }
+  .toast-halo, .toast-brilho { display: none; }
 }

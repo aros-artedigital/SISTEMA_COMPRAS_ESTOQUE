@@ -25,7 +25,10 @@ const exe = process.env.SMOKE_EXE
 
 async function abrir() {
   const env = { ...process.env, ESTOQUE_DB_PATH, ESTOQUE_DEMO: '1' }
-  const app = await electron.launch(exe ? { executablePath: exe, args: [], env } : { args: ['.'], env })
+  // Perfil do Electron próprio do teste (tema, letra, cores...): não mexe nas preferências do usuário
+  // neste computador, e o que estiver salvo nelas não interfere no teste.
+  const perfil = `--user-data-dir=${join(pasta, 'perfil-electron')}`
+  const app = await electron.launch(exe ? { executablePath: exe, args: [perfil], env } : { args: ['.', perfil], env })
   const page = await app.firstWindow()
   await page.waitForSelector('input[placeholder="seu.login"]')
   return { app, page }
