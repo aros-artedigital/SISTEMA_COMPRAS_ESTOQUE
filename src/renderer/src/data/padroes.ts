@@ -15,5 +15,6 @@ export const configuracoesPadrao: Configuracoes = {
   tema: 'azul',
   corPrincipal: '#2563eb',
   corSecundaria: '#13294b',
-  apagarSenhaOs: true
+  apagarSenhaOs: true,
+  exigirCaixaAberto: false
 }

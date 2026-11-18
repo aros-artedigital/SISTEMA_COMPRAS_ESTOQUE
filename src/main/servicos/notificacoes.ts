@@ -128,6 +128,22 @@ function calcular(u: Usuario): Omit<Notificacao, 'lida'>[] {
     }
   }
 
+  // Caixa esquecido aberto (aberto num dia anterior).
+  if (pode(u, 'caixa')) {
+    const cx = db.prepare(`SELECT id, numero, aberto_em FROM caixa_sessoes WHERE status = 'aberto'`).get() as { id: number; numero: string; aberto_em: string } | undefined
+    if (cx && cx.aberto_em.slice(0, 10) < agoraIso().slice(0, 10)) {
+      lista.push({
+        chave: `caixa-aberto:${cx.id}`,
+        tipo: 'aviso',
+        categoria: 'Caixa',
+        titulo: `Caixa ${cx.numero} aberto desde ${cx.aberto_em.slice(0, 10).split('-').reverse().join('/')}`,
+        mensagem: 'Feche o caixa do dia anterior e abra um novo para o movimento de hoje.',
+        link: '/caixa',
+        em: cx.aberto_em
+      })
+    }
+  }
+
   // Inventário aberto há mais de um dia.
   if (pode(u, 'estoque')) {
     const inventarios = db.prepare(`SELECT id, numero, criado_em FROM inventarios WHERE status = 'aberto'`).all() as { id: number; numero: string; criado_em: string }[]

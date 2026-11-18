@@ -8,6 +8,7 @@ export type Recurso =
   | 'dashboard'
   | 'vendas'
   | 'vendasCancelar'
+  | 'caixa'
   | 'produtos'
   | 'produtosEditar'
   | 'produtosExcluir'
@@ -39,6 +40,7 @@ export const TODOS_RECURSOS: Recurso[] = [
   'dashboard',
   'vendas',
   'vendasCancelar',
+  'caixa',
   'produtos',
   'produtosEditar',
   'produtosExcluir',
@@ -79,7 +81,7 @@ const area = (a: Area): Recurso[] => [a, editar(a), excluir(a)]
 const permissoes: Record<Perfil, Recurso[]> = {
   admin: TODOS_RECURSOS,
   gerente: TODOS_RECURSOS.filter((r) => !SO_ADMIN.includes(r)),
-  operador: ['dashboard', 'vendas', ...area('produtos'), 'estoque', ...area('clientes'), 'os', 'osEditar']
+  operador: ['dashboard', 'vendas', 'caixa', ...area('produtos'), 'estoque', ...area('clientes'), 'os', 'osEditar']
 }
 
 /** Permissões de um perfil padrão. */
@@ -118,6 +120,7 @@ export const nomeDoUsuarioPerfil = (u: { perfil: Perfil; permissoes?: Recurso[] 
 export const GRUPOS_PERMISSAO: { tela: string; ver: Recurso; editar?: Recurso; excluir?: Recurso; extras?: { recurso: Recurso; nome: string }[] }[] = [
   { tela: 'Início (painel)', ver: 'dashboard' },
   { tela: 'Vendas', ver: 'vendas', extras: [{ recurso: 'vendasCancelar', nome: 'Cancelar vendas' }] },
+  { tela: 'Caixa', ver: 'caixa' },
   { tela: 'Ordens de Serviço', ver: 'os', editar: 'osEditar', excluir: 'osExcluir', extras: [{ recurso: 'osSenha', nome: 'Ver senha do equipamento' }] },
   { tela: 'Produtos', ver: 'produtos', editar: 'produtosEditar', excluir: 'produtosExcluir' },
   { tela: 'Categorias e Unidades', ver: 'cadastros', editar: 'cadastrosEditar', excluir: 'cadastrosExcluir' },

@@ -103,5 +103,5 @@ export const configuracoes: Configuracoes = {
   custoAoReceber: 'medio',
   tema: 'azul',
   corPrincipal: '#2563eb',
-  corSecundaria: '#13294b', apagarSenhaOs: true
+  corSecundaria: '#13294b', apagarSenhaOs: true, exigirCaixaAberto: false
 }

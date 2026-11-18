@@ -12,7 +12,7 @@ import { lerConfig } from './sync/config'
 
 type DadosVenda = z.output<typeof vendaSchema>
 
-function buscar(id: number): Venda {
+export function buscar(id: number): Venda {
   const db = banco()
   const linha = db.prepare('SELECT * FROM vendas WHERE id = ?').get(id) as map.Linha | undefined
   if (!linha) throw new ErroNegocio('Venda não encontrada.')

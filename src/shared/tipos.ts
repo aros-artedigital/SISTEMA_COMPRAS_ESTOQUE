@@ -259,4 +259,6 @@ export interface Configuracoes {
   corSecundaria: string
   /** Apaga a senha do equipamento quando a OS é entregue ou cancelada. */
   apagarSenhaOs: boolean
+  /** Vendas e recebimentos só com o caixa aberto. */
+  exigirCaixaAberto: boolean
 }

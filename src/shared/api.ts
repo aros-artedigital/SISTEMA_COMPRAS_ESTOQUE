@@ -109,6 +109,15 @@ export interface Canais {
   'vendas:registrar': Canal<[dados: Entrada<typeof vendaSchema>], Venda>
   'vendas:cancelar': Canal<[id: number, motivo: string], void>
 
+  /** Caixa aberto neste terminal (null = fechado). */
+  'caixa:estado': Canal<[], CaixaResumo | null>
+  'caixa:abrir': Canal<[troco: number], CaixaResumo>
+  'caixa:movimentar': Canal<[tipo: 'sangria' | 'suprimento', valor: number, motivo: string], CaixaResumo>
+  /** Fecha com o valor contado de cada forma de pagamento. */
+  'caixa:fechar': Canal<[contado: Partial<Record<FormaPagamento, number>>, observacao: string], CaixaResumo>
+  'caixa:historico': Canal<[], CaixaSessaoResumo[]>
+  'caixa:sessao': Canal<[id: number], CaixaResumo>
+
   'os:salvar': Canal<[id: number | null, dados: Entrada<typeof osEntradaSchema>], OrdemServico>
   'os:excluir': Canal<[id: number], void>
   /** Salva a página da OS para o cliente (.html); null se o usuário cancelar. */
@@ -482,4 +491,50 @@ export interface ResultadoInventario {
 export interface OpcoesStatusOS {
   pagamentos?: { forma: FormaPagamento; valor: number }[]
   entregarComSaldo?: boolean
+}
+
+// ---------- Caixa ----------
+
+export type TipoLancamentoCaixa = 'venda' | 'os' | 'cancelamento' | 'estorno' | 'sangria' | 'suprimento'
+
+export interface LancamentoCaixa {
+  id: number
+  em: string
+  tipo: TipoLancamentoCaixa
+  forma: FormaPagamento
+  /** Entradas positivas, saídas negativas. */
+  valor: number
+  descricao: string
+  usuario: string
+}
+
+export interface CaixaResumo {
+  id: number
+  numero: string
+  status: 'aberto' | 'fechado'
+  abertoEm: string
+  abertoPor: string
+  troco: number
+  fechadoEm: string | null
+  fechadoPor: string | null
+  observacao: string
+  lancamentos: LancamentoCaixa[]
+  /** Quanto deve haver de cada forma (dinheiro inclui o troco). */
+  esperado: Record<FormaPagamento, number>
+  /** Contado no fechamento (null = ainda aberto). */
+  contado: Record<FormaPagamento, number> | null
+}
+
+export interface CaixaSessaoResumo {
+  id: number
+  numero: string
+  status: 'aberto' | 'fechado'
+  abertoEm: string
+  abertoPor: string
+  fechadoEm: string | null
+  fechadoPor: string | null
+  /** Vendas e recebimentos de OS, menos devoluções. */
+  recebido: number
+  /** Contado − esperado (null = aberto). */
+  diferenca: number | null
 }

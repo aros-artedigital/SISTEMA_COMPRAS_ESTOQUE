@@ -151,7 +151,8 @@ const ROTULOS: Record<string, string> = {
   desconto: 'Desconto',
   garantiaDias: 'Garantia (dias)',
   senhaTipo: 'Senha do equipamento',
-  apagarSenhaOs: 'Apagar senha do equipamento ao entregar'
+  apagarSenhaOs: 'Apagar senha do equipamento ao entregar',
+  exigirCaixaAberto: 'Exigir caixa aberto para vender'
 }
 // Campos que não entram na comparação (o saldo muda por movimentação, que já tem histórico próprio).
 const IGNORAR = new Set(['id', 'estoque', 'senha', 'numero', 'historico', 'pagamentos', 'assinaturas', 'qtdFotos', 'estoqueBaixado', 'concluidaEm', 'entregueEm', 'dataEntrada', 'usuarioId'])

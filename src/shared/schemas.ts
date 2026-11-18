@@ -120,7 +120,8 @@ export const configuracoesSchema = z.object({
   tema: z.enum(['azul', 'verde', 'roxo', 'grafite', 'vinho', 'personalizado']).default('azul'),
   corPrincipal: corHex.default('#2563eb'),
   corSecundaria: corHex.default('#13294b'),
-  apagarSenhaOs: z.boolean().default(true)
+  apagarSenhaOs: z.boolean().default(true),
+  exigirCaixaAberto: z.boolean().default(false)
 })
 
 export const senhaSchema = z

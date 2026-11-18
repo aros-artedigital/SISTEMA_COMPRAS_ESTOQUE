@@ -36,7 +36,7 @@ const ABAS: { id: IdAba; titulo: string; icone: LucideIcon }[] = [
 const CAMPOS_DA_ABA: Partial<Record<IdAba, string[]>> = {
   empresa: ['nomeEmpresa', 'cnpj', 'telefone', 'email', 'cep', 'endereco'],
   aparencia: ['tema', 'corPrincipal', 'corSecundaria'],
-  estoque: ['estoqueMinimoPadrao', 'prefixoCompra', 'custoAoReceber', 'alertarEstoqueMinimo'],
+  estoque: ['estoqueMinimoPadrao', 'prefixoCompra', 'custoAoReceber', 'alertarEstoqueMinimo', 'exigirCaixaAberto'],
   seguranca: ['apagarSenhaOs']
 }
 
@@ -184,6 +184,14 @@ export default function Configuracoes() {
                 checked={form.values.alertarEstoqueMinimo}
                 onChange={(v) => form.set('alertarEstoqueMinimo', v)}
               />
+            </div>
+            <div className="col-span-2 border-t border-slate-100 pt-3">
+              <Checkbox
+                label="Exigir caixa aberto para vender e receber pagamentos de OS"
+                checked={form.values.exigirCaixaAberto}
+                onChange={(v) => form.set('exigirCaixaAberto', v)}
+              />
+              <p className="ml-6 mt-1 text-xs text-slate-500">Desligado: com o caixa fechado, as vendas continuam funcionando, só não entram em nenhum caixa.</p>
             </div>
           </div>
         </Card>

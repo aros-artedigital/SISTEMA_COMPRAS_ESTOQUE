@@ -142,6 +142,12 @@ Usuários de demonstração (só em desenvolvimento):
   impressão/PDF, no Excel nem no texto da auditoria. Ao editar a OS, a senha atual é mantida (há "Trocar" e
   "Remover"). Por padrão é apagada quando a OS é entregue ou cancelada (Configurações → Segurança). Com sincronização,
   a senha vai para o servidor junto com a OS, para o técnico de outro terminal poder vê-la.
+- **Caixa do dia** (menu Caixa; cada computador tem o seu, não sincroniza): abertura com o troco, lançamento
+  automático de vendas, cancelamentos, recebimentos e estornos de OS, sangria (não deixa tirar mais do que há em
+  dinheiro) e suprimento. O quadro mostra o dinheiro que deve haver na gaveta e o total de cada forma de pagamento.
+  No fechamento, conta-se o dinheiro e confere-se Pix/cartões; diferença exige explicação e fica registrada (sobra ou
+  falta). Histórico de caixas com detalhe e comprovante em cupom de 80 mm. Aviso no sino se o caixa do dia anterior
+  ficou aberto. Opcional (Configurações → Estoque e compras): exigir caixa aberto para vender e receber.
 - **Aparência** (botão de sol/lua na barra superior, cada computador guarda a sua escolha): modo Claro, Escuro ou
   Automático (segue o Windows) — `Ctrl+Shift+D` alterna na hora — e tamanho da letra Pequena, Normal ou Grande.
 - **Tema de cores da empresa** (Configurações → Aparência, só administrador): 5 temas prontos (Azul clássico, Verde

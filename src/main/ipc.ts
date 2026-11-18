@@ -2,7 +2,7 @@ import { app, ipcMain, shell } from 'electron'
 import { z } from 'zod'
 import type { ArgsDe, NomeCanal, Resposta, ResultadoLote, RetornoDe } from '@shared/api'
 import type { FormaPagamento } from '@shared/tipos'
-import { descreverEquipamento, rotuloFormaPagamento, rotuloStatusOS, saldoOS } from '@shared/dominio'
+import { descreverEquipamento, rotuloFormaPagamento, rotuloStatusOS, saldoOS, totalVenda } from '@shared/dominio'
 import { editar as permEditar, excluir as permExcluir, type Area, type Recurso } from '@shared/permissoes'
 import * as s from '@shared/schemas'
 import { banco, caminhoBanco } from './db/conexao'
@@ -26,6 +26,7 @@ import { exigir, usuarioLogado } from './servicos/sessao'
 import * as usuarios from './servicos/usuarios'
 import * as vendas from './servicos/vendas'
 import * as ordens from './servicos/os'
+import * as caixa from './servicos/caixa'
 import * as inventario from './servicos/inventario'
 import * as sync from './servicos/sync/motor'
 import * as atualizacao from './atualizacao'
@@ -347,7 +348,12 @@ export function registrarCanais(): void {
     const u = exigir('osEditar')
     const idOs = id(i)
     const lista = s.pagamentosOsSchema.parse(pags)
-    const o = ordens.receber(idOs, lista, u.id)
+    caixa.exigirAberto()
+    const o = banco().transaction(() => {
+      const r = ordens.receber(idOs, lista, u.id)
+      for (const p of lista) caixa.lancar('os', p.forma, p.valor, `OS ${r.numero}`, u.id)
+      return r
+    })()
     auditoria.registrar({ usuario: u, acao: 'Recebimento', entidade: 'Ordem de serviço', entidadeId: idOs, descricao: `OS ${o.numero}: recebido ${resumoPagamentos(lista)}` })
     return o
   })
@@ -357,7 +363,11 @@ export function registrarCanais(): void {
     const idPag = id(pid)
     const m = z.string().trim().min(3, 'Informe o motivo do estorno').max(200).parse(motivo)
     const antes = ordens.buscar(idOs).pagamentos.find((p) => p.id === idPag)
-    const o = ordens.estornarPagamento(idOs, idPag, m)
+    const o = banco().transaction(() => {
+      const r = ordens.estornarPagamento(idOs, idPag, m)
+      if (antes) caixa.lancar('estorno', antes.forma, -antes.valor, `Estorno OS ${r.numero}: ${m}`, u.id)
+      return r
+    })()
     auditoria.registrar({
       usuario: u,
       acao: 'Estorno de pagamento',
@@ -374,7 +384,12 @@ export function registrarCanais(): void {
     const observacao = z.string().max(500).parse(obs ?? '')
     const opcoes = s.opcoesStatusOsSchema.parse(op ?? {})
     const antes = ordens.buscar(idOs)
-    const o = ordens.mudarStatus(idOs, novo, observacao, u.id, opcoes)
+    if (opcoes.pagamentos.length) caixa.exigirAberto()
+    const o = banco().transaction(() => {
+      const r = ordens.mudarStatus(idOs, novo, observacao, u.id, opcoes)
+      for (const p of opcoes.pagamentos) caixa.lancar('os', p.forma, p.valor, `OS ${r.numero}`, u.id)
+      return r
+    })()
     auditoria.registrar({
       usuario: u,
       acao: 'Mudança de status',
@@ -458,14 +473,74 @@ export function registrarCanais(): void {
     auditoria.registrar({ usuario: u, acao: 'Encerramento', entidade: 'Compra', entidadeId: idCompra, descricao: `${auditoria.descrever('compras', auditoria.ler('compras', idCompra))} encerrada sem receber o restante` })
   })
 
-  canal('vendas:registrar', (d) => vendas.registrar(s.vendaSchema.parse(d), exigir('vendas').id))
+  canal('vendas:registrar', (d) => {
+    const u = exigir('vendas')
+    const dados = s.vendaSchema.parse(d)
+    caixa.exigirAberto()
+    // A venda e o lançamento no caixa (se aberto) acontecem juntos.
+    return banco().transaction(() => {
+      const v = vendas.registrar(dados, u.id)
+      caixa.lancar('venda', v.formaPagamento, totalVenda(v), `Venda ${v.numero}`, u.id)
+      return v
+    })()
+  })
   canal('vendas:cancelar', (i, motivo) => {
     const u = exigir('vendasCancelar')
     const idVenda = id(i)
     const m = s.cancelamentoSchema.parse(motivo)
-    vendas.cancelar(idVenda, m, u.id)
+    banco().transaction(() => {
+      vendas.cancelar(idVenda, m, u.id)
+      const vc = vendas.buscar(idVenda)
+      caixa.lancar('cancelamento', vc.formaPagamento, -totalVenda(vc), `Cancelamento da venda ${vc.numero}`, u.id)
+    })()
     const v = banco().prepare('SELECT numero FROM vendas WHERE id = ?').get(idVenda) as { numero: string } | undefined
     auditoria.registrar({ usuario: u, acao: 'Cancelamento', entidade: 'Venda', entidadeId: idVenda, descricao: `Venda ${v?.numero ?? idVenda} cancelada. Motivo: ${m}` })
+  })
+
+  // ---------- Caixa ----------
+  const moedaCaixa = (v: number): string => moedaBr(v)
+  canal('caixa:estado', () => {
+    exigir('caixa')
+    return caixa.estado()
+  })
+  canal('caixa:abrir', (t) => {
+    const u = exigir('caixa')
+    const troco = z.number().min(0, 'O troco não pode ser negativo').max(1_000_000).parse(t)
+    const r = caixa.abrir(troco, u.id)
+    auditoria.registrar({ usuario: u, acao: 'Abertura de caixa', entidade: 'Caixa', entidadeId: r.id, descricao: `Caixa ${r.numero} aberto com troco de ${moedaCaixa(troco)}` })
+    return r
+  })
+  canal('caixa:movimentar', (t, v, m) => {
+    const u = exigir('caixa')
+    const tipo = z.enum(['sangria', 'suprimento']).parse(t)
+    const valor = z.number().positive('Informe um valor maior que zero').max(1_000_000).parse(v)
+    const motivo = z.string().trim().min(3, 'Informe o motivo').max(200).parse(m)
+    const r = caixa.movimentar(tipo, valor, motivo, u.id)
+    auditoria.registrar({ usuario: u, acao: tipo === 'sangria' ? 'Sangria' : 'Suprimento', entidade: 'Caixa', entidadeId: r.id, descricao: `Caixa ${r.numero}: ${tipo} de ${moedaCaixa(valor)} — ${motivo}` })
+    return r
+  })
+  canal('caixa:fechar', (c, obs) => {
+    const u = exigir('caixa')
+    const contado = z.record(z.enum(['dinheiro', 'pix', 'debito', 'credito', 'boleto', 'outro']), z.number().min(0).max(100_000_000)).parse(c)
+    const observacao = z.string().trim().max(500).parse(obs ?? '')
+    const r = caixa.fechar(contado, observacao, u.id)
+    const dif = Object.keys(r.esperado).reduce((t, f) => t + (r.contado?.[f as FormaPagamento] ?? 0) - r.esperado[f as FormaPagamento], 0)
+    auditoria.registrar({
+      usuario: u,
+      acao: 'Fechamento de caixa',
+      entidade: 'Caixa',
+      entidadeId: r.id,
+      descricao: `Caixa ${r.numero} fechado. ${Math.abs(dif) < 0.005 ? 'Sem diferença' : `Diferença de ${moedaCaixa(dif)}`}${observacao ? `. ${observacao}` : ''}`
+    })
+    return r
+  })
+  canal('caixa:historico', () => {
+    exigir('caixa')
+    return caixa.historico()
+  })
+  canal('caixa:sessao', (i) => {
+    exigir('caixa')
+    return caixa.resumo(id(i))
   })
 
   canal('inventario:listar', () => {

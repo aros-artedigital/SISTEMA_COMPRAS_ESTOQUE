@@ -809,6 +809,7 @@ try {
   await janelaUsu.getByLabel('Vendas: ver').uncheck()
   await janelaUsu.getByLabel('Clientes: ver').uncheck()
   await janelaUsu.getByLabel('Ordens de Serviço: ver').uncheck()
+  await janelaUsu.getByLabel('Caixa: ver').uncheck()
   verificar(!(await janelaUsu.getByLabel('Clientes: excluir').isChecked()), 'tirar "ver" tira também editar e excluir da tela')
   await janelaUsu.getByLabel('Produtos: cadastrar e editar').uncheck()
   await janelaUsu.getByLabel('Produtos: excluir').uncheck()
@@ -1251,6 +1252,75 @@ try {
   await page.getByRole('cell', { name: 'Cliente não aprovou o orçamento', exact: true }).waitFor()
   verificar(true, 'relatório de OS canceladas mostra o motivo')
   await foto(page, '25-relatorio-os')
+
+  // ---------- Caixa do dia ----------
+  console.log('Caixa do dia')
+  verificar((await ipc(page, 'caixa:estado')).dados === null, 'começa com o caixa fechado (vendas antigas não entram em caixa nenhum)')
+  await page.getByRole('link', { name: 'Caixa' }).click()
+  await page.getByRole('heading', { name: 'Caixa', exact: true }).waitFor()
+  await page.getByLabel('Troco inicial').fill('100')
+  await page.getByRole('button', { name: 'Abrir caixa' }).click()
+  await page.getByText('Caixa aberto.').waitFor()
+  let cx = (await ipc(page, 'caixa:estado')).dados
+  verificar(cx?.status === 'aberto' && cx.troco === 100 && cx.esperado.dinheiro === 100, `caixa ${cx?.numero} aberto pela tela com troco de R$ 100,00`)
+  r = await ipc(page, 'caixa:abrir', 0)
+  verificar(!r.ok && r.erro.mensagem.includes('Já existe um caixa aberto'), 'só um caixa aberto por vez')
+  const vendaCx = (forma, valor) => ipc(page, 'vendas:registrar', { clienteId: null, formaPagamento: forma, desconto: 0, observacao: '', itens: [{ produtoId: 1, quantidade: 1, valorUnitario: valor }] })
+  await vendaCx('dinheiro', 50)
+  const vendaPix = (await vendaCx('pix', 30)).dados
+  await ipc(page, 'vendas:cancelar', vendaPix.id, 'Cliente desistiu')
+  const osCx = (await ipc(page, 'os:salvar', null, { clienteId: 1, tecnicoId: null, previsao: null, equipTipo: 'Tablet', equipMarca: '', equipModelo: '', equipSerie: '', acessorios: '', estadoFisico: '', defeito: 'Bateria', diagnostico: '', laudo: '', observacao: '', desconto: 0, garantiaDias: 90, itens: [{ tipo: 'servico', produtoId: null, descricao: 'Troca de bateria', quantidade: 1, valorUnitario: 80 }] })).dados
+  await ipc(page, 'os:receber', osCx.id, [{ forma: 'dinheiro', valor: 20 }])
+  cx = (await ipc(page, 'caixa:estado')).dados
+  verificar(
+    cx.esperado.dinheiro === 170 && cx.esperado.pix === 0 && cx.lancamentos.map((l) => l.tipo).join(',') === 'venda,venda,cancelamento,os',
+    `vendas, cancelamento e sinal de OS lançados automaticamente (dinheiro esperado ${cx.esperado.dinheiro})`
+  )
+  r = await ipc(page, 'caixa:movimentar', 'sangria', 500, 'Teste')
+  verificar(!r.ok && r.erro.mensagem.includes('em dinheiro no caixa'), 'sangria maior que o dinheiro da gaveta é recusada')
+  await page.reload()
+  await page.waitForSelector('input[placeholder="seu.login"]')
+  await entrar(page, 'admin', 'admin123')
+  await page.getByText('Olá, Administrador').waitFor()
+  await page.getByRole('link', { name: 'Caixa' }).click()
+  await page.getByRole('button', { name: 'Sangria' }).click()
+  const janelaSangria = page.getByRole('dialog', { name: /^Sangria/ })
+  await janelaSangria.getByLabel('Valor').fill('50')
+  await janelaSangria.getByRole('button', { name: 'Confirmar' }).click()
+  await page.getByText('Sangria de R$ 50,00 registrada.').waitFor()
+  await ipc(page, 'caixa:movimentar', 'suprimento', 10, 'Reforço de troco')
+  await page.reload()
+  await page.waitForSelector('input[placeholder="seu.login"]')
+  await entrar(page, 'admin', 'admin123')
+  await page.getByText('Olá, Administrador').waitFor()
+  await page.getByRole('link', { name: 'Caixa' }).click()
+  await page.getByText('Dinheiro na gaveta').waitFor()
+  await foto(page, '28-caixa-aberto')
+  verificar((await ipc(page, 'caixa:estado')).dados.esperado.dinheiro === 130, 'sangria e suprimento mexem só no dinheiro (100 + 50 + 20 − 50 + 10 = 130)')
+  await page.getByRole('button', { name: 'Fechar caixa' }).click()
+  const janelaFech = page.getByRole('dialog', { name: /^Fechar caixa/ })
+  await janelaFech.getByLabel('Contado em Dinheiro').fill('125')
+  await janelaFech.getByRole('button', { name: 'Fechar caixa' }).click()
+  await janelaFech.getByText('Há diferença: explique na observação.').waitFor()
+  verificar(await janelaFech.getByText('Falta R$ 5,00').isVisible(), 'fechamento mostra a diferença de cada forma (falta R$ 5,00 no dinheiro)')
+  await janelaFech.getByLabel('Observação').fill('Troco dado a mais')
+  await janelaFech.getByRole('button', { name: 'Fechar caixa' }).click()
+  await page.getByText(`Caixa ${cx.numero} fechado.`).waitFor()
+  await foto(page, '29-caixa-fechamento')
+  await page.getByRole('dialog', { name: `Caixa ${cx.numero}` }).getByRole('button', { name: 'Fechar', exact: true }).last().click()
+  const hist = (await ipc(page, 'caixa:historico')).dados
+  verificar((await ipc(page, 'caixa:estado')).dados === null && hist[0].numero === cx.numero && hist[0].diferenca === -5 && hist[0].recebido === 70, 'caixa fechado vai para o histórico com o recebido (70) e a diferença (−5)')
+  aud = (await ipc(page, 'auditoria:listar', { entidade: 'Caixa' })).dados
+  verificar(['Abertura de caixa', 'Sangria', 'Suprimento', 'Fechamento de caixa'].every((a) => aud.itens.some((x) => x.acao === a)) && aud.itens.some((x) => x.descricao.includes('Troco dado a mais')), 'abertura, sangria, suprimento e fechamento ficam na auditoria')
+  // Venda com o caixa fechado: liberada por padrão, recusada se a configuração exigir caixa aberto
+  dados = (await ipc(page, 'dados:carregar')).dados
+  await ipc(page, 'configuracoes:salvar', { ...dados.configuracoes, exigirCaixaAberto: true })
+  r = await vendaCx('dinheiro', 10)
+  const rOs = await ipc(page, 'os:receber', osCx.id, [{ forma: 'pix', valor: 10 }])
+  verificar(!r.ok && r.erro.mensagem.includes('caixa está fechado') && !rOs.ok, 'com "exigir caixa aberto", não vende nem recebe com o caixa fechado')
+  await ipc(page, 'configuracoes:salvar', { ...dados.configuracoes, exigirCaixaAberto: false })
+  r = await vendaCx('dinheiro', 10)
+  verificar(r.ok, 'sem a exigência, vende normalmente com o caixa fechado')
 
   // ---------- Backup externo ----------
   console.log('Backup fora do computador')
