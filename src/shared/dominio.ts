@@ -1,4 +1,4 @@
-import type { Compra, FormaPagamento, OrdemServico, Produto, StatusCompra, StatusOS, StatusVenda, TipoMovimentacao, TipoSenhaOS, Venda } from '@shared/tipos'
+import type { Compra, FormaPagamento, OrdemServico, Produto, StatusCompra, StatusOS, StatusVenda, TipoMovimentacao, TipoSenhaOS, Venda, Conta } from '@shared/tipos'
 import { hojeIso } from './format'
 
 // Regras e rótulos do domínio compartilhados entre telas.
@@ -52,7 +52,8 @@ export const rotuloFormaPagamento: Record<FormaPagamento, string> = {
   debito: 'Cartão de débito',
   credito: 'Cartão de crédito',
   boleto: 'Boleto',
-  outro: 'Outro'
+  outro: 'Outro',
+  prazo: 'A prazo (fiado/parcelado)'
 }
 
 export const rotuloStatusVenda: Record<StatusVenda, string> = { concluida: 'Concluída', cancelada: 'Cancelada' }
@@ -166,3 +167,47 @@ export function diasDeConserto(o: Pick<OrdemServico, 'dataEntrada' | 'concluidaE
 }
 
 export const rotuloTipoPagamentoOS = { sinal: 'Sinal', pagamento: 'Pagamento' } as const
+
+// ---------- Contas a receber e a pagar ----------
+
+/** Formas com que se recebe/paga de verdade (a prazo não é uma delas). */
+export const FORMAS_RECEBIMENTO: FormaPagamento[] = ['dinheiro', 'pix', 'debito', 'credito', 'boleto', 'outro']
+
+export const pagoConta = (c: Pick<Conta, 'baixas'>): number => Math.round(c.baixas.filter((b) => !b.estornada).reduce((s, b) => s + b.valor, 0) * 100) / 100
+export const saldoConta = (c: Pick<Conta, 'baixas' | 'valor' | 'status'>): number =>
+  c.status === 'cancelada' ? 0 : Math.max(0, Math.round((c.valor - pagoConta(c)) * 100) / 100)
+
+export type SituacaoConta = 'paga' | 'cancelada' | 'vencida' | 'vence_hoje' | 'a_vencer'
+
+export function situacaoConta(c: Pick<Conta, 'status' | 'vencimento'>, hoje = hojeIso()): SituacaoConta {
+  if (c.status === 'paga' || c.status === 'cancelada') return c.status
+  if (c.vencimento < hoje) return 'vencida'
+  if (c.vencimento === hoje) return 'vence_hoje'
+  return 'a_vencer'
+}
+
+export const rotuloSituacaoConta: Record<SituacaoConta, string> = { paga: 'Paga', cancelada: 'Cancelada', vencida: 'Vencida', vence_hoje: 'Vence hoje', a_vencer: 'A vencer' }
+export const corSituacaoConta = { paga: 'verde', cancelada: 'cinza', vencida: 'vermelho', vence_hoje: 'amarelo', a_vencer: 'azul' } as const
+
+/** "Venda V-0003 (2/3)" */
+export const descreverConta = (c: Pick<Conta, 'descricao' | 'parcela' | 'parcelas'>): string => `${c.descricao}${c.parcelas > 1 ? ` (${c.parcela}/${c.parcelas})` : ''}`
+
+export const CATEGORIAS_PAGAR = ['Fornecedores', 'Aluguel', 'Energia', 'Água', 'Internet e telefone', 'Salários', 'Impostos', 'Manutenção', 'Marketing', 'Outros']
+export const CATEGORIAS_RECEBER = ['Vendas a prazo', 'Serviços', 'Outros']
+
+/** Soma meses mantendo o dia (31/01 + 1 mês = 28 ou 29/02). */
+export function somarMeses(iso: string, meses: number): string {
+  const [a, m, d] = iso.split('-').map(Number)
+  const alvo = new Date(a, m - 1 + meses, 1)
+  const ultimo = new Date(alvo.getFullYear(), alvo.getMonth() + 1, 0).getDate()
+  alvo.setDate(Math.min(d, ultimo))
+  return `${alvo.getFullYear()}-${String(alvo.getMonth() + 1).padStart(2, '0')}-${String(alvo.getDate()).padStart(2, '0')}`
+}
+
+/** Divide o total em parcelas; os centavos que sobram vão na primeira. */
+export function dividirParcelas(total: number, parcelas: number): number[] {
+  const base = Math.floor((total * 100) / parcelas) / 100
+  const lista = Array.from({ length: parcelas }, () => base)
+  lista[0] = Math.round((total - base * (parcelas - 1)) * 100) / 100
+  return lista
+}

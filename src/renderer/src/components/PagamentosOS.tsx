@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Ban, Plus, Trash2, Wallet } from 'lucide-react'
-import { pagoOS, rotuloFormaPagamento, rotuloTipoPagamentoOS, saldoOS, totalOS } from '@shared/dominio'
+import { FORMAS_RECEBIMENTO, pagoOS, rotuloFormaPagamento, rotuloTipoPagamentoOS, saldoOS, totalOS } from '@shared/dominio'
 import * as fmt from '@shared/format'
 import type { FormaPagamento, OrdemServico } from '@shared/tipos'
 import { alterar } from '@/data/store'
@@ -21,7 +21,7 @@ export interface LinhaPagamento {
 let chave = 1
 export const novaLinhaPagamento = (valor = ''): LinhaPagamento => ({ chave: chave++, forma: '', valor })
 
-const FORMAS = (Object.keys(rotuloFormaPagamento) as FormaPagamento[]).map((f) => ({ value: f, label: rotuloFormaPagamento[f] }))
+const FORMAS = FORMAS_RECEBIMENTO.map((f) => ({ value: f, label: rotuloFormaPagamento[f] }))
 
 /** Linhas preenchidas → pagamentos, ou a mensagem do que falta. */
 export function lerPagamentos(linhas: LinhaPagamento[], saldo: number): { pagamentos: { forma: FormaPagamento; valor: number }[]; erro: string } {

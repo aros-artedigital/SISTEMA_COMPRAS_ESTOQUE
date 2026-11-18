@@ -116,7 +116,8 @@ export interface Movimentacao {
   estornoDe?: number
 }
 
-export type FormaPagamento = 'dinheiro' | 'pix' | 'debito' | 'credito' | 'boleto' | 'outro'
+/** "prazo": venda fiado/parcelada — vira contas a receber (não entra no caixa na hora). */
+export type FormaPagamento = 'dinheiro' | 'pix' | 'debito' | 'credito' | 'boleto' | 'outro' | 'prazo'
 export type StatusVenda = 'concluida' | 'cancelada'
 
 export interface ItemVenda {
@@ -237,6 +238,45 @@ export interface OrdemServico {
   assinaturas: AssinaturaOS[]
   /** Quantas fotos a OS tem neste terminal (as fotos não sincronizam). */
   qtdFotos: number
+}
+
+// ---------- Contas a receber e a pagar ----------
+
+export interface BaixaConta {
+  id: number
+  em: string
+  /** Quanto abateu da conta. */
+  valor: number
+  juros: number
+  desconto: number
+  forma: FormaPagamento
+  usuario: string
+  estornada: boolean
+  estornadaEm: string | null
+  motivoEstorno: string
+}
+
+export interface Conta {
+  id: number
+  tipo: 'receber' | 'pagar'
+  descricao: string
+  categoria: string
+  clienteId: number | null
+  fornecedorId: number | null
+  /** Parcela de venda a prazo. */
+  vendaId: number | null
+  /** Conta da compra a um fornecedor. */
+  compraId: number | null
+  parcela: number
+  parcelas: number
+  valor: number
+  vencimento: string // yyyy-mm-dd
+  status: 'aberta' | 'paga' | 'cancelada'
+  observacao: string
+  motivoCancelamento: string
+  usuarioId: number
+  criadoEm: string
+  baixas: BaixaConta[]
 }
 
 export interface Configuracoes {

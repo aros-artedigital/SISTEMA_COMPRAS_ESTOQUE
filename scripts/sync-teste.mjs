@@ -335,6 +335,21 @@ try {
   verificar(dB.ordensServico.find((o) => o.id === osB.id).pagamentos.reduce((s, p) => s + p.valor, 0) === 160, 'em B, a OS aparece paga por completo (60 + 100)')
   verificar(saldoBate(dA) && saldoBate(dB), 'saldos continuam batendo com as movimentações')
 
+  // ---------- Contas a receber e a pagar ----------
+  console.log('Contas a receber e a pagar')
+  const contaB = (await B.ok('contas:salvar', null, { tipo: 'pagar', descricao: 'Energia', categoria: 'Energia', clienteId: null, fornecedorId: null, compraId: null, valor: 300, vencimento: '2026-12-10', parcelas: 2, observacao: '' }))
+  await B.ok('contas:baixar', contaB[0].id, { valor: 150, juros: 5, desconto: 0, forma: 'pix' })
+  await B.sync()
+  await A.sync()
+  dA = await A.dados()
+  const energiaA = dA.contas.filter((c) => c.descricao === 'Energia').sort((a, b) => a.parcela - b.parcela)
+  verificar(energiaA.length === 2 && energiaA[0].status === 'paga' && energiaA[0].baixas[0].juros === 5, 'conta a pagar (2 parcelas) e o pagamento feito em B chegam em A')
+  await A.ok('contas:baixar', energiaA[1].id, { valor: 150, juros: 0, desconto: 0, forma: 'boleto' })
+  await A.sync()
+  await B.sync()
+  dB = await B.dados()
+  verificar(dB.contas.filter((c) => c.descricao === 'Energia').every((c) => c.status === 'paga'), 'a 2ª parcela paga em A aparece paga em B')
+
   // ---------- Recuperação de acesso entre terminais ----------
   console.log('Recuperação de acesso')
   const codigo = await A.ok('recuperacao:gerar')

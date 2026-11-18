@@ -19,6 +19,7 @@ import Perfil from '@/pages/Perfil'
 import Auditoria from '@/pages/Auditoria'
 import OrdensServico from '@/pages/OrdensServico'
 import Caixa from '@/pages/Caixa'
+import Contas from '@/pages/Contas'
 
 // HashRouter porque, empacotado, o Electron carrega a interface via file://
 export default function App() {
@@ -32,6 +33,8 @@ export default function App() {
               <Route index element={<Dashboard />} />
               <Route path="vendas" element={<Protegido recurso="vendas"><Vendas /></Protegido>} />
               <Route path="caixa" element={<Protegido recurso="caixa"><Caixa /></Protegido>} />
+              <Route path="financeiro/receber" element={<Protegido recurso="financeiro"><Contas key="receber" tipo="receber" /></Protegido>} />
+              <Route path="financeiro/pagar" element={<Protegido recurso="financeiro"><Contas key="pagar" tipo="pagar" /></Protegido>} />
               <Route path="os" element={<Protegido recurso="os"><OrdensServico /></Protegido>} />
               <Route path="produtos" element={<Protegido recurso="produtos"><Produtos /></Protegido>} />
               <Route path="categorias" element={<Protegido recurso="cadastros"><CategoriasUnidades /></Protegido>} />

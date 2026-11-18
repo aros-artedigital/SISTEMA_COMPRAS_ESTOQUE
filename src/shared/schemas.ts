@@ -172,7 +172,14 @@ export const itemVendaSchema = z.object({
 export const vendaSchema = z
   .object({
     clienteId: idSchema.nullable(),
-    formaPagamento: z.enum(['dinheiro', 'pix', 'debito', 'credito', 'boleto', 'outro']),
+    formaPagamento: z.enum(['dinheiro', 'pix', 'debito', 'credito', 'boleto', 'outro', 'prazo']),
+    /** Venda a prazo: em quantas parcelas mensais e o primeiro vencimento. */
+    parcelas: z.number().int().min(1, 'Mínimo de 1 parcela').max(24, 'Máximo de 24 parcelas').default(1),
+    primeiroVencimento: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Informe o primeiro vencimento')
+      .nullable()
+      .default(null),
     desconto: z.number().min(0, 'Desconto não pode ser negativo'),
     observacao: z.string().trim().max(500),
     itens: z
@@ -184,6 +191,8 @@ export const vendaSchema = z
     path: ['desconto'],
     message: 'Desconto maior que o total da venda'
   })
+  .refine((v) => v.formaPagamento !== 'prazo' || v.clienteId !== null, { path: ['clienteId'], message: 'Venda a prazo precisa de um cliente cadastrado' })
+  .refine((v) => v.formaPagamento !== 'prazo' || v.primeiroVencimento !== null, { path: ['primeiroVencimento'], message: 'Informe o primeiro vencimento' })
 
 export const cancelamentoSchema = z.string().trim().min(3, 'Informe o motivo do cancelamento').max(300)
 
@@ -276,4 +285,34 @@ export const fotoOsSchema = z.object({
   imagem: z.string().regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/, 'Imagem inválida').max(6_000_000, 'Foto grande demais'),
   miniatura: z.string().regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/, 'Miniatura inválida').max(300_000),
   legenda: z.string().trim().max(120).default('')
+})
+
+// ---------- Contas a receber e a pagar ----------
+
+const idOpcional = z
+  .union([z.literal(''), z.coerce.number().int().positive()])
+  .nullable()
+  .default(null)
+  .transform((v) => (v ? Number(v) : null))
+
+export const contaSchema = z
+  .object({
+    tipo: z.enum(['receber', 'pagar']),
+    descricao: obrigatorio('Descrição').max(120, 'Máximo de 120 caracteres'),
+    categoria: z.string().trim().max(60).default(''),
+    clienteId: idOpcional,
+    fornecedorId: idOpcional,
+    compraId: idOpcional,
+    valor: z.coerce.number({ invalid_type_error: 'Valor inválido' }).positive('Informe o valor').max(100_000_000),
+    vencimento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Informe o vencimento'),
+    parcelas: z.coerce.number().int('Use número inteiro').min(1, 'Mínimo de 1').max(48, 'Máximo de 48 parcelas').default(1),
+    observacao: z.string().trim().max(500).default('')
+  })
+  .refine((c) => c.tipo !== 'receber' || c.clienteId !== null, { path: ['clienteId'], message: 'Escolha o cliente' })
+
+export const baixaContaSchema = z.object({
+  valor: z.number({ invalid_type_error: 'Valor inválido' }).positive('Informe o valor').max(100_000_000),
+  juros: z.number().min(0, 'Não pode ser negativo').default(0),
+  desconto: z.number().min(0, 'Não pode ser negativo').default(0),
+  forma: z.enum(['dinheiro', 'pix', 'debito', 'credito', 'boleto', 'outro'])
 })

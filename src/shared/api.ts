@@ -7,6 +7,8 @@ import type {
   fornecedorSchema,
   movimentacaoSchema,
   osEntradaSchema,
+  contaSchema,
+  baixaContaSchema,
   perfilSchema,
   produtoSchema,
   unidadeSchema,
@@ -17,6 +19,7 @@ import type {
   Categoria,
   Cliente,
   Compra,
+  Conta,
   Configuracoes,
   Fornecedor,
   Movimentacao,
@@ -46,6 +49,7 @@ export interface Snapshot {
   movimentacoes: Movimentacao[]
   vendas: Venda[]
   ordensServico: OrdemServico[]
+  contas: Conta[]
   configuracoes: Configuracoes
 }
 
@@ -108,6 +112,13 @@ export interface Canais {
 
   'vendas:registrar': Canal<[dados: Entrada<typeof vendaSchema>], Venda>
   'vendas:cancelar': Canal<[id: number, motivo: string], void>
+
+  /** Nova conta (uma ou mais parcelas mensais) ou edição de uma conta aberta sem pagamento. */
+  'contas:salvar': Canal<[id: number | null, dados: Entrada<typeof contaSchema>], Conta[]>
+  /** Pagamento (a pagar) ou recebimento (a receber), parcial ou total, com juros e desconto. */
+  'contas:baixar': Canal<[id: number, dados: Entrada<typeof baixaContaSchema>], Conta>
+  'contas:estornarBaixa': Canal<[id: number, baixaId: number, motivo: string], Conta>
+  'contas:cancelar': Canal<[id: number, motivo: string], Conta>
 
   /** Caixa aberto neste terminal (null = fechado). */
   'caixa:estado': Canal<[], CaixaResumo | null>
@@ -495,7 +506,7 @@ export interface OpcoesStatusOS {
 
 // ---------- Caixa ----------
 
-export type TipoLancamentoCaixa = 'venda' | 'os' | 'cancelamento' | 'estorno' | 'sangria' | 'suprimento'
+export type TipoLancamentoCaixa = 'venda' | 'os' | 'cancelamento' | 'estorno' | 'sangria' | 'suprimento' | 'conta_receber' | 'conta_pagar'
 
 export interface LancamentoCaixa {
   id: number

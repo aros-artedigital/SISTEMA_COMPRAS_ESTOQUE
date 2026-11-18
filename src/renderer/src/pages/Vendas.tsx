@@ -14,7 +14,7 @@ import { executar } from '@/lib/executar'
 import { htmlRecibo } from '@/lib/recibo'
 import { AcoesLote } from '@/components/AcoesLote'
 import { exportarExcel, imprimir, salvarPdf } from '@/lib/saida'
-import { corStatusVenda, rotuloFormaPagamento, rotuloStatusVenda, subtotalVenda, totalVenda } from '@shared/dominio'
+import { corStatusVenda, dividirParcelas, rotuloFormaPagamento, rotuloStatusVenda, saldoConta, somarMeses, subtotalVenda, totalVenda } from '@shared/dominio'
 import * as fmt from '@shared/format'
 import type { FormaPagamento, Produto, StatusVenda, Venda } from '@shared/tipos'
 
@@ -235,6 +235,8 @@ function NovaVendaModal({ aberto, onFechar, onConcluida }: { aberto: boolean; on
   const notificar = useToast()
   const [clienteId, setClienteId] = useState('')
   const [formaPagamento, setFormaPagamento] = useState<FormaPagamento>('dinheiro')
+  const [parcelas, setParcelas] = useState('1')
+  const [primeiroVencimento, setPrimeiroVencimento] = useState('')
   const [desconto, setDesconto] = useState('')
   const [observacao, setObservacao] = useState('')
   const [itens, setItens] = useState<Linha[]>([])
@@ -244,6 +246,8 @@ function NovaVendaModal({ aberto, onFechar, onConcluida }: { aberto: boolean; on
     if (!aberto) return
     setClienteId('')
     setFormaPagamento('dinheiro')
+    setParcelas('1')
+    setPrimeiroVencimento(somarMeses(fmt.hojeIso(), 1))
     setDesconto('')
     setObservacao('')
     setItens([])
@@ -264,6 +268,8 @@ function NovaVendaModal({ aberto, onFechar, onConcluida }: { aberto: boolean; on
   const subtotal = itens.reduce((s, i) => s + (Number(i.quantidade) || 0) * (Number(i.valorUnitario) || 0), 0)
   const valorDesconto = Number(desconto.replace(',', '.')) || 0
   const total = Math.max(0, subtotal - valorDesconto)
+  const aPrazo = formaPagamento === 'prazo'
+  const previaParcelas = aPrazo && total > 0 && primeiroVencimento ? dividirParcelas(total, Number(parcelas)).map((v, i) => ({ venc: somarMeses(primeiroVencimento, i), v })) : []
   const semSaldo = itens.filter((i) => (Number(i.quantidade) || 0) > (produto(i.produtoId)?.estoque ?? 0))
 
   async function finalizar(): Promise<void> {
@@ -272,12 +278,16 @@ function NovaVendaModal({ aberto, onFechar, onConcluida }: { aberto: boolean; on
     if (convertidos.some((i) => !Number.isInteger(i.quantidade) || i.quantidade <= 0)) return setErro('Quantidades devem ser inteiras e maiores que zero.')
     if (convertidos.some((i) => !(i.valorUnitario >= 0))) return setErro('Informe o preço de todos os itens.')
     if (valorDesconto < 0 || valorDesconto > subtotal) return setErro('Desconto inválido.')
+    if (aPrazo && !clienteId) return setErro('Venda a prazo precisa de um cliente cadastrado.')
+    if (aPrazo && !primeiroVencimento) return setErro('Informe o primeiro vencimento.')
     let venda: Venda | null = null
     const ok = await executar(
       async () => {
         venda = await alterar('vendas:registrar', {
           clienteId: clienteId ? Number(clienteId) : null,
           formaPagamento,
+          parcelas: aPrazo ? Number(parcelas) : 1,
+          primeiroVencimento: aPrazo ? primeiroVencimento : null,
           desconto: valorDesconto,
           observacao,
           itens: convertidos
@@ -387,9 +397,30 @@ function NovaVendaModal({ aberto, onFechar, onConcluida }: { aberto: boolean; on
             placeholder="Consumidor final (sem cadastro)"
             opcoes={clientes.filter((c) => c.ativo).map((c) => ({ value: c.id, label: `${c.nome} — ${c.documento}` }))}
             value={clienteId}
-            onChange={(e) => setClienteId(e.target.value)}
+            onChange={(e) => (setClienteId(e.target.value), setErro(''))}
           />
-          <Select label="Forma de pagamento" opcoes={FORMAS.map((f) => ({ value: f, label: rotuloFormaPagamento[f] }))} value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value as FormaPagamento)} />
+          <Select label="Forma de pagamento" opcoes={FORMAS.map((f) => ({ value: f, label: rotuloFormaPagamento[f] }))} value={formaPagamento} onChange={(e) => (setFormaPagamento(e.target.value as FormaPagamento), setErro(''))} />
+          {aPrazo && (
+            <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50/50 p-3">
+              <div className="grid grid-cols-2 gap-3">
+                <Select label="Parcelas" opcoes={Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: `${i + 1}x` }))} value={parcelas} onChange={(e) => setParcelas(e.target.value)} />
+                <Input label="1º vencimento" type="date" value={primeiroVencimento} onChange={(e) => setPrimeiroVencimento(e.target.value)} />
+              </div>
+              {!clienteId && <p className="text-xs font-medium text-red-600">Escolha o cliente: a venda a prazo fica nas contas a receber dele.</p>}
+              {previaParcelas.length > 0 && (
+                <ul className="space-y-0.5 text-xs text-slate-600" aria-label="Parcelas da venda">
+                  {previaParcelas.map((p, i) => (
+                    <li key={i} className="flex justify-between tabular-nums">
+                      <span>
+                        {i + 1}/{previaParcelas.length} · {fmt.data(p.venc)}
+                      </span>
+                      <span>{fmt.moeda(p.v)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
           <InputMoeda label="Desconto (R$)" placeholder="0,00" value={desconto} onChange={(e) => setDesconto(e.target.value)} />
           <Textarea label="Observação" value={observacao} onChange={(e) => setObservacao(e.target.value)} />
           <div className="space-y-1 rounded-lg bg-slate-50 p-3 text-sm">
@@ -406,7 +437,8 @@ function NovaVendaModal({ aberto, onFechar, onConcluida }: { aberto: boolean; on
 // ---------- Detalhe e cancelamento ----------
 
 function DetalheVenda({ venda: v, nomeCliente, onFechar, onRecibo, onPdf }: { venda: Venda; nomeCliente: string; onFechar: () => void; onRecibo: () => void; onPdf: () => void }) {
-  const { produtos, usuarios } = useDb()
+  const { produtos, usuarios, contas } = useDb()
+  const parcelasVenda = contas.filter((c) => c.vendaId === v.id).sort((a, b) => a.parcela - b.parcela)
   const { pode } = useAuth()
   const notificar = useToast()
   const [cancelando, setCancelando] = useState(false)
@@ -487,6 +519,23 @@ function DetalheVenda({ venda: v, nomeCliente, onFechar, onRecibo, onPdf }: { ve
         </tfoot>
       </table>
       {v.observacao && <p className="mt-3 text-sm text-slate-600">Observação: {v.observacao}</p>}
+      {parcelasVenda.length > 0 && (
+        <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm">
+          <p className="mb-1 font-medium text-slate-700">Parcelas (contas a receber)</p>
+          <ul className="space-y-0.5 text-slate-600">
+            {parcelasVenda.map((c) => (
+              <li key={c.id} className="flex justify-between tabular-nums">
+                <span>
+                  {c.parcela}/{c.parcelas} · vence {fmt.data(c.vencimento)}
+                </span>
+                <span>
+                  {fmt.moeda(c.valor)} · {c.status === 'paga' ? 'paga' : c.status === 'cancelada' ? 'cancelada' : `falta ${fmt.moeda(saldoConta(c))}`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {cancelando && (
         <div className="mt-4 space-y-2 rounded-lg border border-red-200 bg-red-50/50 p-3">
           <p className="text-sm text-red-800">Os itens voltam ao estoque e a venda fica marcada como cancelada (não é apagada).</p>

@@ -17,6 +17,7 @@ export type TabelaSync =
   | 'compras'
   | 'vendas'
   | 'ordens_servico'
+  | 'contas'
   | 'movimentacoes'
   | 'configuracoes'
   | 'recuperacao'
@@ -143,6 +144,28 @@ export function montarDados(tabela: TabelaSync, uuid: string): Dados | null {
         pagamentos: pagamentos.map((p) => ({ em: p.em, tipo: p.tipo, forma: p.forma, valor: p.valor, usuario: p.usuario_nome, estornado: !!p.estornado, estornadoEm: p.estornado_em, motivoEstorno: p.motivo_estorno }))
       }
     }
+    case 'contas': {
+      const baixas = db().prepare('SELECT * FROM conta_baixas WHERE conta_id = ? ORDER BY id').all(r.id) as Linha[]
+      return {
+        tipo: r.tipo,
+        descricao: r.descricao,
+        categoria: r.categoria,
+        cliente: uuidDe('clientes', r.cliente_id),
+        fornecedor: uuidDe('fornecedores', r.fornecedor_id),
+        venda: uuidDe('vendas', r.venda_id),
+        compra: uuidDe('compras', r.compra_id),
+        parcela: r.parcela,
+        parcelas: r.parcelas,
+        valor: r.valor,
+        vencimento: r.vencimento,
+        status: r.status,
+        observacao: r.observacao,
+        motivoCancelamento: r.motivo_cancelamento,
+        usuario: uuidDe('usuarios', r.usuario_id),
+        criadoEm: r.criado_em,
+        baixas: baixas.map((b) => ({ em: b.em, valor: b.valor, juros: b.juros, desconto: b.desconto, forma: b.forma, usuario: b.usuario_nome, estornada: !!b.estornada, estornadaEm: b.estornada_em, motivoEstorno: b.motivo_estorno }))
+      }
+    }
     case 'movimentacoes':
       return {
         data: r.data,
@@ -173,6 +196,7 @@ export function descrever(tabela: string, uuid: string, dados?: Dados | null): s
     compras: `Compra ${txt(r.numero)}`,
     vendas: `Venda ${txt(r.numero)}`,
     ordens_servico: `OS ${txt(r.numero)}`,
+    contas: `Conta ${txt(r.descricao)}${num(r.parcelas) > 1 ? ` (${txt(r.parcela)}/${txt(r.parcelas)})` : ''}`,
     movimentacoes: `Movimentação: ${txt(r.motivo)}`,
     configuracoes: 'Configurações da empresa',
     recuperacao: 'Código de recuperação do administrador'
@@ -459,6 +483,35 @@ export function aplicarRemoto(tabela: TabelaSync, uuid: string, operacao: 'salva
         insP.run(id, txt(p.em), p.tipo === 'sinal' ? 'sinal' : 'pagamento', txt(p.forma), num(p.valor), txt(p.usuario), bool(p.estornado), p.estornadoEm ? txt(p.estornadoEm) : null, txt(p.motivoEstorno))
       }
       return conflito
+    }
+    case 'contas': {
+      const id = upsert(tabela, uuid, {
+        tipo: d.tipo === 'pagar' ? 'pagar' : 'receber',
+        descricao: txt(d.descricao),
+        categoria: txt(d.categoria),
+        cliente_id: d.cliente ? idDe('clientes', d.cliente, 'O cliente da conta') : null,
+        fornecedor_id: d.fornecedor ? idDe('fornecedores', d.fornecedor, 'O fornecedor da conta') : null,
+        venda_id: d.venda ? idDe('vendas', d.venda, 'A venda da conta') : null,
+        compra_id: d.compra ? idDe('compras', d.compra, 'A compra da conta') : null,
+        parcela: num(d.parcela) || 1,
+        parcelas: num(d.parcelas) || 1,
+        valor: num(d.valor),
+        vencimento: txt(d.vencimento),
+        status: ['aberta', 'paga', 'cancelada'].includes(txt(d.status)) ? txt(d.status) : 'aberta',
+        observacao: txt(d.observacao),
+        motivo_cancelamento: txt(d.motivoCancelamento),
+        usuario_id: idDe('usuarios', d.usuario, 'O usuário da conta'),
+        criado_em: txt(d.criadoEm)
+      })
+      db().prepare('DELETE FROM conta_baixas WHERE conta_id = ?').run(id)
+      const insB = db().prepare(
+        'INSERT INTO conta_baixas (conta_id, em, valor, juros, desconto, forma, usuario_nome, estornada, estornada_em, motivo_estorno) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      )
+      for (const b of (Array.isArray(d.baixas) ? d.baixas : []) as Dados[]) {
+        if (num(b.valor) <= 0) continue
+        insB.run(id, txt(b.em), num(b.valor), num(b.juros), num(b.desconto), txt(b.forma), txt(b.usuario), bool(b.estornada), b.estornadaEm ? txt(b.estornadaEm) : null, txt(b.motivoEstorno))
+      }
+      return null
     }
     case 'movimentacoes': {
       if (linhaPorUuid(tabela, uuid)) return null // já aplicada

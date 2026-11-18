@@ -89,7 +89,8 @@ export function excluir(id: number, logadoId: number): void {
   if (!u) throw new ErroNegocio('Usuário não encontrado.')
   if (u.perfil === 'admin' && u.ativo && contarAdminsAtivos(id) === 0) throw new ErroNegocio('O sistema precisa de pelo menos um administrador ativo.')
   if (db.prepare('SELECT 1 FROM movimentacoes WHERE usuario_id = ? LIMIT 1').get(id) || db.prepare('SELECT 1 FROM vendas WHERE usuario_id = ? LIMIT 1').get(id) ||
-    db.prepare('SELECT 1 FROM ordens_servico WHERE usuario_id = ? OR tecnico_id = ? LIMIT 1').get(id, id)
+    db.prepare('SELECT 1 FROM ordens_servico WHERE usuario_id = ? OR tecnico_id = ? LIMIT 1').get(id, id) ||
+    db.prepare('SELECT 1 FROM contas WHERE usuario_id = ? LIMIT 1').get(id)
   ) {
     throw new ErroNegocio('Usuário possui movimentações no histórico. Inative-o em vez de excluir.')
   }

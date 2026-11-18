@@ -27,6 +27,7 @@ import * as usuarios from './servicos/usuarios'
 import * as vendas from './servicos/vendas'
 import * as ordens from './servicos/os'
 import * as caixa from './servicos/caixa'
+import * as contas from './servicos/contas'
 import * as inventario from './servicos/inventario'
 import * as sync from './servicos/sync/motor'
 import * as atualizacao from './atualizacao'
@@ -480,7 +481,9 @@ export function registrarCanais(): void {
     // A venda e o lançamento no caixa (se aberto) acontecem juntos.
     return banco().transaction(() => {
       const v = vendas.registrar(dados, u.id)
-      caixa.lancar('venda', v.formaPagamento, totalVenda(v), `Venda ${v.numero}`, u.id)
+      // A prazo: não entra dinheiro agora — vira parcelas a receber (recebidas depois, em Contas a receber).
+      if (v.formaPagamento === 'prazo') contas.parcelasDaVenda(v, dados.parcelas, dados.primeiroVencimento!, totalVenda(v), u.id)
+      else caixa.lancar('venda', v.formaPagamento, totalVenda(v), `Venda ${v.numero}`, u.id)
       return v
     })()
   })
@@ -489,12 +492,64 @@ export function registrarCanais(): void {
     const idVenda = id(i)
     const m = s.cancelamentoSchema.parse(motivo)
     banco().transaction(() => {
+      if (vendas.buscar(idVenda).formaPagamento === 'prazo') contas.cancelarDaVenda(idVenda, m)
       vendas.cancelar(idVenda, m, u.id)
       const vc = vendas.buscar(idVenda)
-      caixa.lancar('cancelamento', vc.formaPagamento, -totalVenda(vc), `Cancelamento da venda ${vc.numero}`, u.id)
+      if (vc.formaPagamento !== 'prazo') caixa.lancar('cancelamento', vc.formaPagamento, -totalVenda(vc), `Cancelamento da venda ${vc.numero}`, u.id)
     })()
     const v = banco().prepare('SELECT numero FROM vendas WHERE id = ?').get(idVenda) as { numero: string } | undefined
     auditoria.registrar({ usuario: u, acao: 'Cancelamento', entidade: 'Venda', entidadeId: idVenda, descricao: `Venda ${v?.numero ?? idVenda} cancelada. Motivo: ${m}` })
+  })
+
+  // ---------- Contas a receber e a pagar ----------
+  const rotuloConta = (c: { tipo: string; descricao: string; parcela: number; parcelas: number }): string =>
+    `Conta a ${c.tipo === 'receber' ? 'receber' : 'pagar'} "${c.descricao}${c.parcelas > 1 ? ` (${c.parcela}/${c.parcelas})` : ''}"`
+  canal('contas:salvar', (i, d) => {
+    exigir('financeiro')
+    const u = exigir('financeiroEditar')
+    const idConta = idOuNovo(i)
+    const dados = s.contaSchema.parse(d)
+    const lista = contas.salvar(idConta, dados, u.id)
+    auditoria.registrar({
+      usuario: u,
+      acao: idConta === null ? 'Inclusão' : 'Alteração',
+      entidade: 'Conta',
+      entidadeId: lista[0].id,
+      descricao: `${rotuloConta(lista[0])}: ${lista.length > 1 ? `${lista.length} parcelas, total ` : ''}${moedaBr(lista.reduce((t, c) => t + c.valor, 0))}, vencimento ${lista[0].vencimento.split('-').reverse().join('/')}`
+    })
+    return lista
+  })
+  canal('contas:baixar', (i, d) => {
+    exigir('financeiro')
+    const u = exigir('financeiroEditar')
+    const idConta = id(i)
+    const dados = s.baixaContaSchema.parse(d)
+    const c = contas.baixar(idConta, dados, u.id)
+    const extras = [dados.juros ? `juros ${moedaBr(dados.juros)}` : '', dados.desconto ? `desconto ${moedaBr(dados.desconto)}` : ''].filter(Boolean).join(', ')
+    auditoria.registrar({
+      usuario: u,
+      acao: c.tipo === 'receber' ? 'Recebimento' : 'Pagamento',
+      entidade: 'Conta',
+      entidadeId: idConta,
+      descricao: `${rotuloConta(c)}: ${moedaBr(dados.valor)} (${rotuloFormaPagamento[dados.forma]})${extras ? ` — ${extras}` : ''}${c.status === 'paga' ? '. Quitada' : ''}`
+    })
+    return c
+  })
+  canal('contas:estornarBaixa', (i, b, m) => {
+    exigir('financeiro')
+    const u = exigir('financeiroEditar')
+    const motivo = z.string().trim().min(3, 'Informe o motivo do estorno').max(200).parse(m)
+    const c = contas.estornarBaixa(id(i), id(b), motivo, u.id)
+    auditoria.registrar({ usuario: u, acao: 'Estorno de pagamento', entidade: 'Conta', entidadeId: c.id, descricao: `${rotuloConta(c)}: pagamento estornado — ${motivo}` })
+    return c
+  })
+  canal('contas:cancelar', (i, m) => {
+    exigir('financeiro')
+    const u = exigir('financeiroExcluir')
+    const motivo = z.string().trim().min(3, 'Informe o motivo do cancelamento').max(200).parse(m)
+    const c = contas.cancelar(id(i), motivo)
+    auditoria.registrar({ usuario: u, acao: 'Cancelamento', entidade: 'Conta', entidadeId: c.id, descricao: `${rotuloConta(c)} cancelada — ${motivo}` })
+    return c
   })
 
   // ---------- Caixa ----------

@@ -1325,6 +1325,128 @@ try {
   r = await vendaCx('dinheiro', 10)
   verificar(r.ok, 'sem a exigência, vende normalmente com o caixa fechado')
 
+  // ---------- Contas a receber e a pagar ----------
+  console.log('Contas a receber e a pagar')
+  const recarregarTela = async () => {
+    await page.reload()
+    await page.waitForSelector('input[placeholder="seu.login"]')
+    await entrar(page, 'admin', 'admin123')
+    await page.getByText('Olá, Administrador').waitFor()
+  }
+  await recarregarTela()
+  // Venda a prazo pela tela, em 3 parcelas
+  await page.keyboard.press('Control+2')
+  await page.getByRole('button', { name: /Nova venda/ }).click()
+  const caixaPrazo = page.getByRole('dialog', { name: 'Nova venda' })
+  await caixaPrazo.getByLabel('Código de barras').fill('7891000100011')
+  await caixaPrazo.getByLabel('Código de barras').press('Enter')
+  await caixaPrazo.getByLabel('Preço de Mouse USB').fill('90')
+  await escolher(caixaPrazo.getByLabel('Forma de pagamento'), 'A prazo (fiado/parcelado)')
+  await caixaPrazo.getByRole('button', { name: /Finalizar venda/ }).click()
+  await caixaPrazo.getByText('Venda a prazo precisa de um cliente cadastrado.').first().waitFor()
+  verificar(true, 'venda a prazo exige cliente cadastrado')
+  await escolher(caixaPrazo.getByLabel('Cliente'), 'João Pereira — 123.456.789-00')
+  await escolher(caixaPrazo.getByLabel('Parcelas', { exact: true }), '3x')
+  verificar((await caixaPrazo.getByLabel('Parcelas da venda').locator('li').count()) === 3, 'mostra as 3 parcelas com vencimento e valor antes de finalizar')
+  await foto(page, '30-venda-a-prazo')
+  await caixaPrazo.getByRole('button', { name: /Finalizar venda/ }).click()
+  await page.getByText(/Venda V-\d+ registrada/).waitFor()
+  await page.keyboard.press('Escape')
+  dados = (await ipc(page, 'dados:carregar')).dados
+  const vendaPrazo = dados.vendas.filter((v) => v.formaPagamento === 'prazo').at(-1)
+  let parcelasV = dados.contas.filter((c) => c.vendaId === vendaPrazo.id).sort((a, b) => a.parcela - b.parcela)
+  verificar(
+    parcelasV.length === 3 && parcelasV.every((c) => c.tipo === 'receber' && c.status === 'aberta' && c.clienteId === 1 && c.valor === 30) && parcelasV[1].vencimento > parcelasV[0].vencimento,
+    `venda a prazo gera 3 parcelas a receber de R$ 30,00, mensais (${parcelasV.map((c) => c.vencimento).join(', ')})`
+  )
+  r = await ipc(page, 'vendas:registrar', { clienteId: null, formaPagamento: 'prazo', parcelas: 2, primeiroVencimento: '2026-12-20', desconto: 0, observacao: '', itens: [{ produtoId: 1, quantidade: 1, valorUnitario: 10 }] })
+  verificar(!r.ok && r.erro.campo === 'clienteId', 'o processo principal também recusa venda a prazo sem cliente')
+
+  // Receber a 1ª parcela pela tela
+  await page.getByRole('link', { name: 'Contas a receber' }).click()
+  await page.getByRole('heading', { name: 'Contas a receber', exact: true }).waitFor()
+  await page.getByRole('row', { name: new RegExp(`Venda ${vendaPrazo.numero} \\(1/3\\)`) }).getByRole('button', { name: 'Receber' }).click()
+  const janelaBaixa = page.getByRole('dialog', { name: new RegExp(`^Receber — Venda ${vendaPrazo.numero}`) })
+  await escolher(janelaBaixa.getByLabel('Forma de pagamento'), 'Pix')
+  await foto(page, '31-receber-parcela')
+  await janelaBaixa.getByRole('button', { name: 'Confirmar recebimento' }).click()
+  await page.getByText(/Recebido R\$\s30,00/).waitFor()
+  r = await ipc(page, 'contas:baixar', parcelasV[1].id, { valor: 10, juros: 2, desconto: 0, forma: 'dinheiro' })
+  verificar(r.ok && r.dados.status === 'aberta' && r.dados.baixas[0].juros === 2, 'recebimento parcial com juros deixa a parcela em aberto')
+  r = await ipc(page, 'contas:baixar', parcelasV[1].id, { valor: 50, juros: 0, desconto: 0, forma: 'pix' })
+  verificar(!r.ok && r.erro.mensagem.includes('maior que o saldo'), 'não recebe mais do que o saldo da parcela')
+  dados = (await ipc(page, 'dados:carregar')).dados
+  parcelasV = dados.contas.filter((c) => c.vendaId === vendaPrazo.id).sort((a, b) => a.parcela - b.parcela)
+  verificar(parcelasV[0].status === 'paga' && parcelasV[0].baixas[0].forma === 'pix', 'pela tela: 1ª parcela recebida no Pix e quitada')
+  // Cancelar venda com parcela recebida: precisa estornar antes
+  r = await ipc(page, 'vendas:cancelar', vendaPrazo.id, 'Devolução')
+  verificar(!r.ok && r.erro.mensagem.includes('Estorne os recebimentos'), 'venda a prazo com parcela recebida não é cancelada sem estornar')
+  await ipc(page, 'contas:estornarBaixa', parcelasV[0].id, parcelasV[0].baixas[0].id, 'Devolução do produto')
+  await ipc(page, 'contas:estornarBaixa', parcelasV[1].id, parcelasV[1].baixas[0].id, 'Devolução do produto')
+  r = await ipc(page, 'vendas:cancelar', vendaPrazo.id, 'Devolução')
+  dados = (await ipc(page, 'dados:carregar')).dados
+  verificar(r.ok && dados.contas.filter((c) => c.vendaId === vendaPrazo.id).every((c) => c.status === 'cancelada'), 'estornados os recebimentos, cancelar a venda cancela as parcelas')
+
+  // Contas a pagar: aluguel em 3 parcelas pela tela
+  await recarregarTela()
+  await page.getByRole('link', { name: 'Contas a pagar' }).click()
+  await page.getByRole('heading', { name: 'Contas a pagar', exact: true }).waitFor()
+  await page.keyboard.press('Control+n')
+  const janelaConta = page.getByRole('dialog', { name: 'Nova conta a pagar' })
+  await janelaConta.getByLabel(/^Descrição/).fill('Aluguel da loja')
+  await janelaConta.getByLabel('Categoria').fill('Aluguel')
+  await janelaConta.getByLabel(/^Parcelas/).fill('3')
+  await janelaConta.getByLabel(/^Valor total/).fill('1200')
+  await janelaConta.getByText('3 parcelas mensais:').waitFor()
+  await foto(page, '32-nova-conta-pagar')
+  await janelaConta.getByRole('button', { name: 'Salvar' }).click()
+  await page.getByText('3 parcelas lançadas.').waitFor()
+  dados = (await ipc(page, 'dados:carregar')).dados
+  const aluguel = dados.contas.filter((c) => c.descricao === 'Aluguel da loja')
+  verificar(aluguel.length === 3 && aluguel.every((c) => c.tipo === 'pagar' && c.valor === 400 && c.categoria === 'Aluguel'), 'conta a pagar em 3 parcelas mensais de R$ 400,00')
+  // Pagar em dinheiro com o caixa aberto: sai da gaveta (e não pode passar do que há nela)
+  await ipc(page, 'caixa:abrir', 50)
+  r = await ipc(page, 'contas:baixar', aluguel[0].id, { valor: 400, juros: 0, desconto: 0, forma: 'dinheiro' })
+  verificar(!r.ok && r.erro.mensagem.includes('em dinheiro no caixa'), 'pagar em dinheiro mais do que há na gaveta é recusado')
+  r = await ipc(page, 'contas:baixar', aluguel[0].id, { valor: 30, juros: 0, desconto: 0, forma: 'dinheiro' })
+  await ipc(page, 'contas:baixar', aluguel[0].id, { valor: 370, juros: 0, desconto: 0, forma: 'pix' })
+  cx = (await ipc(page, 'caixa:estado')).dados
+  verificar(r.ok && cx.esperado.dinheiro === 20 && cx.esperado.pix === 0 && cx.lancamentos.some((l) => l.tipo === 'conta_pagar' && l.valor === -30), 'pagamento em dinheiro sai do caixa; em Pix, não mexe no caixa')
+  await ipc(page, 'caixa:fechar', { dinheiro: 20 }, '')
+  dados = (await ipc(page, 'dados:carregar')).dados
+  verificar(dados.contas.find((c) => c.id === aluguel[0].id).status === 'paga', 'conta paga em duas formas fica quitada')
+  r = await ipc(page, 'contas:cancelar', aluguel[0].id, 'Teste')
+  verificar(!r.ok && r.erro.mensagem.includes('estorne-o'), 'conta com pagamento não é cancelada sem estornar')
+  r = await ipc(page, 'contas:cancelar', aluguel[2].id, 'Contrato encerrado')
+  verificar(r.ok && r.dados.status === 'cancelada', 'conta sem pagamento é cancelada com motivo (fica no histórico)')
+  // Conta de uma compra e proteções de exclusão
+  const compraConta = (await ipc(page, 'compras:salvar', null, { fornecedorId: 1, data: '2026-11-15', observacao: '', status: 'pedido', itens: [{ produtoId: 2, quantidade: 2, valorUnitario: 50 }] })).dados
+  r = await ipc(page, 'contas:salvar', null, { tipo: 'pagar', descricao: `Compra ${compraConta.numero}`, categoria: 'Fornecedores', clienteId: null, fornecedorId: 1, compraId: compraConta.id, valor: 100, vencimento: '2026-01-05', parcelas: 1, observacao: '' })
+  const contaCompra = r.dados?.[0]
+  verificar(r.ok && contaCompra.compraId === compraConta.id, 'conta a pagar ligada à compra')
+  r = await ipc(page, 'compras:excluir', compraConta.id)
+  verificar(!r.ok && r.erro.mensagem.includes('conta a pagar'), 'compra com conta a pagar não é excluída')
+  notif = (await ipc(page, 'notificacoes:listar')).dados
+  verificar(notif.some((n) => n.chave.startsWith('contas-pagar:') && n.titulo.includes('vencida')), 'conta a pagar vencida aparece no sino')
+  const cliConta = (await ipc(page, 'clientes:salvar', null, { nome: 'Cliente Fiado', tipo: 'PF', documento: '741.852.963-00', telefone: '', email: '', cidade: '', uf: '', ativo: true })).dados
+  await ipc(page, 'contas:salvar', null, { tipo: 'receber', descricao: 'Serviço avulso', categoria: 'Serviços', clienteId: cliConta.id, fornecedorId: null, compraId: null, valor: 50, vencimento: '2026-12-30', parcelas: 1, observacao: '' })
+  r = await ipc(page, 'clientes:excluir', cliConta.id)
+  verificar(!r.ok && r.erro.mensagem.includes('contas a receber'), 'cliente com contas a receber não é excluído')
+  // OS entregue com valor em aberto aparece nas contas a receber e é recebida por lá
+  await ipc(page, 'os:status', osCx.id, 'entregue', '', { pagamentos: [], entregarComSaldo: true })
+  await recarregarTela()
+  await page.getByRole('link', { name: 'Contas a receber' }).click()
+  await page.getByRole('row', { name: new RegExp(`OS ${osCx.numero}`) }).getByRole('button', { name: 'Receber' }).click()
+  const janelaOsCx = page.getByRole('dialog', { name: `Receber — OS ${osCx.numero}` })
+  await escolher(janelaOsCx.getByLabel('Forma de pagamento'), 'Dinheiro')
+  await janelaOsCx.getByRole('button', { name: 'Confirmar recebimento' }).click()
+  await page.getByText(/Recebido R\$\s60,00/).waitFor()
+  dados = (await ipc(page, 'dados:carregar')).dados
+  verificar(dados.ordensServico.find((o) => o.id === osCx.id).pagamentos.reduce((t, p) => t + p.valor, 0) === 80, 'OS entregue com saldo aparece em Contas a receber e é quitada por lá')
+  aud = (await ipc(page, 'auditoria:listar', { entidade: 'Conta' })).dados
+  verificar(['Inclusão', 'Recebimento', 'Pagamento', 'Estorno de pagamento', 'Cancelamento'].every((a) => aud.itens.some((x) => x.acao === a)), 'lançamentos, recebimentos, pagamentos, estornos e cancelamentos ficam na auditoria')
+  await ipc(page, 'contas:cancelar', contaCompra.id, 'Fim do teste')
+
   // ---------- Backup externo ----------
   console.log('Backup fora do computador')
   verificar((await ipc(page, 'backupExterno:estado')).dados.pasta === null, 'começa sem backup externo configurado')

@@ -3,6 +3,8 @@ import {
   ClipboardCheck,
   Boxes,
   FileBarChart,
+  HandCoins,
+  Landmark,
   LayoutDashboard,
   Package,
   Receipt,
@@ -37,8 +39,15 @@ export const menu: GrupoMenu[] = [
     itens: [
       { caminho: '/', titulo: 'Início', icone: LayoutDashboard, recurso: 'dashboard' },
       { caminho: '/vendas', titulo: 'Vendas', icone: Receipt, recurso: 'vendas' },
-      { caminho: '/caixa', titulo: 'Caixa', icone: Wallet, recurso: 'caixa' },
       { caminho: '/os', titulo: 'Ordens de Serviço', icone: Wrench, recurso: 'os' }
+    ]
+  },
+  {
+    titulo: 'Financeiro',
+    itens: [
+      { caminho: '/caixa', titulo: 'Caixa', icone: Wallet, recurso: 'caixa' },
+      { caminho: '/financeiro/receber', titulo: 'Contas a receber', icone: HandCoins, recurso: 'financeiro' },
+      { caminho: '/financeiro/pagar', titulo: 'Contas a pagar', icone: Landmark, recurso: 'financeiro' }
     ]
   },
   {

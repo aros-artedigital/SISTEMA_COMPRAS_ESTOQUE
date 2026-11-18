@@ -17,6 +17,7 @@ final class Regras
         'compras' => ['numero', 'fornecedor', 'data', 'status', 'itens'],
         'vendas' => ['numero', 'data', 'status', 'formaPagamento', 'usuario', 'itens'],
         'ordens_servico' => ['numero', 'cliente', 'status', 'dataEntrada', 'usuario'],
+        'contas' => ['tipo', 'descricao', 'valor', 'vencimento', 'status', 'usuario'],
         'movimentacoes' => ['data', 'produto', 'tipo', 'quantidade', 'usuario'],
         'configuracoes' => ['nomeEmpresa'],
         'recuperacao' => ['codigoHash'],
@@ -46,6 +47,9 @@ final class Regras
         }
         if ($tabela === 'ordens_servico' && !in_array($dados['status'], ['aberta', 'em_analise', 'aguardando_aprovacao', 'em_execucao', 'pronta', 'entregue', 'cancelada'], true)) {
             return 'Status de ordem de serviço inválido';
+        }
+        if ($tabela === 'contas' && (!in_array($dados['tipo'], ['receber', 'pagar'], true) || !in_array($dados['status'], ['aberta', 'paga', 'cancelada'], true))) {
+            return 'Conta inválida';
         }
         return null;
     }

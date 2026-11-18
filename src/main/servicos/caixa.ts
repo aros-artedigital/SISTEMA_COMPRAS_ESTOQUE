@@ -83,6 +83,12 @@ export function resumo(id: number): CaixaResumo {
   }
 }
 
+/** Dinheiro esperado na gaveta do caixa aberto (null = caixa fechado). */
+export function dinheiroNaGaveta(): number | null {
+  const s = aberta()
+  return s ? resumo(s.id).esperado.dinheiro : null
+}
+
 export function estado(): CaixaResumo | null {
   const s = aberta()
   return s ? resumo(s.id) : null
@@ -119,7 +125,7 @@ export function historico(): CaixaSessaoResumo[] {
   const linhas = db().prepare(`SELECT * FROM caixa_sessoes ORDER BY id DESC LIMIT 200`).all() as map.Linha[]
   return linhas.map((s) => {
     const r = resumo(s.id)
-    const entradas = r.lancamentos.filter((l) => l.tipo === 'venda' || l.tipo === 'os').reduce((t, l) => t + l.valor, 0)
+    const entradas = r.lancamentos.filter((l) => l.tipo === 'venda' || l.tipo === 'os' || l.tipo === 'conta_receber').reduce((t, l) => t + l.valor, 0)
     const devolucoes = r.lancamentos.filter((l) => l.tipo === 'cancelamento' || l.tipo === 'estorno').reduce((t, l) => t + l.valor, 0)
     const diferenca = r.contado ? centavos(FORMAS.reduce((t, f) => t + (r.contado![f] ?? 0) - (r.esperado[f] ?? 0), 0)) : null
     return { id: r.id, numero: r.numero, status: r.status, abertoEm: r.abertoEm, abertoPor: r.abertoPor, fechadoEm: r.fechadoEm, fechadoPor: r.fechadoPor, recebido: centavos(entradas + devolucoes), diferenca }

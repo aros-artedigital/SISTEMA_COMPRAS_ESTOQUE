@@ -175,7 +175,7 @@ export default function Caixa() {
 
 function CaixaAberto({ caixa: c }: { caixa: CaixaResumo }) {
   const formas = FORMAS_CAIXA.filter((f) => f === 'dinheiro' || c.esperado[f])
-  const recebido = c.lancamentos.filter((l) => l.tipo !== 'sangria' && l.tipo !== 'suprimento').reduce((t, l) => t + l.valor, 0)
+  const recebido = c.lancamentos.filter((l) => l.tipo !== 'sangria' && l.tipo !== 'suprimento' && l.tipo !== 'conta_pagar').reduce((t, l) => t + l.valor, 0)
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">

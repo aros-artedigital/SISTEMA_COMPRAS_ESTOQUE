@@ -15,7 +15,9 @@ import type {
   HistoricoOS,
   PagamentoOS,
   AssinaturaOS,
-  FotoOS
+  FotoOS,
+  Conta,
+  BaixaConta
 } from '@shared/tipos'
 import { limparPermissoes } from '@shared/permissoes'
 
@@ -212,3 +214,37 @@ export function agoraIso(d = new Date()): string {
   const pad = (n: number): string => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
+
+export const baixaConta = (r: Linha): BaixaConta => ({
+  id: r.id,
+  em: r.em,
+  valor: r.valor,
+  juros: r.juros,
+  desconto: r.desconto,
+  forma: r.forma,
+  usuario: r.usuario_nome,
+  estornada: !!r.estornada,
+  estornadaEm: r.estornada_em ?? null,
+  motivoEstorno: r.motivo_estorno
+})
+
+export const conta = (r: Linha, baixas: BaixaConta[]): Conta => ({
+  id: r.id,
+  tipo: r.tipo,
+  descricao: r.descricao,
+  categoria: r.categoria,
+  clienteId: r.cliente_id ?? null,
+  fornecedorId: r.fornecedor_id ?? null,
+  vendaId: r.venda_id ?? null,
+  compraId: r.compra_id ?? null,
+  parcela: r.parcela,
+  parcelas: r.parcelas,
+  valor: r.valor,
+  vencimento: r.vencimento,
+  status: r.status,
+  observacao: r.observacao,
+  motivoCancelamento: r.motivo_cancelamento,
+  usuarioId: r.usuario_id,
+  criadoEm: r.criado_em,
+  baixas
+})

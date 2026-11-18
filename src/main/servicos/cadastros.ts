@@ -86,6 +86,9 @@ export function salvarFornecedor(id: number | null, d: z.output<typeof fornecedo
 
 export function excluirFornecedor(id: number): void {
   const db = banco()
+  if (db.prepare('SELECT 1 FROM contas WHERE fornecedor_id = ? LIMIT 1').get(id)) {
+    throw new ErroNegocio('Fornecedor possui contas a pagar. Inative-o em vez de excluir.')
+  }
   if (db.prepare('SELECT 1 FROM compras WHERE fornecedor_id = ? LIMIT 1').get(id)) {
     throw new ErroNegocio('Fornecedor possui compras registradas. Inative-o em vez de excluir.')
   }
@@ -108,6 +111,9 @@ export function salvarCliente(id: number | null, d: z.output<typeof clienteSchem
 export function excluirCliente(id: number): void {
   if (banco().prepare('SELECT 1 FROM vendas WHERE cliente_id = ? LIMIT 1').get(id)) {
     throw new ErroNegocio('Cliente possui vendas registradas. Inative-o em vez de excluir.')
+  }
+  if (banco().prepare('SELECT 1 FROM contas WHERE cliente_id = ? LIMIT 1').get(id)) {
+    throw new ErroNegocio('Cliente possui contas a receber. Inative-o em vez de excluir.')
   }
   if (banco().prepare('SELECT 1 FROM ordens_servico WHERE cliente_id = ? LIMIT 1').get(id)) {
     throw new ErroNegocio('Cliente possui ordens de serviço registradas. Inative-o em vez de excluir.')

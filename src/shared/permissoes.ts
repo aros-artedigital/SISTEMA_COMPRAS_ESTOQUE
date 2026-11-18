@@ -9,6 +9,9 @@ export type Recurso =
   | 'vendas'
   | 'vendasCancelar'
   | 'caixa'
+  | 'financeiro'
+  | 'financeiroEditar'
+  | 'financeiroExcluir'
   | 'produtos'
   | 'produtosEditar'
   | 'produtosExcluir'
@@ -41,6 +44,9 @@ export const TODOS_RECURSOS: Recurso[] = [
   'vendas',
   'vendasCancelar',
   'caixa',
+  'financeiro',
+  'financeiroEditar',
+  'financeiroExcluir',
   'produtos',
   'produtosEditar',
   'produtosExcluir',
@@ -73,7 +79,7 @@ export const TODOS_RECURSOS: Recurso[] = [
 export const SO_ADMIN: Recurso[] = ['usuarios', 'configuracoes', 'auditoria']
 
 /** Áreas com "ver / cadastrar e editar / excluir" separados. */
-export type Area = 'produtos' | 'cadastros' | 'compras' | 'fornecedores' | 'clientes' | 'os'
+export type Area = 'produtos' | 'cadastros' | 'compras' | 'fornecedores' | 'clientes' | 'os' | 'financeiro'
 export const editar = (a: Area): Recurso => `${a}Editar` as Recurso
 export const excluir = (a: Area): Recurso => `${a}Excluir` as Recurso
 const area = (a: Area): Recurso[] => [a, editar(a), excluir(a)]
@@ -121,6 +127,7 @@ export const GRUPOS_PERMISSAO: { tela: string; ver: Recurso; editar?: Recurso; e
   { tela: 'Início (painel)', ver: 'dashboard' },
   { tela: 'Vendas', ver: 'vendas', extras: [{ recurso: 'vendasCancelar', nome: 'Cancelar vendas' }] },
   { tela: 'Caixa', ver: 'caixa' },
+  { tela: 'Contas a receber e a pagar', ver: 'financeiro', editar: 'financeiroEditar', excluir: 'financeiroExcluir' },
   { tela: 'Ordens de Serviço', ver: 'os', editar: 'osEditar', excluir: 'osExcluir', extras: [{ recurso: 'osSenha', nome: 'Ver senha do equipamento' }] },
   { tela: 'Produtos', ver: 'produtos', editar: 'produtosEditar', excluir: 'produtosExcluir' },
   { tela: 'Categorias e Unidades', ver: 'cadastros', editar: 'cadastrosEditar', excluir: 'cadastrosExcluir' },

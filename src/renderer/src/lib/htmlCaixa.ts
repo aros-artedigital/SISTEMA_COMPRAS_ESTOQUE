@@ -9,7 +9,16 @@ import { escapar } from './relatorio'
 
 export const FORMAS_CAIXA: FormaPagamento[] = ['dinheiro', 'pix', 'debito', 'credito', 'boleto', 'outro']
 
-export const rotuloLancamento = { venda: 'Venda', os: 'OS', cancelamento: 'Cancelamento', estorno: 'Estorno', sangria: 'Sangria', suprimento: 'Suprimento' } as const
+export const rotuloLancamento = {
+  venda: 'Venda',
+  os: 'OS',
+  cancelamento: 'Cancelamento',
+  estorno: 'Estorno',
+  sangria: 'Sangria',
+  suprimento: 'Suprimento',
+  conta_receber: 'Conta recebida',
+  conta_pagar: 'Conta paga'
+} as const
 
 export function htmlFechamento(c: CaixaResumo, empresa: string): string {
   const e = (v: string): string => escapar(v)
@@ -49,6 +58,8 @@ export function htmlFechamento(c: CaixaResumo, empresa: string): string {
     <tr><td>Troco inicial</td><td class="num">${e(fmt.moeda(c.troco))}</td></tr>
     <tr><td>Vendas</td><td class="num">${e(fmt.moeda(soma('venda')))}</td></tr>
     <tr><td>Recebimentos de OS</td><td class="num">${e(fmt.moeda(soma('os')))}</td></tr>
+    <tr><td>Contas recebidas</td><td class="num">${e(fmt.moeda(soma('conta_receber')))}</td></tr>
+    <tr><td>Contas pagas (dinheiro)</td><td class="num">${e(fmt.moeda(soma('conta_pagar')))}</td></tr>
     <tr><td>Cancelamentos/estornos</td><td class="num">${e(fmt.moeda(soma('cancelamento') + soma('estorno')))}</td></tr>
     <tr><td>Suprimentos</td><td class="num">${e(fmt.moeda(soma('suprimento')))}</td></tr>
     <tr><td>Sangrias</td><td class="num">${e(fmt.moeda(soma('sangria')))}</td></tr>

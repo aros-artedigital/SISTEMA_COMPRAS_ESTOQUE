@@ -39,6 +39,9 @@ export function carregar(): Snapshot {
   const pagamentosOS = agrupar('SELECT * FROM os_pagamentos ORDER BY id', map.pagamentoOS)
   const assinaturasOS = agrupar('SELECT * FROM os_assinaturas ORDER BY id', map.assinaturaOS)
 
+  const baixas = new Map<number, ReturnType<typeof map.baixaConta>[]>()
+  for (const r of todas('SELECT * FROM conta_baixas ORDER BY id')) baixas.set(r.conta_id, [...(baixas.get(r.conta_id) ?? []), map.baixaConta(r)])
+
   return {
     usuarios: todas('SELECT * FROM usuarios ORDER BY nome').map(map.usuario),
     categorias: todas('SELECT * FROM categorias ORDER BY nome').map(map.categoria),
@@ -52,6 +55,7 @@ export function carregar(): Snapshot {
     ordensServico: todas('SELECT o.*, (SELECT COUNT(*) FROM os_fotos f WHERE f.os_id = o.id) AS qtd_fotos FROM ordens_servico o ORDER BY o.id').map((r) =>
       map.ordemServico(r, itensOS.get(r.id) ?? [], historicoOS.get(r.id) ?? [], pagamentosOS.get(r.id) ?? [], assinaturasOS.get(r.id) ?? [])
     ),
+    contas: todas('SELECT * FROM contas ORDER BY vencimento, id').map((r) => map.conta(r, baixas.get(r.id) ?? [])),
     configuracoes: lerConfiguracoes()
   }
 }

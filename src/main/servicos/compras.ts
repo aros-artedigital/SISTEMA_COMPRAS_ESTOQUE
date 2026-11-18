@@ -168,5 +168,8 @@ export function excluir(id: number): void {
   if (compra.status === 'recebida' || compra.itens.some((i) => (i.quantidadeRecebida ?? 0) > 0)) {
     throw new ErroNegocio('Compras recebidas (mesmo em parte) não podem ser excluídas, pois já geraram movimentação de estoque.')
   }
+  if (banco().prepare('SELECT 1 FROM contas WHERE compra_id = ? LIMIT 1').get(id)) {
+    throw new ErroNegocio('Esta compra tem conta a pagar lançada. Cancele a conta (Contas a pagar) e cancele a compra em vez de excluir.')
+  }
   banco().prepare('DELETE FROM compras WHERE id = ?').run(id) // itens saem por ON DELETE CASCADE
 }

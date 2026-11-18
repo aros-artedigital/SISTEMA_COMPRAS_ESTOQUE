@@ -142,6 +142,16 @@ Usuários de demonstração (só em desenvolvimento):
   impressão/PDF, no Excel nem no texto da auditoria. Ao editar a OS, a senha atual é mantida (há "Trocar" e
   "Remover"). Por padrão é apagada quando a OS é entregue ou cancelada (Configurações → Segurança). Com sincronização,
   a senha vai para o servidor junto com a OS, para o técnico de outro terminal poder vê-la.
+- **Contas a receber e a pagar** (menu Financeiro): cada parcela é uma conta, com vencimento, situação (a vencer,
+  vence hoje, vencida, paga, cancelada), quadros de em aberto / vencidas / vencem em 7 dias / recebido ou pago no mês,
+  filtros, Excel e detalhes. **A receber:** vendas **a prazo** (nova forma de pagamento na venda: cliente obrigatório,
+  1 a 12 parcelas mensais com prévia de datas e valores, impressas no recibo), contas avulsas e as OS entregues com
+  valor em aberto. **A pagar:** despesas (aluguel, energia...) e contas de compras (ao escolher a compra, preenche
+  fornecedor e valor), em uma ou várias parcelas. Recebimento/pagamento parcial ou total, com juros/multa e desconto;
+  estorno com motivo; cancelamento com motivo (nada é apagado). Recebimentos entram no caixa aberto; pagamentos só
+  quando saem em dinheiro da gaveta (e não podem passar do que há nela). Cancelar uma venda a prazo cancela as
+  parcelas (as já recebidas precisam ser estornadas antes). Avisos no sino de contas vencidas. Sincroniza entre
+  terminais; permissões próprias (ver, lançar/baixar, cancelar) — o operador não tem por padrão.
 - **Caixa do dia** (menu Caixa; cada computador tem o seu, não sincroniza): abertura com o troco, lançamento
   automático de vendas, cancelamentos, recebimentos e estornos de OS, sangria (não deixa tirar mais do que há em
   dinheiro) e suprimento. O quadro mostra o dinheiro que deve haver na gaveta e o total de cada forma de pagamento.

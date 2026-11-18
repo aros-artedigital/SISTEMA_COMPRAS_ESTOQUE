@@ -12,7 +12,8 @@ export function htmlRecibo(v: Venda, db: Snapshot): string {
   const cliente = v.clienteId ? db.clientes.find((c) => c.id === v.clienteId) : null
   const vendedor = db.usuarios.find((u) => u.id === v.usuarioId)?.nome ?? ''
   const produto = (id: number) => db.produtos.find((p) => p.id === id)
-  const altura = 120 + v.itens.length * 9 + (v.status === 'cancelada' ? 12 : 0)
+  const parcelas = db.contas.filter((c) => c.vendaId === v.id).sort((a, b) => a.parcela - b.parcela)
+  const altura = 120 + v.itens.length * 9 + (v.status === 'cancelada' ? 12 : 0) + (parcelas.length ? 8 + parcelas.length * 5 : 0)
 
   const linhas = v.itens
     .map((i) => {
@@ -58,6 +59,7 @@ export function htmlRecibo(v: Venda, db: Snapshot): string {
     <tr class="total"><td>TOTAL</td><td class="num">${escapar(fmt.moeda(totalVenda(v)))}</td></tr>
     <tr><td>Pagamento</td><td class="num">${escapar(rotuloFormaPagamento[v.formaPagamento])}</td></tr>
   </table>
+  ${parcelas.length ? `<hr><div>Parcelas:</div><table>${parcelas.map((c) => `<tr><td>${c.parcela}/${c.parcelas} vence ${escapar(fmt.data(c.vencimento))}</td><td class="num">${escapar(fmt.moeda(c.valor))}</td></tr>`).join('')}</table>` : ''}
   ${v.observacao ? `<hr><div>${escapar(v.observacao)}</div>` : ''}
   <hr>
   <div class="centro rodape">Obrigado pela preferência!<br>Documento sem valor fiscal</div>

@@ -128,6 +128,42 @@ function calcular(u: Usuario): Omit<Notificacao, 'lida'>[] {
     }
   }
 
+  // Contas vencidas (a receber) e vencidas ou vencendo hoje (a pagar).
+  if (pode(u, 'financeiro')) {
+    const hoje = agoraIso().slice(0, 10)
+    const brl = (v: number): string => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
+    const abertas = db
+      .prepare(
+        `SELECT c.id, c.tipo, c.vencimento, c.valor - COALESCE((SELECT SUM(b.valor) FROM conta_baixas b WHERE b.conta_id = c.id AND b.estornada = 0), 0) AS saldo
+         FROM contas c WHERE c.status = 'aberta' AND c.vencimento <= ?`
+      )
+      .all(hoje) as { id: number; tipo: string; vencimento: string; saldo: number }[]
+    const receber = abertas.filter((c) => c.tipo === 'receber' && c.vencimento < hoje)
+    const pagar = abertas.filter((c) => c.tipo === 'pagar')
+    // A chave inclui as contas: se aparecer outra vencida, o aviso volta como não lido.
+    if (receber.length) {
+      lista.push({
+        chave: `contas-receber-vencidas:${receber.map((c) => c.id).join(',')}`,
+        tipo: 'aviso',
+        categoria: 'Financeiro',
+        titulo: `${receber.length} conta(s) a receber vencida(s)`,
+        mensagem: `Total em atraso: ${brl(receber.reduce((t, c) => t + c.saldo, 0))}.`,
+        link: '/financeiro/receber?filtro=vencidas'
+      })
+    }
+    if (pagar.length) {
+      const vencidas = pagar.filter((c) => c.vencimento < hoje).length
+      lista.push({
+        chave: `contas-pagar:${pagar.map((c) => c.id).join(',')}`,
+        tipo: vencidas ? 'erro' : 'aviso',
+        categoria: 'Financeiro',
+        titulo: vencidas ? `${pagar.length} conta(s) a pagar vencida(s) ou vencendo hoje` : `${pagar.length} conta(s) a pagar vencem hoje`,
+        mensagem: `Total: ${brl(pagar.reduce((t, c) => t + c.saldo, 0))}.`,
+        link: '/financeiro/pagar?filtro=vencidas'
+      })
+    }
+  }
+
   // Caixa esquecido aberto (aberto num dia anterior).
   if (pode(u, 'caixa')) {
     const cx = db.prepare(`SELECT id, numero, aberto_em FROM caixa_sessoes WHERE status = 'aberto'`).get() as { id: number; numero: string; aberto_em: string } | undefined
