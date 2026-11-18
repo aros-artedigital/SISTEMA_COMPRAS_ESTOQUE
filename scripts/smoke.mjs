@@ -1153,6 +1153,48 @@ try {
   const ficha5 = page.getByRole('dialog', { name: `Ordem de serviço ${os5.numero}` })
   await ficha5.waitFor()
   verificar(await ficha5.getByText(/Em garantia até/).isVisible(), 'leitor/Enter na busca abre a ficha, que também mostra o histórico do aparelho')
+  // Assinatura do cliente na tela (entrada), desenhada com o mouse
+  const quadroAss = ficha5.getByLabel('Assinaturas do cliente')
+  const assinarCom = async (janela) => {
+    const caixaAss = await janela.getByLabel('Quadro de assinatura').boundingBox()
+    await page.mouse.move(caixaAss.x + 40, caixaAss.y + caixaAss.height * 0.6)
+    await page.mouse.down()
+    for (const [fx, fy] of [[0.25, 0.3], [0.4, 0.7], [0.55, 0.35], [0.75, 0.65]]) await page.mouse.move(caixaAss.x + caixaAss.width * fx, caixaAss.y + caixaAss.height * fy, { steps: 6 })
+    await page.mouse.up()
+  }
+  await quadroAss.getByRole('button', { name: 'Colher assinatura' }).nth(1).click()
+  const janelaRet = page.getByRole('dialog', { name: `Assinatura na retirada — OS ${os5.numero}` })
+  await janelaRet.getByRole('button', { name: 'Salvar assinatura' }).click()
+  await janelaRet.getByText('Peça para o cliente assinar no quadro.').waitFor()
+  verificar(true, 'não salva assinatura em branco')
+  await janelaRet.getByRole('button', { name: 'Cancelar' }).click()
+  await quadroAss.getByRole('button', { name: 'Colher assinatura' }).first().click()
+  const janelaEnt = page.getByRole('dialog', { name: `Assinatura na entrada — OS ${os5.numero}` })
+  await assinarCom(janelaEnt)
+  await foto(page, '27-os-assinatura')
+  await janelaEnt.getByRole('button', { name: 'Salvar assinatura' }).click()
+  await page.getByText(`Assinatura na entrada gravada na OS ${os5.numero}.`).waitFor()
+  dados = (await ipc(page, 'dados:carregar')).dados
+  let assin = dados.ordensServico.find((o) => o.id === os5.id).assinaturas
+  verificar(assin.length === 1 && assin[0].tipo === 'entrada' && assin[0].nome === 'João Pereira' && assin[0].imagem.startsWith('data:image/png;base64,') && assin[0].imagem.length < 100_000, `assinatura de entrada gravada como imagem pequena (${assin[0]?.imagem.length} caracteres)`)
+  r = await ipc(page, 'os:assinar', os2.id, { tipo: 'entrada', nome: 'Teste', imagem: assin[0].imagem })
+  verificar(!r.ok && r.erro.mensagem.includes('cancelada'), 'OS cancelada não recebe assinatura')
+
+  // Fotos: do arquivo (reduzida para JPEG) e da câmera
+  const PNG_1PX = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
+  await ficha5.getByLabel('Escolher fotos').setInputFiles({ name: 'tela-trincada.png', mimeType: 'image/png', buffer: Buffer.from(PNG_1PX, 'base64') })
+  await page.getByText('Foto adicionada.').waitFor()
+  await ficha5.getByLabel('Fotos do equipamento').getByRole('img', { name: 'tela-trincada' }).waitFor()
+  let fotosOs = (await ipc(page, 'os:fotos', os5.id)).dados
+  const fotoCheia = (await ipc(page, 'os:foto', fotosOs[0].id)).dados
+  verificar(fotosOs.length === 1 && fotosOs[0].legenda === 'tela-trincada' && fotoCheia.startsWith('data:image/jpeg;base64,'), 'foto adicionada do arquivo, convertida em JPEG, com miniatura e legenda')
+  r = await ipc(page, 'os:adicionarFoto', os5.id, { imagem: 'data:image/png;base64,AAAA', miniatura: 'data:image/png;base64,AAAA', legenda: '' })
+  verificar(!r.ok && r.erro.tipo === 'validacao', 'o processo principal recusa imagem fora do formato')
+  await ficha5.getByRole('button', { name: 'Tirar foto' }).click()
+  const janelaCam = page.getByRole('dialog', { name: 'Tirar foto do equipamento' })
+  await janelaCam.waitFor()
+  verificar(true, 'a janela da câmera abre (sem câmera, explica como usar fotos do arquivo)')
+  await janelaCam.getByRole('button', { name: 'Concluir' }).click()
   await ficha5.getByRole('button', { name: 'Receber', exact: true }).click()
   const painelPag = ficha5.getByLabel('Pagamento da OS')
   await escolher(painelPag.getByLabel('Forma de pagamento 1'), 'Pix')
@@ -1171,6 +1213,22 @@ try {
     os5d.status === 'entregue' && os5d.pagamentos.length === 2 && os5d.pagamentos.map((p) => `${p.forma}:${p.valor}`).join(',') === 'pix:30,dinheiro:70',
     'pela ficha: recebe parte no Pix e o restante em dinheiro na entrega'
   )
+  verificar(os5d.qtdFotos === 1, 'a lista sabe quantas fotos a OS tem')
+  // Assinatura de retirada, por outra pessoa
+  await quadroAss.getByRole('button', { name: 'Colher assinatura' }).click()
+  await assinarCom(janelaRet)
+  await janelaRet.getByLabel('Nome de quem assina').fill('Maria Pereira (filha)')
+  await janelaRet.getByRole('button', { name: 'Salvar assinatura' }).click()
+  await page.getByText(`Assinatura na retirada gravada na OS ${os5.numero}.`).waitFor()
+  assin = (await ipc(page, 'dados:carregar')).dados.ordensServico.find((o) => o.id === os5.id).assinaturas
+  verificar(assin.length === 2 && assin.find((a) => a.tipo === 'retirada')?.nome === 'Maria Pereira (filha)', 'assinatura de retirada colhida, com o nome de quem retirou')
+  await aoSalvar(join(pasta, 'os-assinada.pdf'))
+  await ficha5.getByRole('button', { name: 'PDF' }).click()
+  verificar((await esperarArquivo(join(pasta, 'os-assinada.pdf'))) && ehPdf(join(pasta, 'os-assinada.pdf')), 'OS em PDF com as assinaturas')
+  await ipc(page, 'os:excluirFoto', fotosOs[0].id)
+  fotosOs = (await ipc(page, 'os:fotos', os5.id)).dados
+  aud = (await ipc(page, 'auditoria:listar', { entidade: 'Ordem de serviço' })).dados
+  verificar(fotosOs.length === 0 && ['Assinatura', 'Foto adicionada', 'Foto excluída'].every((acao) => aud.itens.some((a) => a.acao === acao)), 'excluir foto funciona; assinaturas e fotos ficam na auditoria')
   await aoSalvar(join(pasta, 'etiqueta-os.pdf'))
   await ficha5.getByRole('button', { name: 'Etiqueta' }).click()
   await page.getByRole('dialog', { name: `Etiqueta da OS ${os5.numero}` }).getByRole('button', { name: 'PDF' }).click()

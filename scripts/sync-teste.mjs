@@ -310,6 +310,9 @@ try {
   verificar(osB.numero.startsWith('OS-B'), `número da OS inclui o terminal (${osB.numero})`)
   await B.ok('os:status', osB.id, 'pronta', 'Tela trocada')
   await B.ok('os:receber', osB.id, [{ forma: 'pix', valor: 60 }])
+  const PNG_1PX = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
+  await B.ok('os:assinar', osB.id, { tipo: 'entrada', nome: 'Cliente do B', imagem: PNG_1PX })
+  await B.ok('os:adicionarFoto', osB.id, { imagem: 'data:image/jpeg;base64,/9j/AA==', miniatura: 'data:image/jpeg;base64,/9j/AA==', legenda: 'só em B' })
   await B.sync()
   await A.sync()
   dA = await A.dados()
@@ -321,6 +324,8 @@ try {
   verificar(dA.movimentacoes.some((m) => m.osId === osEmA?.id && m.tipo === 'saida'), 'em A, a baixa da peça fica ligada à OS')
   verificar((await A.ok('os:verSenha', osEmA.id)).valor === '7-4-1-2-3', 'a senha do equipamento cadastrada em B pode ser vista em A')
   verificar(osEmA.pagamentos.length === 1 && osEmA.pagamentos[0].valor === 60, 'o pagamento recebido em B chega em A')
+  verificar(osEmA.assinaturas.length === 1 && osEmA.assinaturas[0].nome === 'Cliente do B' && osEmA.assinaturas[0].imagem === PNG_1PX, 'a assinatura colhida em B chega em A')
+  verificar(osEmA.qtdFotos === 0 && (await B.dados()).ordensServico.find((o) => o.id === osB.id).qtdFotos === 1, 'a foto fica só no terminal que a tirou (não sincroniza)')
   await A.ok('os:status', osEmA.id, 'entregue', '', { pagamentos: [{ forma: 'dinheiro', valor: 100 }] })
   await A.sync()
   await B.sync()

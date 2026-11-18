@@ -23,6 +23,7 @@ import type {
   OrdemServico,
   Produto,
   Unidade,
+  FotoOS,
   SenhaOS,
   StatusOS,
   FormaPagamento,
@@ -112,6 +113,15 @@ export interface Canais {
   'os:excluir': Canal<[id: number], void>
   /** Salva a página da OS para o cliente (.html); null se o usuário cancelar. */
   'os:salvarArquivoCliente': Canal<[id: number, html: string], string | null>
+  /** Assinatura do cliente na tela (entrada ou retirada); substitui a anterior do mesmo tipo. */
+  'os:assinar': Canal<[id: number, dados: { tipo: 'entrada' | 'retirada'; nome: string; imagem: string }], OrdemServico>
+  'os:removerAssinatura': Canal<[id: number, tipo: 'entrada' | 'retirada'], OrdemServico>
+  /** Fotos do equipamento (só as miniaturas). */
+  'os:fotos': Canal<[id: number], FotoOS[]>
+  /** Foto inteira (data URL JPEG). */
+  'os:foto': Canal<[fotoId: number], string>
+  'os:adicionarFoto': Canal<[id: number, dados: { imagem: string; miniatura: string; legenda: string }], FotoOS>
+  'os:excluirFoto': Canal<[fotoId: number], void>
   /** Lê a senha do equipamento (permissão "Ver senha do equipamento"; cada leitura vai para a auditoria). */
   'os:verSenha': Canal<[id: number], SenhaOS>
   /** Muda o status (registra no histórico). Pronta/entregue dá baixa nas peças; reabrir ou cancelar devolve. */

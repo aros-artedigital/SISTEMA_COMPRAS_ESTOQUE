@@ -176,6 +176,25 @@ export interface PagamentoOS {
   motivoEstorno: string
 }
 
+/** Assinatura do cliente desenhada na tela: na entrega do aparelho (entrada) e na retirada. */
+export interface AssinaturaOS {
+  tipo: 'entrada' | 'retirada'
+  /** Nome de quem assinou (pode ser outra pessoa retirando pelo cliente). */
+  nome: string
+  /** PNG em data URL. */
+  imagem: string
+  em: string
+}
+
+/** Foto do equipamento (a lista traz só a miniatura; a imagem inteira é lida à parte). */
+export interface FotoOS {
+  id: number
+  em: string
+  legenda: string
+  miniatura: string
+  usuario: string
+}
+
 export interface HistoricoOS {
   em: string // ISO com hora
   status: StatusOS
@@ -215,6 +234,9 @@ export interface OrdemServico {
   itens: ItemOS[]
   historico: HistoricoOS[]
   pagamentos: PagamentoOS[]
+  assinaturas: AssinaturaOS[]
+  /** Quantas fotos a OS tem neste terminal (as fotos não sincronizam). */
+  qtdFotos: number
 }
 
 export interface Configuracoes {

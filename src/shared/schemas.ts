@@ -264,3 +264,15 @@ export const pagamentosOsSchema = z.array(pagamentoOsSchema).min(1, 'Informe o v
 export const opcoesStatusOsSchema = z
   .object({ pagamentos: z.array(pagamentoOsSchema).max(5).default([]), entregarComSaldo: z.boolean().default(false) })
   .default({})
+
+export const assinaturaOsSchema = z.object({
+  tipo: z.enum(['entrada', 'retirada']),
+  nome: z.string().trim().min(2, 'Informe o nome de quem assinou').max(100),
+  imagem: z.string().regex(/^data:image\/png;base64,[A-Za-z0-9+/=]+$/, 'Assinatura inválida').max(100_000, 'Assinatura grande demais')
+})
+
+export const fotoOsSchema = z.object({
+  imagem: z.string().regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/, 'Imagem inválida').max(6_000_000, 'Foto grande demais'),
+  miniatura: z.string().regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/, 'Miniatura inválida').max(300_000),
+  legenda: z.string().trim().max(120).default('')
+})

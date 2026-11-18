@@ -114,6 +114,13 @@ Usuários de demonstração (só em desenvolvimento):
   aberto exige confirmação ("Entregar com valor a receber") e gera aviso no sino até ser quitado; filtro "Com valor a
   receber" na lista. Pagamentos não são apagados: são estornados com motivo. Recebido e saldo aparecem na impressão e no
   arquivo do cliente; tudo vai para a auditoria e é sincronizado.
+- **Assinatura do cliente na tela** (ficha da OS): na entrada do equipamento e na retirada (esta quando a OS está
+  pronta ou entregue, com o nome de quem retira). Assina-se com o mouse, o dedo (tela de toque) ou caneta de mesa
+  digitalizadora (a pressão engrossa o traço). Fica gravada como imagem pequena, sai na impressão/PDF da OS sobre a
+  linha de assinatura, é sincronizada e cada assinatura (ou remoção) vai para a auditoria.
+- **Fotos do equipamento** (ficha da OS): do arquivo (JPG, PNG, WEBP — várias de uma vez) ou da câmera do computador
+  (webcam/câmera USB, com escolha da câmera). São reduzidas (até 1600 px, JPEG) com miniatura, até 20 por OS; clique para
+  ampliar. Ficam no banco deste computador (entram no backup), mas **não sincronizam** com os outros terminais.
 - **Histórico do aparelho e garantia**: ao digitar o nº de série/IMEI na OS, o sistema mostra as OS anteriores do mesmo
   aparelho e avisa se ele ainda está na garantia (com a data em que termina) — também na ficha.
 - **Etiqueta da OS**: número grande, cliente, equipamento e código de barras do número (rolo 50 × 30 mm ou folhas A4).

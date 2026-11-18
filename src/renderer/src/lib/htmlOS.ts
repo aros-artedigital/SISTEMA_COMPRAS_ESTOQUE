@@ -21,6 +21,13 @@ export function htmlOS(o: OrdemServico, db: Snapshot): string {
         .join(' — ')
     : ''
 
+  const entrada = o.assinaturas.find((a) => a.tipo === 'entrada')
+  const retirada = o.assinaturas.find((a) => a.tipo === 'retirada')
+  // A imagem vem do próprio sistema (PNG validado no processo principal).
+  const assinatura = (a: (typeof o.assinaturas)[number] | undefined, nome: string, rotulo: string): string =>
+    `<div>${a && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(a.imagem) ? `<img src="${a.imagem}" alt="">` : '<div class="vazio"></div>'}<div class="linha">${e(a?.nome ?? nome)}<small>${e(rotulo)}${
+      a ? ` · ${e(fmt.dataHora(a.em))}` : ''
+    }</small></div></div>`
   const campo = (rotulo: string, valor: string): string => (valor ? `<div class="campo"><span>${e(rotulo)}</span>${valor}</div>` : '')
   const bloco = (titulo: string, texto: string): string => (texto.trim() ? `<h3>${e(titulo)}</h3><p class="texto">${quebras(texto)}</p>` : '')
 
@@ -62,8 +69,11 @@ export function htmlOS(o: OrdemServico, db: Snapshot): string {
   .totais td { border: none; padding: 2px 4px; }
   .totais .total td { font-size: 12pt; font-weight: 700; border-top: 1.5px solid #1e293b; padding-top: 4px; }
   .garantia { margin-top: 12px; font-size: 8.5pt; color: #334155; border-top: 1px dashed #94a3b8; padding-top: 6px; }
-  .assinaturas { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 40px; text-align: center; font-size: 8.5pt; color: #475569; }
-  .assinaturas div { border-top: 1px solid #1e293b; padding-top: 4px; }
+  .assinaturas { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 28px; text-align: center; font-size: 8.5pt; color: #475569; align-items: end; }
+  .assinaturas .linha { border-top: 1px solid #1e293b; padding-top: 4px; }
+  .assinaturas img { display: block; height: 16mm; max-width: 100%; margin: 0 auto -2mm; object-fit: contain; }
+  .assinaturas .vazio { height: 12mm; }
+  .assinaturas small { display: block; color: #94a3b8; font-size: 7.5pt; }
   .cancelada { margin-top: 10px; border: 2px solid #b91c1c; color: #b91c1c; text-align: center; font-weight: 700; padding: 6px; border-radius: 6px; }
 </style></head><body>
   <div class="topo">
@@ -135,8 +145,9 @@ export function htmlOS(o: OrdemServico, db: Snapshot): string {
   <div class="garantia">${e(garantia)}</div>
 
   <div class="assinaturas">
-    <div>${e(cliente?.nome ?? 'Cliente')}</div>
-    <div>${e(empresa.nomeEmpresa)}</div>
+    ${assinatura(entrada, cliente?.nome ?? 'Cliente', 'Entrada do equipamento')}
+    <div><div class="vazio"></div><div class="linha">${e(empresa.nomeEmpresa)}</div></div>
   </div>
+  ${retirada ? `<div class="assinaturas">${assinatura(retirada, retirada.nome, 'Retirada do equipamento')}<div></div></div>` : ''}
 </body></html>`
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Check, FileDown, FileSpreadsheet, History, KeyRound, Lock, Pencil, Plus, Printer, Send, ShieldCheck, Tag, Trash2, Wrench } from 'lucide-react'
+import { Camera, Check, FileDown, FileSpreadsheet, History, KeyRound, Lock, Pencil, Plus, Printer, Send, ShieldCheck, Tag, Trash2, Wrench } from 'lucide-react'
 import { alterar, useDb } from '@/data/store'
 import { useToast } from '@/contexts/ToastContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -14,6 +14,8 @@ import { AcoesLote } from '@/components/AcoesLote'
 import { EditorSenha, erroSenha, VerSenha } from '@/components/SenhaEquipamento'
 import { EnviarClienteOS } from '@/components/EnviarClienteOS'
 import { EtiquetaOSModal } from '@/components/EtiquetaOSModal'
+import { AssinaturasOS } from '@/components/AssinaturaOS'
+import { FotosOS } from '@/components/FotosOS'
 import { lerPagamentos, LinhasPagamento, novaLinhaPagamento, PainelPagamentos, type LinhaPagamento } from '@/components/PagamentosOS'
 import {
   corStatusOS,
@@ -294,6 +296,7 @@ export default function OrdensServico() {
           <p className="flex items-center gap-1 truncate text-slate-800">
             {descreverEquipamento(o)}
             {o.senhaTipo !== 'nenhuma' && <Lock size={12} className="shrink-0 text-slate-400" aria-label="Tem senha cadastrada" />}
+            {o.qtdFotos > 0 && <Camera size={12} className="shrink-0 text-slate-400" aria-label={`${o.qtdFotos} foto(s)`} />}
           </p>
           <p className="truncate text-xs text-slate-500">{o.defeito}</p>
         </div>
@@ -886,6 +889,8 @@ function FichaOS({ os: o, onFechar, onEditar, onAbrir }: { os: OrdemServico; onF
           )}
           {o.observacao && <p className="text-sm text-slate-600">Observações: {o.observacao}</p>}
           <PainelPagamentos os={o} />
+          <AssinaturasOS os={o} />
+          <FotosOS os={o} />
         </div>
 
         <aside className="space-y-4">
@@ -941,6 +946,9 @@ function FichaOS({ os: o, onFechar, onEditar, onAbrir }: { os: OrdemServico; onF
                   <p className="text-xs text-red-700">Esta OS tem {fmt.moeda(pagoOS(o))} recebidos: devolva ao cliente e estorne os pagamentos.</p>
                 )}
                 {aviso && <p className="text-xs text-amber-800">{aviso}</p>}
+                {novo === 'entregue' && !o.assinaturas.some((a) => a.tipo === 'retirada') && (
+                  <p className="text-xs text-slate-600">Depois de entregar, colha a assinatura de retirada no quadro "Assinaturas do cliente".</p>
+                )}
                 {(novo === 'entregue' || novo === 'cancelada') && o.senhaTipo !== 'nenhuma' && db.configuracoes.apagarSenhaOs && (
                   <p className="text-xs text-slate-600">A senha do equipamento será apagada (o aparelho volta para o cliente).</p>
                 )}

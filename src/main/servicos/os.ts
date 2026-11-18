@@ -1,7 +1,7 @@
 import type { z } from 'zod'
 import type { osEntradaSchema } from '@shared/schemas'
 import { osEmAndamento, pagoOS, proximosStatusOS, rotuloStatusOS, saldoOS, totalOS } from '@shared/dominio'
-import type { FormaPagamento, OrdemServico, SenhaOS, StatusOS } from '@shared/tipos'
+import type { FormaPagamento, FotoOS, OrdemServico, SenhaOS, StatusOS } from '@shared/tipos'
 import { banco } from '../db/conexao'
 import { ErroNegocio } from '../erros'
 import { lerConfiguracoes } from './dados'
@@ -18,12 +18,13 @@ type DadosOS = z.output<typeof osEntradaSchema>
 
 export function buscar(id: number): OrdemServico {
   const db = banco()
-  const linha = db.prepare('SELECT * FROM ordens_servico WHERE id = ?').get(id) as map.Linha | undefined
+  const linha = db.prepare('SELECT o.*, (SELECT COUNT(*) FROM os_fotos f WHERE f.os_id = o.id) AS qtd_fotos FROM ordens_servico o WHERE o.id = ?').get(id) as map.Linha | undefined
   if (!linha) throw new ErroNegocio('Ordem de serviço não encontrada.')
   const itens = (db.prepare('SELECT * FROM os_itens WHERE os_id = ? ORDER BY id').all(id) as map.Linha[]).map(map.itemOS)
   const historico = (db.prepare('SELECT * FROM os_historico WHERE os_id = ? ORDER BY id').all(id) as map.Linha[]).map(map.historicoOS)
   const pagamentos = (db.prepare('SELECT * FROM os_pagamentos WHERE os_id = ? ORDER BY id').all(id) as map.Linha[]).map(map.pagamentoOS)
-  return map.ordemServico(linha, itens, historico, pagamentos)
+  const assinaturas = (db.prepare('SELECT * FROM os_assinaturas WHERE os_id = ? ORDER BY id').all(id) as map.Linha[]).map(map.assinaturaOS)
+  return map.ordemServico(linha, itens, historico, pagamentos, assinaturas)
 }
 
 /** OS-0001, ou OS-A0001 com sincronização (o código do terminal evita números repetidos). */
@@ -226,4 +227,60 @@ export function excluir(id: number): void {
     throw new ErroNegocio('Esta OS já movimentou o estoque (peças usadas). Cancele-a em vez de excluir.')
   }
   db.prepare('DELETE FROM ordens_servico WHERE id = ?').run(id) // itens e histórico saem por ON DELETE CASCADE
+}
+
+// ---------- Assinaturas ----------
+
+export function assinar(id: number, d: { tipo: 'entrada' | 'retirada'; nome: string; imagem: string }): OrdemServico {
+  const db = banco()
+  return db.transaction(() => {
+    const o = buscar(id)
+    if (o.status === 'cancelada') throw new ErroNegocio('OS cancelada não recebe assinatura.')
+    if (d.tipo === 'retirada' && o.status !== 'pronta' && o.status !== 'entregue') {
+      throw new ErroNegocio('A assinatura de retirada é colhida quando o equipamento está pronto ou é entregue.')
+    }
+    db.prepare('DELETE FROM os_assinaturas WHERE os_id = ? AND tipo = ?').run(id, d.tipo)
+    db.prepare('INSERT INTO os_assinaturas (os_id, tipo, nome, imagem, em) VALUES (?, ?, ?, ?, ?)').run(id, d.tipo, d.nome, d.imagem, map.agoraIso())
+    return buscar(id)
+  })()
+}
+
+export function removerAssinatura(id: number, tipo: 'entrada' | 'retirada'): OrdemServico {
+  const n = banco().prepare('DELETE FROM os_assinaturas WHERE os_id = ? AND tipo = ?').run(id, tipo).changes
+  if (!n) throw new ErroNegocio('Assinatura não encontrada.')
+  return buscar(id)
+}
+
+// ---------- Fotos (só neste terminal) ----------
+
+const MAXIMO_FOTOS = 20
+
+export function listarFotos(id: number): FotoOS[] {
+  buscar(id)
+  return (banco().prepare('SELECT id, os_id, em, legenda, miniatura, usuario_nome FROM os_fotos WHERE os_id = ? ORDER BY id').all(id) as map.Linha[]).map(map.fotoOS)
+}
+
+export function foto(fotoId: number): { osId: number; imagem: string } {
+  const r = banco().prepare('SELECT os_id, imagem FROM os_fotos WHERE id = ?').get(fotoId) as map.Linha | undefined
+  if (!r) throw new ErroNegocio('Foto não encontrada.')
+  return { osId: r.os_id, imagem: map.imagemFoto(r) }
+}
+
+const binario = (dataUrl: string): Buffer => Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64')
+
+export function adicionarFoto(id: number, d: { imagem: string; miniatura: string; legenda: string }, usuarioId: number): FotoOS {
+  const db = banco()
+  const o = buscar(id)
+  if (o.qtdFotos >= MAXIMO_FOTOS) throw new ErroNegocio(`Cada OS pode ter até ${MAXIMO_FOTOS} fotos.`)
+  const r = db
+    .prepare('INSERT INTO os_fotos (os_id, em, legenda, imagem, miniatura, usuario_nome) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(id, map.agoraIso(), d.legenda, binario(d.imagem), binario(d.miniatura), nomeUsuario(usuarioId))
+  return map.fotoOS(db.prepare('SELECT id, os_id, em, legenda, miniatura, usuario_nome FROM os_fotos WHERE id = ?').get(Number(r.lastInsertRowid)) as map.Linha)
+}
+
+export function excluirFoto(fotoId: number): number {
+  const r = banco().prepare('SELECT os_id FROM os_fotos WHERE id = ?').get(fotoId) as { os_id: number } | undefined
+  if (!r) throw new ErroNegocio('Foto não encontrada.')
+  banco().prepare('DELETE FROM os_fotos WHERE id = ?').run(fotoId)
+  return r.os_id
 }

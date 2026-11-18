@@ -290,6 +290,43 @@ export function registrarCanais(): void {
     auditoria.registrar({ usuario: u, acao: 'Arquivo para o cliente', entidade: 'Ordem de serviço', entidadeId: o.id, descricao: `Gerou o arquivo da OS ${o.numero} para o cliente (${basename(destino)})` })
     return destino
   })
+  const rotuloAssinatura = { entrada: 'entrada', retirada: 'retirada' } as const
+  canal('os:assinar', (i, d) => {
+    const u = exigir('osEditar')
+    const idOs = id(i)
+    const dados = s.assinaturaOsSchema.parse(d)
+    const o = ordens.assinar(idOs, dados)
+    auditoria.registrar({ usuario: u, acao: 'Assinatura', entidade: 'Ordem de serviço', entidadeId: idOs, descricao: `OS ${o.numero}: assinatura de ${rotuloAssinatura[dados.tipo]} colhida (${dados.nome})` })
+    return o
+  })
+  canal('os:removerAssinatura', (i, t) => {
+    const u = exigir('osEditar')
+    const idOs = id(i)
+    const tipo = z.enum(['entrada', 'retirada']).parse(t)
+    const o = ordens.removerAssinatura(idOs, tipo)
+    auditoria.registrar({ usuario: u, acao: 'Assinatura removida', entidade: 'Ordem de serviço', entidadeId: idOs, descricao: `OS ${o.numero}: assinatura de ${rotuloAssinatura[tipo]} removida` })
+    return o
+  })
+  canal('os:fotos', (i) => {
+    exigir('os')
+    return ordens.listarFotos(id(i))
+  })
+  canal('os:foto', (fid) => {
+    exigir('os')
+    return ordens.foto(id(fid)).imagem
+  })
+  canal('os:adicionarFoto', (i, d) => {
+    const u = exigir('osEditar')
+    const idOs = id(i)
+    const f = ordens.adicionarFoto(idOs, s.fotoOsSchema.parse(d), u.id)
+    auditoria.registrar({ usuario: u, acao: 'Foto adicionada', entidade: 'Ordem de serviço', entidadeId: idOs, descricao: `OS ${ordens.buscar(idOs).numero}: foto do equipamento${f.legenda ? ` (${f.legenda})` : ''}` })
+    return f
+  })
+  canal('os:excluirFoto', (fid) => {
+    const u = exigir('osEditar')
+    const idOs = ordens.excluirFoto(id(fid))
+    auditoria.registrar({ usuario: u, acao: 'Foto excluída', entidade: 'Ordem de serviço', entidadeId: idOs, descricao: `OS ${ordens.buscar(idOs).numero}: foto do equipamento excluída` })
+  })
   canal('os:verSenha', (i) => {
     const u = exigir('osSenha')
     const idOs = id(i)

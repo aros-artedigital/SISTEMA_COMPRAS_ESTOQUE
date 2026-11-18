@@ -13,7 +13,9 @@ import type {
   OrdemServico,
   ItemOS,
   HistoricoOS,
-  PagamentoOS
+  PagamentoOS,
+  AssinaturaOS,
+  FotoOS
 } from '@shared/tipos'
 import { limparPermissoes } from '@shared/permissoes'
 
@@ -140,7 +142,7 @@ export const venda = (r: Linha, itens: ItemVenda[]): Venda => ({
 
 export const itemVenda = (r: Linha): ItemVenda => ({ produtoId: r.produto_id, quantidade: r.quantidade, valorUnitario: r.valor_unitario })
 
-export const ordemServico = (r: Linha, itens: ItemOS[], historico: HistoricoOS[], pagamentos: PagamentoOS[] = []): OrdemServico => ({
+export const ordemServico = (r: Linha, itens: ItemOS[], historico: HistoricoOS[], pagamentos: PagamentoOS[] = [], assinaturas: AssinaturaOS[] = []): OrdemServico => ({
   id: r.id,
   numero: r.numero,
   clienteId: r.cliente_id,
@@ -167,7 +169,9 @@ export const ordemServico = (r: Linha, itens: ItemOS[], historico: HistoricoOS[]
   usuarioId: r.usuario_id,
   itens,
   historico,
-  pagamentos
+  pagamentos,
+  assinaturas,
+  qtdFotos: r.qtd_fotos ?? 0
 })
 
 export const itemOS = (r: Linha): ItemOS => ({
@@ -189,6 +193,12 @@ export const pagamentoOS = (r: Linha): PagamentoOS => ({
   estornadoEm: r.estornado_em ?? null,
   motivoEstorno: r.motivo_estorno
 })
+
+export const assinaturaOS = (r: Linha): AssinaturaOS => ({ tipo: r.tipo, nome: r.nome, imagem: r.imagem, em: r.em })
+
+const dataUrlJpeg = (b: Buffer): string => `data:image/jpeg;base64,${b.toString('base64')}`
+export const fotoOS = (r: Linha): FotoOS => ({ id: r.id, em: r.em, legenda: r.legenda, miniatura: dataUrlJpeg(r.miniatura), usuario: r.usuario_nome })
+export const imagemFoto = (r: Linha): string => dataUrlJpeg(r.imagem)
 
 export const historicoOS = (r: Linha): HistoricoOS => ({ em: r.em, status: r.status, usuario: r.usuario_nome, observacao: r.observacao })
 

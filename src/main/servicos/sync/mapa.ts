@@ -111,6 +111,7 @@ export function montarDados(tabela: TabelaSync, uuid: string): Dados | null {
       const itens = db().prepare('SELECT * FROM os_itens WHERE os_id = ? ORDER BY id').all(r.id) as Linha[]
       const historico = db().prepare('SELECT * FROM os_historico WHERE os_id = ? ORDER BY id').all(r.id) as Linha[]
       const pagamentos = db().prepare('SELECT * FROM os_pagamentos WHERE os_id = ? ORDER BY id').all(r.id) as Linha[]
+      const assinaturas = db().prepare('SELECT * FROM os_assinaturas WHERE os_id = ? ORDER BY id').all(r.id) as Linha[]
       return {
         numero: r.numero,
         cliente: uuidDe('clientes', r.cliente_id),
@@ -138,6 +139,7 @@ export function montarDados(tabela: TabelaSync, uuid: string): Dados | null {
         usuario: uuidDe('usuarios', r.usuario_id),
         itens: itens.map((i) => ({ tipo: i.tipo, produto: uuidDe('produtos', i.produto_id), descricao: i.descricao, quantidade: i.quantidade, valorUnitario: i.valor_unitario })),
         historico: historico.map((h) => ({ em: h.em, status: h.status, usuario: h.usuario_nome, observacao: h.observacao })),
+        assinaturas: assinaturas.map((a) => ({ tipo: a.tipo, nome: a.nome, imagem: a.imagem, em: a.em })),
         pagamentos: pagamentos.map((p) => ({ em: p.em, tipo: p.tipo, forma: p.forma, valor: p.valor, usuario: p.usuario_nome, estornado: !!p.estornado, estornadoEm: p.estornado_em, motivoEstorno: p.motivo_estorno }))
       }
     }
@@ -443,6 +445,13 @@ export function aplicarRemoto(tabela: TabelaSync, uuid: string, operacao: 'salva
       db().prepare('DELETE FROM os_historico WHERE os_id = ?').run(id)
       const insH = db().prepare('INSERT INTO os_historico (os_id, em, status, usuario_nome, observacao) VALUES (?, ?, ?, ?, ?)')
       for (const h of historico) insH.run(id, txt(h.em), txt(h.status), txt(h.usuario), txt(h.observacao))
+      db().prepare('DELETE FROM os_assinaturas WHERE os_id = ?').run(id)
+      const insA = db().prepare('INSERT INTO os_assinaturas (os_id, tipo, nome, imagem, em) VALUES (?, ?, ?, ?, ?)')
+      for (const a of (Array.isArray(d.assinaturas) ? d.assinaturas : []) as Dados[]) {
+        const tipo = a.tipo === 'retirada' ? 'retirada' : 'entrada'
+        if (!/^data:image\/png;base64,/.test(txt(a.imagem))) continue
+        insA.run(id, tipo, txt(a.nome), txt(a.imagem), txt(a.em))
+      }
       db().prepare('DELETE FROM os_pagamentos WHERE os_id = ?').run(id)
       const insP = db().prepare('INSERT INTO os_pagamentos (os_id, em, tipo, forma, valor, usuario_nome, estornado, estornado_em, motivo_estorno) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
       for (const p of (Array.isArray(d.pagamentos) ? d.pagamentos : []) as Dados[]) {
