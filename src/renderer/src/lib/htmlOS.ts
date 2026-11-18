@@ -1,5 +1,5 @@
 import type { Snapshot } from '@shared/api'
-import { descreverEquipamento, rotuloStatusOS, subtotalOS, totalOS } from '@shared/dominio'
+import { descreverEquipamento, pagoOS, rotuloStatusOS, saldoOS, subtotalOS, totalOS } from '@shared/dominio'
 import * as fmt from '@shared/format'
 import type { OrdemServico } from '@shared/tipos'
 import { escapar } from './relatorio'
@@ -125,6 +125,7 @@ export function htmlOS(o: OrdemServico, db: Snapshot): string {
     <tr><td>Subtotal</td><td class="num">${e(fmt.moeda(subtotalOS(o)))}</td></tr>
     ${o.desconto ? `<tr><td>Desconto</td><td class="num">- ${e(fmt.moeda(o.desconto))}</td></tr>` : ''}
     <tr class="total"><td>Total</td><td class="num">${e(fmt.moeda(totalOS(o)))}</td></tr>
+    ${pagoOS(o) > 0 ? `<tr><td>Recebido</td><td class="num">${e(fmt.moeda(pagoOS(o)))}</td></tr><tr><td><strong>Falta pagar</strong></td><td class="num"><strong>${e(fmt.moeda(saldoOS(o)))}</strong></td></tr>` : ''}
   </table>`
       : ''
   }

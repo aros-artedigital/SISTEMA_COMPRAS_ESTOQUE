@@ -12,7 +12,8 @@ import type {
   ItemVenda,
   OrdemServico,
   ItemOS,
-  HistoricoOS
+  HistoricoOS,
+  PagamentoOS
 } from '@shared/tipos'
 import { limparPermissoes } from '@shared/permissoes'
 
@@ -139,7 +140,7 @@ export const venda = (r: Linha, itens: ItemVenda[]): Venda => ({
 
 export const itemVenda = (r: Linha): ItemVenda => ({ produtoId: r.produto_id, quantidade: r.quantidade, valorUnitario: r.valor_unitario })
 
-export const ordemServico = (r: Linha, itens: ItemOS[], historico: HistoricoOS[]): OrdemServico => ({
+export const ordemServico = (r: Linha, itens: ItemOS[], historico: HistoricoOS[], pagamentos: PagamentoOS[] = []): OrdemServico => ({
   id: r.id,
   numero: r.numero,
   clienteId: r.cliente_id,
@@ -165,7 +166,8 @@ export const ordemServico = (r: Linha, itens: ItemOS[], historico: HistoricoOS[]
   entregueEm: r.entregue_em ?? null,
   usuarioId: r.usuario_id,
   itens,
-  historico
+  historico,
+  pagamentos
 })
 
 export const itemOS = (r: Linha): ItemOS => ({
@@ -174,6 +176,18 @@ export const itemOS = (r: Linha): ItemOS => ({
   descricao: r.descricao,
   quantidade: r.quantidade,
   valorUnitario: r.valor_unitario
+})
+
+export const pagamentoOS = (r: Linha): PagamentoOS => ({
+  id: r.id,
+  em: r.em,
+  tipo: r.tipo,
+  forma: r.forma,
+  valor: r.valor,
+  usuario: r.usuario_nome,
+  estornado: !!r.estornado,
+  estornadoEm: r.estornado_em ?? null,
+  motivoEstorno: r.motivo_estorno
 })
 
 export const historicoOS = (r: Linha): HistoricoOS => ({ em: r.em, status: r.status, usuario: r.usuario_nome, observacao: r.observacao })

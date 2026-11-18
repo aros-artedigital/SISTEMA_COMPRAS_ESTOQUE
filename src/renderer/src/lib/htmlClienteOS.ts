@@ -1,5 +1,5 @@
 import type { Snapshot } from '@shared/api'
-import { descreverEquipamento, ETAPAS_OS, rotuloStatusOS, subtotalOS, totalOS } from '@shared/dominio'
+import { descreverEquipamento, ETAPAS_OS, fimGarantia, pagoOS, rotuloStatusOS, saldoOS, subtotalOS, totalOS } from '@shared/dominio'
 import * as fmt from '@shared/format'
 import { coresDoTema } from '@shared/temas'
 import type { OrdemServico, StatusOS } from '@shared/tipos'
@@ -25,14 +25,6 @@ export function mensagemStatusCliente(o: OrdemServico): string {
     cancelada: 'Esta ordem de serviço foi cancelada.'
   }
   return msgs[o.status]
-}
-
-/** Data em que a garantia termina (conta da entrega). */
-export function fimGarantia(o: OrdemServico): string | null {
-  if (!o.entregueEm || o.garantiaDias <= 0) return null
-  const d = new Date(`${o.entregueEm.slice(0, 10)}T12:00:00`)
-  d.setDate(d.getDate() + o.garantiaDias)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 /** Telefone para o link do WhatsApp: só dígitos, com o 55 do Brasil quando faltar. */
@@ -157,6 +149,7 @@ export function htmlClienteOS(o: OrdemServico, db: Snapshot, geradoEm = new Date
       ${itens}
       ${o.desconto ? `<tr class="sub"><td>Subtotal</td><td class="num">${e(fmt.moeda(subtotalOS(o)))}</td></tr><tr class="sub"><td>Desconto</td><td class="num">- ${e(fmt.moeda(o.desconto))}</td></tr>` : ''}
       <tr class="total"><td>Total</td><td class="num">${e(fmt.moeda(totalOS(o)))}</td></tr>
+      ${pagoOS(o) > 0 && !cancelada ? `<tr class="sub"><td>Já pago</td><td class="num">${e(fmt.moeda(pagoOS(o)))}</td></tr><tr class="sub"><td><strong>Falta pagar</strong></td><td class="num"><strong>${e(fmt.moeda(saldoOS(o)))}</strong></td></tr>` : ''}
     </table>
   </section>`
       : ''
@@ -190,6 +183,7 @@ export function mensagemWhatsApp(o: OrdemServico, db: Snapshot): string {
     `Sua ordem de serviço *${o.numero}* (${descreverEquipamento(o)}) está: *${rotuloStatusOS[o.status]}*.`,
     mensagemStatusCliente(o),
     o.itens.length ? `Total: ${fmt.moeda(totalOS(o))}.` : '',
+    saldoOS(o) > 0 && pagoOS(o) > 0 && o.status !== 'cancelada' ? `Já pago: ${fmt.moeda(pagoOS(o))}. Falta pagar: ${fmt.moeda(saldoOS(o))}.` : '',
     'Envio em anexo o arquivo com todos os detalhes.'
   ]
   return partes.filter(Boolean).join('\n')

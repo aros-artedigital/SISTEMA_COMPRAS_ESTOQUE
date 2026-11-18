@@ -1,4 +1,5 @@
 import type { Compra, FormaPagamento, OrdemServico, Produto, StatusCompra, StatusOS, StatusVenda, TipoMovimentacao, TipoSenhaOS, Venda } from '@shared/tipos'
+import { hojeIso } from './format'
 
 // Regras e rótulos do domínio compartilhados entre telas.
 
@@ -125,3 +126,43 @@ export const rotuloSenhaOS: Record<TipoSenhaOS, string> = {
 
 /** Desenho guardado ("1-5-9-6") → pontos [1, 5, 9, 6]. */
 export const pontosDoDesenho = (valor: string): number[] => (valor ? valor.split('-').map(Number).filter((n) => n >= 1 && n <= 9) : [])
+
+/** Quanto já foi recebido (sem os pagamentos estornados). */
+export const pagoOS = (o: Pick<OrdemServico, 'pagamentos'>): number =>
+  Math.round(o.pagamentos.filter((p) => !p.estornado).reduce((s, p) => s + p.valor, 0) * 100) / 100
+
+/** Quanto falta receber. */
+export const saldoOS = (o: Pick<OrdemServico, 'itens' | 'desconto' | 'pagamentos'>): number => Math.max(0, Math.round((totalOS(o) - pagoOS(o)) * 100) / 100)
+
+/** Entregue (ou pronta) com valor ainda a receber. */
+export const osComSaldo = (o: OrdemServico): boolean => (o.status === 'entregue' || o.status === 'pronta') && saldoOS(o) > 0
+
+/** Data em que a garantia termina (conta da entrega); null se não foi entregue ou não tem garantia. */
+export function fimGarantia(o: Pick<OrdemServico, 'entregueEm' | 'garantiaDias'>): string | null {
+  if (!o.entregueEm || o.garantiaDias <= 0) return null
+  const d = new Date(`${o.entregueEm.slice(0, 10)}T12:00:00`)
+  d.setDate(d.getDate() + o.garantiaDias)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+export const emGarantia = (o: OrdemServico, hoje = hojeIso()): boolean => o.status === 'entregue' && (fimGarantia(o) ?? '') >= hoje
+
+/** Nº de série/IMEI comparável (sem espaços, pontos e traços; maiúsculas). */
+export const normalizarSerie = (s: string): string => s.replace(/[\s.\-/]/g, '').toUpperCase()
+
+/** Outras OS do mesmo aparelho (mesmo nº de série/IMEI), da mais recente para a mais antiga. */
+export function osDoMesmoAparelho(lista: OrdemServico[], serie: string, excetoId?: number): OrdemServico[] {
+  const alvo = normalizarSerie(serie)
+  if (alvo.length < 4) return []
+  return lista.filter((o) => o.id !== excetoId && normalizarSerie(o.equipSerie) === alvo).sort((a, b) => b.dataEntrada.localeCompare(a.dataEntrada))
+}
+
+/** Dias entre a entrada e a conclusão (OS pronta). */
+export function diasDeConserto(o: Pick<OrdemServico, 'dataEntrada' | 'concluidaEm' | 'entregueEm'>): number | null {
+  const fim = o.concluidaEm ?? o.entregueEm
+  if (!fim) return null
+  const dia = (iso: string): number => new Date(`${iso.slice(0, 10)}T12:00:00`).getTime()
+  return Math.max(0, Math.round((dia(fim) - dia(o.dataEntrada)) / 86_400_000))
+}
+
+export const rotuloTipoPagamentoOS = { sinal: 'Sinal', pagamento: 'Pagamento' } as const

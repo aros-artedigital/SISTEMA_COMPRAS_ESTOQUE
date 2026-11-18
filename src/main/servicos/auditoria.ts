@@ -154,7 +154,7 @@ const ROTULOS: Record<string, string> = {
   apagarSenhaOs: 'Apagar senha do equipamento ao entregar'
 }
 // Campos que não entram na comparação (o saldo muda por movimentação, que já tem histórico próprio).
-const IGNORAR = new Set(['id', 'estoque', 'senha', 'numero', 'historico', 'estoqueBaixado', 'concluidaEm', 'entregueEm', 'dataEntrada', 'usuarioId'])
+const IGNORAR = new Set(['id', 'estoque', 'senha', 'numero', 'historico', 'pagamentos', 'estoqueBaixado', 'concluidaEm', 'entregueEm', 'dataEntrada', 'usuarioId'])
 const MOEDA = new Set(['precoCusto', 'precoVenda', 'desconto'])
 const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 

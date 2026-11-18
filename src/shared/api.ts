@@ -25,6 +25,7 @@ import type {
   Unidade,
   SenhaOS,
   StatusOS,
+  FormaPagamento,
   Usuario,
   Venda
 } from './tipos'
@@ -112,7 +113,11 @@ export interface Canais {
   /** Lê a senha do equipamento (permissão "Ver senha do equipamento"; cada leitura vai para a auditoria). */
   'os:verSenha': Canal<[id: number], SenhaOS>
   /** Muda o status (registra no histórico). Pronta/entregue dá baixa nas peças; reabrir ou cancelar devolve. */
-  'os:status': Canal<[id: number, status: StatusOS, observacao: string], OrdemServico>
+  'os:status': Canal<[id: number, status: StatusOS, observacao: string, opcoes?: OpcoesStatusOS], OrdemServico>
+  /** Registra um pagamento (sinal ou restante), em uma ou mais formas. */
+  'os:receber': Canal<[id: number, pagamentos: { forma: FormaPagamento; valor: number }[]], OrdemServico>
+  /** Estorna um pagamento (fica no histórico, riscado, com o motivo). */
+  'os:estornarPagamento': Canal<[osId: number, pagamentoId: number, motivo: string], OrdemServico>
 
   'inventario:listar': Canal<[], InventarioResumo[]>
   'inventario:obter': Canal<[id: number], InventarioDetalhe>
@@ -459,4 +464,10 @@ export interface ResultadoInventario {
   /** Soma das diferenças em unidades e em valor (preço de custo). */
   unidades: number
   valor: number
+}
+
+/** Ao entregar: pagamentos recebidos agora e se a OS pode ser entregue com saldo a receber. */
+export interface OpcoesStatusOS {
+  pagamentos?: { forma: FormaPagamento; valor: number }[]
+  entregarComSaldo?: boolean
 }

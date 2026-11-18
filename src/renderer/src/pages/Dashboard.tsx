@@ -1,20 +1,20 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, DollarSign, Package, PackageCheck, Receipt, ShoppingCart, XCircle } from 'lucide-react'
+import { AlertTriangle, DollarSign, Package, PackageCheck, Receipt, ShoppingCart, Wrench, XCircle } from 'lucide-react'
 import { useDb } from '@/data/store'
 import { useAuth } from '@/contexts/AuthContext'
 import { PageHeader } from '@/components/PageHeader'
 import { StatCard } from '@/components/StatCard'
 import { Badge, Card, CardHeader } from '@/components/ui'
 import { GraficoBarras } from '@/components/GraficoBarras'
-import { corStatusCompra, rotuloStatusCompra, situacaoEstoque, totalCompra, totalVenda } from '@shared/dominio'
+import { corStatusCompra, osComSaldo, osEmAndamento, rotuloStatusCompra, situacaoEstoque, totalCompra, totalVenda } from '@shared/dominio'
 import * as fmt from '@shared/format'
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 const compacto = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 })
 
 export default function Dashboard() {
-  const { produtos, compras, movimentacoes, fornecedores, categorias, vendas, configuracoes } = useDb()
+  const { produtos, compras, movimentacoes, fornecedores, categorias, vendas, ordensServico, configuracoes } = useDb()
   const { usuario, pode } = useAuth()
 
   const indicadores = useMemo(() => {
@@ -28,9 +28,14 @@ export default function Dashboard() {
       totalComprasMes: comprasMes.reduce((s, c) => s + totalCompra(c), 0),
       valorEstoque: ativos.reduce((s, p) => s + p.estoque * p.precoCusto, 0),
       pendentes: compras.filter((c) => c.status === 'pedido').length,
-      vendasMes: vendas.filter((v) => v.status === 'concluida' && v.data.startsWith(mesAtual))
+      vendasMes: vendas.filter((v) => v.status === 'concluida' && v.data.startsWith(mesAtual)),
+      // Serviços: o que entrou no caixa pelas OS no mês (sinais e pagamentos, sem os estornados).
+      servicosMes: ordensServico.reduce((s, o) => s + o.pagamentos.filter((p) => !p.estornado && p.em.startsWith(mesAtual)).reduce((x, p) => x + p.valor, 0), 0),
+      osEntreguesMes: ordensServico.filter((o) => o.status === 'entregue' && (o.entregueEm ?? '').startsWith(mesAtual)).length,
+      osAndamento: ordensServico.filter((o) => osEmAndamento(o.status)).length,
+      osAReceber: ordensServico.filter(osComSaldo).length
     }
-  }, [produtos, compras, vendas])
+  }, [produtos, compras, vendas, ordensServico])
 
   // Entradas e saídas dos últimos 6 meses, valorizadas a preço de custo.
   const grafico = useMemo(() => {
@@ -98,7 +103,7 @@ export default function Dashboard() {
     <>
       <PageHeader titulo={`Olá, ${usuario?.nome.split(' ')[0]}`} subtitulo="Resumo do estoque e das compras" />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-5">
+      <div className={`grid grid-cols-2 gap-4 lg:grid-cols-3 ${pode('os') ? 'xl:grid-cols-6' : 'xl:grid-cols-5'}`}>
         <StatCard
           titulo="Vendas no mês"
           valor={fmt.moeda(indicadores.vendasMes.reduce((s, v) => s + totalVenda(v), 0))}
@@ -106,6 +111,15 @@ export default function Dashboard() {
           icone={Receipt}
           corIcone="bg-sky-50 text-sky-600"
         />
+        {pode('os') && (
+          <StatCard
+            titulo="Serviços no mês"
+            valor={fmt.moeda(indicadores.servicosMes)}
+            detalhe={`${indicadores.osEntreguesMes} OS entregue(s) · ${indicadores.osAndamento} em andamento${indicadores.osAReceber ? ` · ${indicadores.osAReceber} a receber` : ''}`}
+            icone={Wrench}
+            corIcone="bg-violet-50 text-violet-600"
+          />
+        )}
         <StatCard titulo="Produtos ativos" valor={fmt.numero(indicadores.produtos)} detalhe={`${produtos.length - indicadores.produtos} inativos`} icone={Package} />
         <StatCard titulo="Unidades em estoque" valor={fmt.numero(indicadores.unidades)} detalhe={`${alertas.length} abaixo do mínimo`} icone={PackageCheck} corIcone="bg-emerald-50 text-emerald-600" />
         <StatCard titulo="Compras no mês" valor={fmt.numero(indicadores.comprasMes)} detalhe={`${fmt.moeda(indicadores.totalComprasMes)} · ${indicadores.pendentes} pendente(s)`} icone={ShoppingCart} corIcone="bg-violet-50 text-violet-600" />

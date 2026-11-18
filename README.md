@@ -103,6 +103,18 @@ Usuários de demonstração (só em desenvolvimento):
   assinaturas, quadros de "em andamento", "prontas" e "atrasadas", avisos no sino (OS atrasada, pronta há 7 dias sem
   retirada), Excel, exclusão em lote, auditoria e sincronização entre terminais (número OS-A0001 por terminal).
   Permissões próprias: ver, cadastrar e editar (inclui mudar o status), excluir e ver a senha do equipamento.
+- **Pagamento da OS**: sinal com a OS em andamento e o restante na entrega, em uma ou mais formas (ex.: parte no Pix,
+  parte no cartão). Não deixa receber mais do que falta nem reduzir o total abaixo do já recebido. Entregar com valor em
+  aberto exige confirmação ("Entregar com valor a receber") e gera aviso no sino até ser quitado; filtro "Com valor a
+  receber" na lista. Pagamentos não são apagados: são estornados com motivo. Recebido e saldo aparecem na impressão e no
+  arquivo do cliente; tudo vai para a auditoria e é sincronizado.
+- **Histórico do aparelho e garantia**: ao digitar o nº de série/IMEI na OS, o sistema mostra as OS anteriores do mesmo
+  aparelho e avisa se ele ainda está na garantia (com a data em que termina) — também na ficha.
+- **Etiqueta da OS**: número grande, cliente, equipamento e código de barras do número (rolo 50 × 30 mm ou folhas A4).
+  Lendo a etiqueta (ou digitando o número + Enter) na busca da tela de OS, a ficha abre direto.
+- **OS no painel e nos relatórios**: card "Serviços no mês" (o que entrou pelas OS) e a aba Relatórios → Ordens de
+  serviço: OS entregues (peças, mão de obra, recebido, dias de conserto), por técnico (faturamento e tempo médio), peças
+  mais usadas, recebimentos por forma de pagamento e canceladas/orçamentos recusados com o motivo.
 - **Enviar a OS ao cliente** (botão na ficha da OS, sem precisar de servidor na internet): salva uma página `.html`
   única — abre no celular mesmo sem internet, nas cores da empresa, com modo escuro — mostrando a situação explicada em
   linguagem simples, as etapas com datas, o equipamento, o defeito/diagnóstico/serviço, o orçamento, a garantia (com a

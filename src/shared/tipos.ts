@@ -163,6 +163,19 @@ export interface ItemOS {
   valorUnitario: number
 }
 
+export interface PagamentoOS {
+  id: number
+  em: string // ISO com hora
+  /** Sinal: recebido com a OS em andamento; pagamento: na conclusão/entrega. */
+  tipo: 'sinal' | 'pagamento'
+  forma: FormaPagamento
+  valor: number
+  usuario: string
+  estornado: boolean
+  estornadoEm: string | null
+  motivoEstorno: string
+}
+
 export interface HistoricoOS {
   em: string // ISO com hora
   status: StatusOS
@@ -201,6 +214,7 @@ export interface OrdemServico {
   usuarioId: number
   itens: ItemOS[]
   historico: HistoricoOS[]
+  pagamentos: PagamentoOS[]
 }
 
 export interface Configuracoes {

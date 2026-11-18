@@ -1,7 +1,7 @@
 import type { z } from 'zod'
 import type { osEntradaSchema } from '@shared/schemas'
-import { osEmAndamento, proximosStatusOS, rotuloStatusOS } from '@shared/dominio'
-import type { OrdemServico, SenhaOS, StatusOS } from '@shared/tipos'
+import { osEmAndamento, pagoOS, proximosStatusOS, rotuloStatusOS, saldoOS, totalOS } from '@shared/dominio'
+import type { FormaPagamento, OrdemServico, SenhaOS, StatusOS } from '@shared/tipos'
 import { banco } from '../db/conexao'
 import { ErroNegocio } from '../erros'
 import { lerConfiguracoes } from './dados'
@@ -22,7 +22,8 @@ export function buscar(id: number): OrdemServico {
   if (!linha) throw new ErroNegocio('Ordem de serviço não encontrada.')
   const itens = (db.prepare('SELECT * FROM os_itens WHERE os_id = ? ORDER BY id').all(id) as map.Linha[]).map(map.itemOS)
   const historico = (db.prepare('SELECT * FROM os_historico WHERE os_id = ? ORDER BY id').all(id) as map.Linha[]).map(map.historicoOS)
-  return map.ordemServico(linha, itens, historico)
+  const pagamentos = (db.prepare('SELECT * FROM os_pagamentos WHERE os_id = ? ORDER BY id').all(id) as map.Linha[]).map(map.pagamentoOS)
+  return map.ordemServico(linha, itens, historico, pagamentos)
 }
 
 /** OS-0001, ou OS-A0001 com sincronização (o código do terminal evita números repetidos). */
@@ -35,6 +36,8 @@ function proximoNumero(): string {
   }
   return numero
 }
+
+const moeda = (v: number): string => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
 const nomeUsuario = (id: number): string => (banco().prepare('SELECT nome FROM usuarios WHERE id = ?').get(id) as { nome: string } | undefined)?.nome ?? '—'
 
@@ -99,6 +102,11 @@ export function salvar(id: number | null, d: DadosOS, usuarioId: number): OrdemS
     // Senha só muda quando a tela manda (ausente = mantém a atual).
     if (d.senha) db.prepare('UPDATE ordens_servico SET senha_tipo = ?, senha = ? WHERE id = ?').run(d.senha.tipo, d.senha.tipo === 'nenhuma' ? '' : d.senha.valor, id)
 
+    // O total não pode ficar menor do que já foi pago pelo cliente.
+    const pago = pagoOS(buscar(id))
+    const novoTotal = Math.max(0, d.itens.reduce((s, i) => s + i.quantidade * i.valorUnitario, 0) - d.desconto)
+    if (pago > novoTotal + 0.005) throw new ErroNegocio(`O total da OS (${moeda(novoTotal)}) ficaria menor que o já recebido (${moeda(pago)}). Estorne o pagamento antes.`, 'desconto')
+
     const ins = db.prepare('INSERT INTO os_itens (os_id, tipo, produto_id, descricao, quantidade, valor_unitario) VALUES (?, ?, ?, ?, ?, ?)')
     for (const i of d.itens) ins.run(id, i.tipo, i.produtoId, i.descricao, i.quantidade, map.dinheiro(i.valorUnitario))
     return buscar(id)
@@ -113,7 +121,47 @@ function movimentarPecas(o: OrdemServico, tipo: 'saida' | 'entrada', motivo: str
   }
 }
 
-export function mudarStatus(id: number, novo: StatusOS, observacao: string, usuarioId: number): OrdemServico {
+type Recebimento = { forma: FormaPagamento; valor: number }
+
+/** Grava pagamentos (dentro da transação de quem chama). Não deixa receber mais do que o saldo. */
+function lancarPagamentos(o: OrdemServico, pagamentos: Recebimento[], usuarioId: number): void {
+  if (!pagamentos.length) return
+  if (o.status === 'cancelada') throw new ErroNegocio('OS cancelada não recebe pagamentos.')
+  const soma = Math.round(pagamentos.reduce((s, p) => s + p.valor, 0) * 100) / 100
+  const saldo = saldoOS(o)
+  if (totalOS(o) <= 0) throw new ErroNegocio('A OS ainda não tem valor: preencha o orçamento antes de receber.', 'pagamento')
+  if (soma > saldo + 0.005) throw new ErroNegocio(`O valor (${moeda(soma)}) é maior que o que falta receber (${moeda(saldo)}).`, 'pagamento')
+  const tipo = osEmAndamento(o.status) ? 'sinal' : 'pagamento'
+  const ins = banco().prepare('INSERT INTO os_pagamentos (os_id, em, tipo, forma, valor, usuario_nome) VALUES (?, ?, ?, ?, ?, ?)')
+  for (const p of pagamentos) ins.run(o.id, map.agoraIso(), tipo, p.forma, map.dinheiro(p.valor), nomeUsuario(usuarioId))
+}
+
+export function receber(id: number, pagamentos: Recebimento[], usuarioId: number): OrdemServico {
+  return banco().transaction(() => {
+    lancarPagamentos(buscar(id), pagamentos, usuarioId)
+    return buscar(id)
+  })()
+}
+
+export function estornarPagamento(osId: number, pagamentoId: number, motivo: string): OrdemServico {
+  const db = banco()
+  return db.transaction(() => {
+    const p = db.prepare('SELECT estornado FROM os_pagamentos WHERE id = ? AND os_id = ?').get(pagamentoId, osId) as { estornado: number } | undefined
+    if (!p) throw new ErroNegocio('Pagamento não encontrado.')
+    if (p.estornado) throw new ErroNegocio('Este pagamento já foi estornado.')
+    db.prepare('UPDATE ordens_servico SET atualizado_em = datetime(\'now\', \'localtime\') WHERE id = ?').run(osId)
+    db.prepare('UPDATE os_pagamentos SET estornado = 1, estornado_em = ?, motivo_estorno = ? WHERE id = ?').run(map.agoraIso(), motivo, pagamentoId)
+    return buscar(osId)
+  })()
+}
+
+export function mudarStatus(
+  id: number,
+  novo: StatusOS,
+  observacao: string,
+  usuarioId: number,
+  opcoes: { pagamentos: Recebimento[]; entregarComSaldo: boolean } = { pagamentos: [], entregarComSaldo: false }
+): OrdemServico {
   const db = banco()
   return db.transaction(() => {
     const o = buscar(id)
@@ -122,6 +170,17 @@ export function mudarStatus(id: number, novo: StatusOS, observacao: string, usua
       throw new ErroNegocio(`Uma OS ${rotuloStatusOS[o.status].toLowerCase()} não pode passar para "${rotuloStatusOS[novo]}".`)
     }
     if (novo === 'cancelada' && observacao.trim().length < 3) throw new ErroNegocio('Informe o motivo do cancelamento.', 'observacao')
+
+    // Entrega: registra o que foi recebido agora e confere o saldo.
+    if (novo === 'entregue') {
+      lancarPagamentos({ ...o, status: 'pronta' }, opcoes.pagamentos, usuarioId)
+      const falta = saldoOS(buscar(id))
+      if (falta > 0 && !opcoes.entregarComSaldo) {
+        throw new ErroNegocio(`Falta receber ${moeda(falta)}. Registre o pagamento ou confirme a entrega com valor a receber.`, 'pagamento')
+      }
+    } else if (opcoes.pagamentos.length) {
+      throw new ErroNegocio('Pagamentos junto com a mudança de status só na entrega.')
+    }
 
     const agora = map.agoraIso()
     let estoqueBaixado = o.estoqueBaixado

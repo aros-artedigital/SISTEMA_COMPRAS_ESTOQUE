@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useDb } from '@/data/store'
+import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import { Filtros, PageHeader } from '@/components/PageHeader'
 import { DataTable, type Coluna } from '@/components/DataTable'
@@ -7,14 +8,24 @@ import { BarraSaida } from '@/components/BarraSaida'
 import { Checkbox, Input, Select } from '@/components/ui'
 import { alinhadoADireita, formatar, type Relatorio, type Valor } from '@/lib/relatorio'
 import { relatorioExcel, relatorioImprimir, relatorioPdf } from '@/lib/saida'
-import { recebidaEmParte, rotuloFormaPagamento, rotuloStatusCompra, rotuloTipoMov, situacaoEstoque, subtotalVenda, totalCompra, totalVenda } from '@shared/dominio'
+import {
+  descreverEquipamento,
+  diasDeConserto,
+  pagoOS,
+  rotuloTipoPagamentoOS,
+  totalOS,
+  totalPecasOS,
+  totalServicosOS,
+  recebidaEmParte,
+  rotuloFormaPagamento, rotuloStatusCompra, rotuloTipoMov, situacaoEstoque, subtotalVenda, totalCompra, totalVenda } from '@shared/dominio'
 import * as fmt from '@shared/format'
-import type { FormaPagamento, StatusCompra, TipoMovimentacao } from '@shared/tipos'
+import type { FormaPagamento, OrdemServico, StatusCompra, TipoMovimentacao } from '@shared/tipos'
 
-type Aba = 'vendas' | 'estoque' | 'reposicao' | 'compras' | 'movimentacoes'
+type Aba = 'vendas' | 'os' | 'estoque' | 'reposicao' | 'compras' | 'movimentacoes'
 
 const abas: { id: Aba; titulo: string; descricao: string }[] = [
   { id: 'vendas', titulo: 'Vendas', descricao: 'Por venda, por cliente ou por produto' },
+  { id: 'os', titulo: 'Ordens de serviço', descricao: 'Serviços, técnicos, peças e recebimentos' },
   { id: 'estoque', titulo: 'Posição de estoque', descricao: 'Saldo e valor de cada produto' },
   { id: 'reposicao', titulo: 'Sugestão de compra', descricao: 'Produtos no mínimo ou abaixo dele' },
   { id: 'compras', titulo: 'Compras', descricao: 'Compras por período, fornecedor e status' },
@@ -26,11 +37,12 @@ const inicioDoMes = (): string => fmt.hojeIso().slice(0, 8) + '01'
 
 export default function Relatorios() {
   const [aba, setAba] = useState<Aba>('vendas')
+  const { pode } = useAuth()
   return (
     <>
       <PageHeader titulo="Relatórios" subtitulo="Consulte, exporte para Excel, salve em PDF ou imprima" />
       <div className="mb-5 flex gap-1 rounded-xl border border-slate-200 bg-superficie p-1 shadow-sm" role="tablist">
-        {abas.map((a) => (
+        {abas.filter((a) => a.id !== 'os' || pode('os')).map((a) => (
           <button
             key={a.id}
             role="tab"
@@ -44,6 +56,7 @@ export default function Relatorios() {
         ))}
       </div>
       {aba === 'vendas' && <RelatorioVendas />}
+      {aba === 'os' && <RelatorioOS />}
       {aba === 'estoque' && <PosicaoEstoque />}
       {aba === 'reposicao' && <SugestaoCompra />}
       {aba === 'compras' && <RelatorioCompras />}
@@ -554,6 +567,217 @@ function RelatorioVendas() {
             value={cliente}
             onChange={(e) => setCliente(e.target.value)}
           />
+        </>
+      }
+    />
+  )
+}
+
+// ---------- Ordens de serviço ----------
+
+type VisaoOS = 'os' | 'tecnico' | 'pecas' | 'recebimentos' | 'recusadas'
+
+function RelatorioOS() {
+  const { ordensServico, clientes, usuarios, produtos } = useDb()
+  const [de, setDe] = useState(inicioDoMes())
+  const [ate, setAte] = useState(fmt.hojeIso())
+  const [visao, setVisao] = useState<VisaoOS>('os')
+
+  const relatorio = useMemo<Relatorio>(() => {
+    const noPeriodo = (iso: string | null | undefined): boolean => !!iso && (!de || iso.slice(0, 10) >= de) && (!ate || iso.slice(0, 10) <= ate)
+    const nomeCliente = (id: number): string => clientes.find((c) => c.id === id)?.nome ?? ''
+    const nomeTecnico = (id: number | null): string => (id ? (usuarios.find((u) => u.id === id)?.nome ?? '') : 'Sem técnico')
+    const periodo = `Período: ${de ? fmt.data(de) : 'início'} a ${ate ? fmt.data(ate) : 'hoje'}`
+    // Faturamento de serviços = OS entregues no período (pela data de entrega).
+    const entregues = ordensServico.filter((o) => o.status === 'entregue' && noPeriodo(o.entregueEm)).sort((a, b) => (a.entregueEm ?? '').localeCompare(b.entregueEm ?? ''))
+    const total = entregues.reduce((s, o) => s + totalOS(o), 0)
+    const dias = entregues.map(diasDeConserto).filter((d): d is number => d !== null)
+    const media = dias.length ? dias.reduce((s, d) => s + d, 0) / dias.length : 0
+    const resumo = [
+      { rotulo: 'OS entregues', valor: fmt.numero(entregues.length) },
+      { rotulo: 'Faturamento', valor: fmt.moeda(total) },
+      { rotulo: 'Ticket médio', valor: fmt.moeda(entregues.length ? total / entregues.length : 0) },
+      { rotulo: 'Tempo médio de conserto', valor: `${media.toFixed(1).replace('.', ',')} dia(s)` }
+    ]
+
+    if (visao === 'tecnico') {
+      const grupos = new Map<string, { nome: string; os: OrdemServico[] }>()
+      for (const o of entregues) {
+        const chave = String(o.tecnicoId ?? 0)
+        const g = grupos.get(chave) ?? { nome: nomeTecnico(o.tecnicoId), os: [] }
+        g.os.push(o)
+        grupos.set(chave, g)
+      }
+      const linhas = [...grupos.values()]
+        .map((g) => {
+          const t = g.os.reduce((s, o) => s + totalOS(o), 0)
+          const d = g.os.map(diasDeConserto).filter((x): x is number => x !== null)
+          return { nome: g.nome, qtd: g.os.length, servicos: g.os.reduce((s, o) => s + totalServicosOS(o), 0), total: t, dias: d.length ? d.reduce((s, x) => s + x, 0) / d.length : 0 }
+        })
+        .sort((a, b) => b.total - a.total)
+      return {
+        titulo: 'Ordens de serviço por técnico',
+        filtros: [periodo, 'OS entregues no período'],
+        resumo,
+        colunas: [
+          { titulo: 'Técnico', peso: 2 },
+          { titulo: 'OS entregues', formato: 'numero' },
+          { titulo: 'Mão de obra', formato: 'moeda' },
+          { titulo: 'Total', formato: 'moeda' },
+          { titulo: 'Ticket médio', formato: 'moeda' },
+          { titulo: 'Dias (média)', formato: 'numero' }
+        ],
+        linhas: linhas.map((g) => [g.nome, g.qtd, g.servicos, g.total, g.total / g.qtd, Math.round(g.dias * 10) / 10]),
+        totais: ['Total', entregues.length, entregues.reduce((s, o) => s + totalServicosOS(o), 0), total, null, null]
+      }
+    }
+
+    if (visao === 'pecas') {
+      const grupos = new Map<number, { quantidade: number; total: number; os: number }>()
+      for (const o of entregues) {
+        for (const i of o.itens) {
+          if (i.tipo !== 'peca' || i.produtoId === null) continue
+          const g = grupos.get(i.produtoId) ?? { quantidade: 0, total: 0, os: 0 }
+          g.quantidade += i.quantidade
+          g.total += i.quantidade * i.valorUnitario
+          g.os++
+          grupos.set(i.produtoId, g)
+        }
+      }
+      const linhas = [...grupos.entries()].sort((a, b) => b[1].quantidade - a[1].quantidade || b[1].total - a[1].total)
+      const unidades = linhas.reduce((s, [, g]) => s + g.quantidade, 0)
+      const valor = linhas.reduce((s, [, g]) => s + g.total, 0)
+      return {
+        titulo: 'Peças mais usadas nas OS',
+        filtros: [periodo, 'OS entregues no período'],
+        resumo: [resumo[0], { rotulo: 'Peças usadas', valor: fmt.numero(unidades) }, { rotulo: 'Valor em peças', valor: fmt.moeda(valor) }, { rotulo: 'Peças diferentes', valor: fmt.numero(linhas.length) }],
+        colunas: [
+          { titulo: 'Código', peso: 0.8 },
+          { titulo: 'Peça', peso: 2.4 },
+          { titulo: 'Quantidade', formato: 'numero' },
+          { titulo: 'Em quantas OS', formato: 'numero' },
+          { titulo: 'Valor cobrado', formato: 'moeda' }
+        ],
+        linhas: linhas.map(([id, g]) => {
+          const p = produtos.find((x) => x.id === id)
+          return [p?.codigo ?? '', p?.nome ?? '', g.quantidade, g.os, g.total]
+        }),
+        totais: ['Total', null, unidades, null, valor]
+      }
+    }
+
+    if (visao === 'recebimentos') {
+      // O que entrou no caixa pelas OS no período (pela data do pagamento), sem os estornados.
+      const pagamentos = ordensServico
+        .flatMap((o) => o.pagamentos.filter((p) => !p.estornado && noPeriodo(p.em)).map((p) => ({ o, p })))
+        .sort((a, b) => a.p.em.localeCompare(b.p.em))
+      const soma = pagamentos.reduce((s, { p }) => s + p.valor, 0)
+      const porForma = new Map<FormaPagamento, number>()
+      for (const { p } of pagamentos) porForma.set(p.forma, (porForma.get(p.forma) ?? 0) + p.valor)
+      const principais = [...porForma.entries()].sort((a, b) => b[1] - a[1])
+      return {
+        titulo: 'Recebimentos das ordens de serviço',
+        filtros: [periodo, 'Sinais e pagamentos pela data do recebimento; estornos não entram'],
+        resumo: [
+          { rotulo: 'Recebido', valor: fmt.moeda(soma) },
+          { rotulo: 'Pagamentos', valor: fmt.numero(pagamentos.length) },
+          ...principais.slice(0, 2).map(([f, v]) => ({ rotulo: rotuloFormaPagamento[f], valor: fmt.moeda(v) }))
+        ],
+        colunas: [
+          { titulo: 'Data', formato: 'dataHora', peso: 1.2 },
+          { titulo: 'OS', peso: 0.9 },
+          { titulo: 'Cliente', peso: 2 },
+          { titulo: 'Tipo', peso: 0.8 },
+          { titulo: 'Forma', peso: 1.1 },
+          { titulo: 'Recebido por', peso: 1.2 },
+          { titulo: 'Valor', formato: 'moeda' }
+        ],
+        linhas: pagamentos.map(({ o, p }) => [p.em, o.numero, nomeCliente(o.clienteId), rotuloTipoPagamentoOS[p.tipo], rotuloFormaPagamento[p.forma], p.usuario, p.valor]),
+        totais: ['Total', null, null, null, null, null, soma]
+      }
+    }
+
+    if (visao === 'recusadas') {
+      // Canceladas no período (pela data do cancelamento), com o motivo informado.
+      const canceladas = ordensServico
+        .map((o) => ({ o, h: [...o.historico].reverse().find((h) => h.status === 'cancelada') }))
+        .filter(({ o, h }) => o.status === 'cancelada' && h && noPeriodo(h.em))
+        .sort((a, b) => a.h!.em.localeCompare(b.h!.em))
+      const orcado = canceladas.reduce((s, { o }) => s + totalOS(o), 0)
+      return {
+        titulo: 'Ordens de serviço canceladas (orçamentos recusados)',
+        filtros: [periodo, 'Pela data do cancelamento'],
+        resumo: [
+          { rotulo: 'OS canceladas', valor: fmt.numero(canceladas.length) },
+          { rotulo: 'Valor orçado', valor: fmt.moeda(orcado) },
+          { rotulo: 'Com orçamento', valor: fmt.numero(canceladas.filter(({ o }) => totalOS(o) > 0).length) },
+          { rotulo: 'Sem orçamento', valor: fmt.numero(canceladas.filter(({ o }) => totalOS(o) === 0).length) }
+        ],
+        colunas: [
+          { titulo: 'OS', peso: 0.9 },
+          { titulo: 'Cancelada em', formato: 'data' },
+          { titulo: 'Cliente', peso: 1.8 },
+          { titulo: 'Equipamento', peso: 1.8 },
+          { titulo: 'Motivo', peso: 2.4 },
+          { titulo: 'Valor orçado', formato: 'moeda' }
+        ],
+        linhas: canceladas.map(({ o, h }) => [o.numero, h!.em, nomeCliente(o.clienteId), descreverEquipamento(o), h!.observacao, totalOS(o)]),
+        totais: ['Total', null, null, null, null, orcado]
+      }
+    }
+
+    return {
+      titulo: 'Ordens de serviço entregues',
+      filtros: [periodo, 'Pela data de entrega'],
+      resumo,
+      colunas: [
+        { titulo: 'OS', peso: 0.8 },
+        { titulo: 'Entregue em', formato: 'data' },
+        { titulo: 'Cliente', peso: 1.6 },
+        { titulo: 'Técnico', peso: 1.2 },
+        { titulo: 'Peças', formato: 'moeda' },
+        { titulo: 'Mão de obra', formato: 'moeda' },
+        { titulo: 'Desconto', formato: 'moeda' },
+        { titulo: 'Total', formato: 'moeda' },
+        { titulo: 'Recebido', formato: 'moeda' },
+        { titulo: 'Dias', formato: 'numero', peso: 0.5 }
+      ],
+      linhas: entregues.map((o) => [o.numero, o.entregueEm, nomeCliente(o.clienteId), o.tecnicoId ? nomeTecnico(o.tecnicoId) : '', totalPecasOS(o), totalServicosOS(o), o.desconto, totalOS(o), pagoOS(o), diasDeConserto(o)]),
+      totais: [
+        'Total',
+        null,
+        null,
+        null,
+        entregues.reduce((s, o) => s + totalPecasOS(o), 0),
+        entregues.reduce((s, o) => s + totalServicosOS(o), 0),
+        entregues.reduce((s, o) => s + o.desconto, 0),
+        total,
+        entregues.reduce((s, o) => s + pagoOS(o), 0),
+        null
+      ]
+    }
+  }, [ordensServico, clientes, usuarios, produtos, de, ate, visao])
+
+  return (
+    <Visualizacao
+      relatorio={relatorio}
+      arquivo={{ os: 'os-entregues', tecnico: 'os-por-tecnico', pecas: 'pecas-mais-usadas', recebimentos: 'recebimentos-os', recusadas: 'os-canceladas' }[visao]}
+      filtros={
+        <>
+          <Select
+            className="w-56"
+            aria-label="Visão do relatório de OS"
+            opcoes={[
+              { value: 'os', label: 'OS entregues' },
+              { value: 'tecnico', label: 'Por técnico' },
+              { value: 'pecas', label: 'Peças mais usadas' },
+              { value: 'recebimentos', label: 'Recebimentos' },
+              { value: 'recusadas', label: 'Canceladas / recusadas' }
+            ]}
+            value={visao}
+            onChange={(e) => setVisao(e.target.value as VisaoOS)}
+          />
+          <Periodo de={de} ate={ate} setDe={setDe} setAte={setAte} />
         </>
       }
     />

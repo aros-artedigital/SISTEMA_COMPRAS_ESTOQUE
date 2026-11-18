@@ -1,7 +1,8 @@
 import { app, ipcMain, shell } from 'electron'
 import { z } from 'zod'
 import type { ArgsDe, NomeCanal, Resposta, ResultadoLote, RetornoDe } from '@shared/api'
-import { descreverEquipamento, rotuloStatusOS } from '@shared/dominio'
+import type { FormaPagamento } from '@shared/tipos'
+import { descreverEquipamento, rotuloFormaPagamento, rotuloStatusOS, saldoOS } from '@shared/dominio'
 import { editar as permEditar, excluir as permExcluir, type Area, type Recurso } from '@shared/permissoes'
 import * as s from '@shared/schemas'
 import { banco, caminhoBanco } from './db/conexao'
@@ -303,13 +304,40 @@ export function registrarCanais(): void {
     })
     return senha
   })
-  canal('os:status', (i, st, obs) => {
+  const resumoPagamentos = (lista: { forma: FormaPagamento; valor: number }[]): string =>
+    lista.map((p) => `${moedaBr(p.valor)} (${rotuloFormaPagamento[p.forma]})`).join(' + ')
+  canal('os:receber', (i, pags) => {
+    const u = exigir('osEditar')
+    const idOs = id(i)
+    const lista = s.pagamentosOsSchema.parse(pags)
+    const o = ordens.receber(idOs, lista, u.id)
+    auditoria.registrar({ usuario: u, acao: 'Recebimento', entidade: 'Ordem de serviço', entidadeId: idOs, descricao: `OS ${o.numero}: recebido ${resumoPagamentos(lista)}` })
+    return o
+  })
+  canal('os:estornarPagamento', (i, pid, motivo) => {
+    const u = exigir('osEditar')
+    const idOs = id(i)
+    const idPag = id(pid)
+    const m = z.string().trim().min(3, 'Informe o motivo do estorno').max(200).parse(motivo)
+    const antes = ordens.buscar(idOs).pagamentos.find((p) => p.id === idPag)
+    const o = ordens.estornarPagamento(idOs, idPag, m)
+    auditoria.registrar({
+      usuario: u,
+      acao: 'Estorno de pagamento',
+      entidade: 'Ordem de serviço',
+      entidadeId: idOs,
+      descricao: `OS ${o.numero}: estornado ${antes ? resumoPagamentos([antes]) : ''}. Motivo: ${m}`
+    })
+    return o
+  })
+  canal('os:status', (i, st, obs, op) => {
     const u = exigir('osEditar')
     const idOs = id(i)
     const novo = s.statusOsSchema.parse(st)
     const observacao = z.string().max(500).parse(obs ?? '')
+    const opcoes = s.opcoesStatusOsSchema.parse(op ?? {})
     const antes = ordens.buscar(idOs)
-    const o = ordens.mudarStatus(idOs, novo, observacao, u.id)
+    const o = ordens.mudarStatus(idOs, novo, observacao, u.id, opcoes)
     auditoria.registrar({
       usuario: u,
       acao: 'Mudança de status',
@@ -317,7 +345,9 @@ export function registrarCanais(): void {
       entidadeId: idOs,
       descricao: `OS ${o.numero}: ${rotuloStatusOS[antes.status]} → ${rotuloStatusOS[novo]}${observacao.trim() ? `. ${observacao.trim()}` : ''}${
         o.estoqueBaixado !== antes.estoqueBaixado ? (o.estoqueBaixado ? '. Peças baixadas do estoque' : '. Peças devolvidas ao estoque') : ''
-      }${antes.senhaTipo !== 'nenhuma' && o.senhaTipo === 'nenhuma' ? '. Senha do equipamento apagada' : ''}`
+      }${antes.senhaTipo !== 'nenhuma' && o.senhaTipo === 'nenhuma' ? '. Senha do equipamento apagada' : ''}${
+        opcoes.pagamentos.length ? `. Recebido ${resumoPagamentos(opcoes.pagamentos)}` : ''
+      }${novo === 'entregue' && saldoOS(o) > 0 ? `. Entregue com ${moedaBr(saldoOS(o))} a receber` : ''}`
     })
     return o
   })

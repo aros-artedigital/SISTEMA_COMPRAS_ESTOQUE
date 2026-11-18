@@ -76,7 +76,9 @@ async function esperarArquivo(caminho, ms = 20000) {
 }
 
 async function foto(page, nome) {
-  if (saida) await page.screenshot({ path: join(saida, `${nome}.png`) })
+  if (!saida) return
+  // A foto é só para conferência visual: se a captura demorar (máquina ocupada), avisa e segue o teste.
+  await page.screenshot({ path: join(saida, `${nome}.png`), timeout: 15000 }).catch((e) => console.log(`  (foto ${nome} não capturada: ${e.message.split(/\r?\n/)[0]})`))
 }
 
 let app
@@ -936,9 +938,28 @@ try {
   r = await ipc(page, 'os:status', os1.id, 'em_execucao', 'Cliente voltou com o mesmo defeito')
   dados = (await ipc(page, 'dados:carregar')).dados
   verificar(r.ok && !r.dados.estoqueBaixado && mouseOs() === mouseAntesOs, 'reabrir devolve a peça ao estoque')
+  // Pagamentos: sinal, limites e entrega com duas formas
+  r = await ipc(page, 'os:receber', os1.id, [{ forma: 'pix', valor: 50 }])
+  verificar(r.ok && r.dados.pagamentos[0]?.tipo === 'sinal' && r.dados.pagamentos[0].valor === 50, 'recebe sinal com a OS em andamento')
+  r = await ipc(page, 'os:receber', os1.id, [{ forma: 'pix', valor: 100 }])
+  verificar(!r.ok && r.erro.mensagem.includes('maior que o que falta receber'), 'não deixa receber mais do que falta')
+  r = await ipc(page, 'os:salvar', os1.id, { ...os1, desconto: 100 })
+  verificar(!r.ok && r.erro.campo === 'desconto' && r.erro.mensagem.includes('já recebido'), 'o total não pode ficar menor do que já foi recebido')
   r = await ipc(page, 'os:status', os1.id, 'entregue', '')
+  verificar(!r.ok && r.erro.mensagem.includes('Falta receber'), 'não entrega com saldo sem confirmar')
+  r = await ipc(page, 'os:status', os1.id, 'entregue', '', { pagamentos: [{ forma: 'dinheiro', valor: 40 }, { forma: 'credito', valor: 34.9 }] })
   dados = (await ipc(page, 'dados:carregar')).dados
   verificar(r.ok && r.dados.entregueEm && r.dados.estoqueBaixado && mouseOs() === mouseAntesOs - 1, 'entregue direto: baixa a peça e registra a data de entrega')
+  verificar(r.dados.pagamentos.length === 3 && r.dados.pagamentos.slice(1).every((p) => p.tipo === 'pagamento'), 'na entrega, o restante é recebido em duas formas (dinheiro + crédito)')
+  const pagCredito = r.dados.pagamentos.find((p) => p.forma === 'credito')
+  r = await ipc(page, 'os:estornarPagamento', os1.id, pagCredito.id, 'Cartão recusado')
+  notif = (await ipc(page, 'notificacoes:listar')).dados
+  verificar(r.ok && r.dados.pagamentos.find((p) => p.id === pagCredito.id).estornado && notif.some((n) => n.chave === `os-a-receber:${os1.id}`), 'estornar um pagamento de OS entregue gera o aviso de valor a receber')
+  r = await ipc(page, 'os:receber', os1.id, [{ forma: 'pix', valor: 34.9 }])
+  notif = (await ipc(page, 'notificacoes:listar')).dados
+  verificar(r.ok && !notif.some((n) => n.chave === `os-a-receber:${os1.id}`), 'recebido o restante, o aviso some')
+  aud = (await ipc(page, 'auditoria:listar', { entidade: 'Ordem de serviço' })).dados
+  verificar(aud.itens.some((a) => a.acao === 'Estorno de pagamento' && a.descricao.includes('Cartão recusado')) && aud.itens.some((a) => a.acao === 'Recebimento'), 'recebimentos e estornos ficam na auditoria')
   r = await ipc(page, 'os:verSenha', os1.id)
   verificar(r.ok && r.dados.tipo === 'nenhuma' && r.dados.valor === '', 'ao entregar, a senha do equipamento é apagada')
   r = await ipc(page, 'os:status', os1.id, 'cancelada', 'Tentativa')
@@ -1048,6 +1069,68 @@ try {
   await page.getByText('Olá, Administrador').waitFor()
   await ipc(page, 'os:excluir', os4.id)
   await ipc(page, 'usuarios:excluir', (await ipc(page, 'dados:carregar')).dados.usuarios.find((u) => u.login === 'balcao').id)
+
+  // Mesmo aparelho de novo (garantia), leitor na busca, receber pela ficha e entregar recebendo o restante
+  const os5 = (await ipc(page, 'os:salvar', null, { ...base, equipTipo: 'Celular', equipSerie: '35 678901 234567 8', defeito: 'Não carrega de novo', itens: [{ tipo: 'servico', produtoId: null, descricao: 'Revisão do conector', quantidade: 1, valorUnitario: 100 }] })).dados
+  await ipc(page, 'os:status', os5.id, 'pronta', '')
+  await page.reload()
+  await page.waitForSelector('input[placeholder="seu.login"]')
+  await entrar(page, 'admin', 'admin123')
+  await page.getByText('Olá, Administrador').waitFor()
+  verificar(await page.getByText('Serviços no mês').isVisible(), 'o painel mostra o faturamento de serviços no mês')
+  await page.keyboard.press('Control+0')
+  await page.keyboard.press('Control+n')
+  const janelaOs2 = page.getByRole('dialog', { name: 'Nova ordem de serviço' })
+  await janelaOs2.getByLabel('Nº de série / IMEI').fill('356789012345678')
+  await janelaOs2.getByText(/^Em garantia até .* pela OS OS-0001/).waitFor()
+  verificar(true, 'ao digitar o IMEI, o formulário mostra que o aparelho está na garantia da OS anterior')
+  await janelaOs2.getByRole('button', { name: 'Cancelar' }).click()
+  const buscaOs = page.getByPlaceholder('Número, cliente, equipamento, série/IMEI...')
+  await buscaOs.fill(os5.numero.toLowerCase())
+  await buscaOs.press('Enter')
+  const ficha5 = page.getByRole('dialog', { name: `Ordem de serviço ${os5.numero}` })
+  await ficha5.waitFor()
+  verificar(await ficha5.getByText(/Em garantia até/).isVisible(), 'leitor/Enter na busca abre a ficha, que também mostra o histórico do aparelho')
+  await ficha5.getByRole('button', { name: 'Receber', exact: true }).click()
+  const painelPag = ficha5.getByLabel('Pagamento da OS')
+  await escolher(painelPag.getByLabel('Forma de pagamento 1'), 'Pix')
+  await painelPag.getByLabel('Valor recebido 1').fill('30')
+  await ficha5.getByRole('button', { name: 'Confirmar recebimento' }).click()
+  await page.getByText(`Recebido R$ 30,00 na OS ${os5.numero}.`.replace(/ R\$ /, ' R$ ')).waitFor()
+  await escolher(ficha5.getByLabel('Novo status'), 'Entregue ao cliente')
+  await ficha5.getByText(/Receber na entrega: falta R\$\s70,00/).waitFor()
+  await escolher(ficha5.getByRole('complementary').getByLabel('Forma de pagamento 1'), 'Dinheiro')
+  await foto(page, '24-os-entrega-pagamento')
+  await ficha5.getByRole('button', { name: 'Atualizar status' }).click()
+  await page.getByText(`${os5.numero}: entregue.`).waitFor()
+  dados = (await ipc(page, 'dados:carregar')).dados
+  const os5d = dados.ordensServico.find((o) => o.id === os5.id)
+  verificar(
+    os5d.status === 'entregue' && os5d.pagamentos.length === 2 && os5d.pagamentos.map((p) => `${p.forma}:${p.valor}`).join(',') === 'pix:30,dinheiro:70',
+    'pela ficha: recebe parte no Pix e o restante em dinheiro na entrega'
+  )
+  await aoSalvar(join(pasta, 'etiqueta-os.pdf'))
+  await ficha5.getByRole('button', { name: 'Etiqueta' }).click()
+  await page.getByRole('dialog', { name: `Etiqueta da OS ${os5.numero}` }).getByRole('button', { name: 'PDF' }).click()
+  verificar((await esperarArquivo(join(pasta, 'etiqueta-os.pdf'))) && ehPdf(join(pasta, 'etiqueta-os.pdf')), 'etiqueta da OS com código de barras em PDF')
+  await page.getByRole('dialog', { name: `Etiqueta da OS ${os5.numero}` }).getByRole('button', { name: 'Fechar', exact: true }).last().click()
+  await ficha5.getByRole('button', { name: 'Fechar', exact: true }).last().click()
+
+  // Relatórios de OS
+  await page.getByRole('link', { name: 'Relatórios' }).click()
+  await page.getByRole('tab', { name: /Ordens de serviço/ }).click()
+  await page.getByRole('cell', { name: os5.numero, exact: true }).waitFor()
+  verificar(await page.getByRole('cell', { name: 'OS-0001', exact: true }).isVisible(), 'relatório de OS entregues no período')
+  await escolher(page.getByLabel('Visão do relatório de OS'), 'Recebimentos')
+  await page.getByRole('cell', { name: 'Dinheiro', exact: true }).first().waitFor()
+  verificar((await page.getByRole('cell', { name: os5.numero, exact: true }).count()) === 2, 'relatório de recebimentos lista cada pagamento (Pix e dinheiro)')
+  await escolher(page.getByLabel('Visão do relatório de OS'), 'Por técnico')
+  await page.getByRole('cell', { name: 'Administrador', exact: true }).waitFor()
+  verificar(true, 'relatório de OS por técnico')
+  await escolher(page.getByLabel('Visão do relatório de OS'), 'Canceladas / recusadas')
+  await page.getByRole('cell', { name: 'Cliente não aprovou o orçamento', exact: true }).waitFor()
+  verificar(true, 'relatório de OS canceladas mostra o motivo')
+  await foto(page, '25-relatorio-os')
 
   // ---------- Backup externo ----------
   console.log('Backup fora do computador')

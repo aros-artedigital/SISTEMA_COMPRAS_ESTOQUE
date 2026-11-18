@@ -104,6 +104,30 @@ function calcular(u: Usuario): Omit<Notificacao, 'lida'>[] {
     }
   }
 
+  // OS entregues com valor a receber (o cliente levou sem pagar tudo).
+  if (pode(u, 'os')) {
+    const aReceber = db
+      .prepare(
+        `SELECT o.id, o.numero, o.entregue_em, c.nome AS cliente,
+           MAX(0, ROUND(COALESCE((SELECT SUM(i.quantidade * i.valor_unitario) FROM os_itens i WHERE i.os_id = o.id), 0) - o.desconto
+             - COALESCE((SELECT SUM(p.valor) FROM os_pagamentos p WHERE p.os_id = o.id AND p.estornado = 0), 0), 2)) AS saldo
+         FROM ordens_servico o JOIN clientes c ON c.id = o.cliente_id WHERE o.status = 'entregue'`
+      )
+      .all() as { id: number; numero: string; entregue_em: string | null; cliente: string; saldo: number }[]
+    for (const o of aReceber) {
+      if (o.saldo <= 0) continue
+      lista.push({
+        chave: `os-a-receber:${o.id}`,
+        tipo: 'aviso',
+        categoria: 'Ordens de serviço',
+        titulo: `OS ${o.numero}: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(o.saldo)} a receber`,
+        mensagem: `Entregue a ${o.cliente} sem o pagamento completo.`,
+        link: '/os?filtro=areceber',
+        em: o.entregue_em ?? undefined
+      })
+    }
+  }
+
   // Inventário aberto há mais de um dia.
   if (pode(u, 'estoque')) {
     const inventarios = db.prepare(`SELECT id, numero, criado_em FROM inventarios WHERE status = 'aberto'`).all() as { id: number; numero: string; criado_em: string }[]

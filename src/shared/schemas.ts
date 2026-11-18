@@ -253,3 +253,14 @@ export const osEntradaSchema = osSchema
   })
 
 export const statusOsSchema = z.enum(['aberta', 'em_analise', 'aguardando_aprovacao', 'em_execucao', 'pronta', 'entregue', 'cancelada'])
+
+export const pagamentoOsSchema = z.object({
+  forma: z.enum(['dinheiro', 'pix', 'debito', 'credito', 'boleto', 'outro']),
+  valor: z.number({ invalid_type_error: 'Valor inválido' }).positive('Informe um valor maior que zero').max(10_000_000)
+})
+export const pagamentosOsSchema = z.array(pagamentoOsSchema).min(1, 'Informe o valor recebido').max(5, 'Máximo de 5 formas de pagamento')
+
+/** Opções ao mudar o status: na entrega, o que foi recebido agora e se pode entregar com saldo em aberto. */
+export const opcoesStatusOsSchema = z
+  .object({ pagamentos: z.array(pagamentoOsSchema).max(5).default([]), entregarComSaldo: z.boolean().default(false) })
+  .default({})

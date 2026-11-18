@@ -1,21 +1,29 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Check, FileDown, FileSpreadsheet, History, KeyRound, Lock, Pencil, Plus, Printer, Send, Trash2, Wrench } from 'lucide-react'
+import { Check, FileDown, FileSpreadsheet, History, KeyRound, Lock, Pencil, Plus, Printer, Send, ShieldCheck, Tag, Trash2, Wrench } from 'lucide-react'
 import { alterar, useDb } from '@/data/store'
 import { useToast } from '@/contexts/ToastContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { Filtros, PageHeader } from '@/components/PageHeader'
 import { AcoesLinha, BotaoAcao, DataTable, iconeFicha, type Coluna } from '@/components/DataTable'
 import { ConfirmDialog, Modal } from '@/components/Modal'
-import { Badge, Button, Input, SearchInput, Select, Textarea } from '@/components/ui'
+import { Badge, Button, Checkbox, Input, SearchInput, Select, Textarea } from '@/components/ui'
 import { InputMoeda } from '@/components/InputMoeda'
 import { LeitorCodigo } from '@/components/LeitorCodigo'
 import { AcoesLote } from '@/components/AcoesLote'
 import { EditorSenha, erroSenha, VerSenha } from '@/components/SenhaEquipamento'
 import { EnviarClienteOS } from '@/components/EnviarClienteOS'
+import { EtiquetaOSModal } from '@/components/EtiquetaOSModal'
+import { lerPagamentos, LinhasPagamento, novaLinhaPagamento, PainelPagamentos, type LinhaPagamento } from '@/components/PagamentosOS'
 import {
   corStatusOS,
   descreverEquipamento,
+  emGarantia,
+  fimGarantia,
+  osComSaldo,
+  osDoMesmoAparelho,
+  pagoOS,
+  saldoOS,
   ETAPAS_OS,
   osAtrasada,
   osEmAndamento,
@@ -33,7 +41,7 @@ import { useLote } from '@/lib/lote'
 import { exportarExcel, imprimir, salvarPdf } from '@/lib/saida'
 import { htmlOS } from '@/lib/htmlOS'
 import * as fmt from '@shared/format'
-import type { ItemOS, OrdemServico, SenhaOS, StatusOS } from '@shared/tipos'
+import type { FormaPagamento, ItemOS, OrdemServico, SenhaOS, StatusOS } from '@shared/tipos'
 
 // Ordens de serviço (assistência técnica): recepção do equipamento, diagnóstico, orçamento,
 // execução e entrega. As peças saem do estoque quando a OS fica pronta.
@@ -69,7 +77,7 @@ const vazio = {
 }
 
 /** Filtros da lista além dos status: "em andamento" (todas abertas) e "atrasadas". */
-type Filtro = '' | 'andamento' | 'atrasadas' | StatusOS
+type Filtro = '' | 'andamento' | 'atrasadas' | 'areceber' | StatusOS
 
 export default function OrdensServico() {
   const { pode } = useAuth()
@@ -103,7 +111,8 @@ export default function OrdensServico() {
         .filter((o) => {
           if (filtro === 'andamento' && !osEmAndamento(o.status)) return false
           if (filtro === 'atrasadas' && !osAtrasada(o, hoje)) return false
-          if (filtro && filtro !== 'andamento' && filtro !== 'atrasadas' && o.status !== filtro) return false
+          if (filtro === 'areceber' && !osComSaldo(o)) return false
+          if (filtro && filtro !== 'andamento' && filtro !== 'atrasadas' && filtro !== 'areceber' && o.status !== filtro) return false
           if (!busca) return true
           return [o.numero, nomeCliente(o.clienteId), descreverEquipamento(o), o.equipSerie, o.defeito].some((t) => fmt.contem(t, busca))
         })
@@ -115,7 +124,8 @@ export default function OrdensServico() {
     () => ({
       andamento: ordensServico.filter((o) => osEmAndamento(o.status)).length,
       prontas: ordensServico.filter((o) => o.status === 'pronta').length,
-      atrasadas: ordensServico.filter((o) => osAtrasada(o, hoje)).length
+      atrasadas: ordensServico.filter((o) => osAtrasada(o, hoje)).length,
+      aReceber: ordensServico.filter(osComSaldo).length
     }),
     [ordensServico, hoje]
   )
@@ -296,7 +306,18 @@ export default function OrdensServico() {
       render: (o) =>
         o.previsao ? <span className={`tabular-nums ${osAtrasada(o, hoje) ? 'font-semibold text-red-600' : ''}`}>{fmt.data(o.previsao)}</span> : <span className="text-slate-400">—</span>
     },
-    { chave: 'total', titulo: 'Total', alinhar: 'direita', render: (o) => <span className="font-medium tabular-nums">{fmt.moeda(totalOS(o))}</span> },
+    {
+      chave: 'total',
+      titulo: 'Total',
+      alinhar: 'direita',
+      render: (o) => (
+        <div>
+          <span className="font-medium tabular-nums">{fmt.moeda(totalOS(o))}</span>
+          {osComSaldo(o) && <p className="text-xs tabular-nums text-amber-700">a receber {fmt.moeda(saldoOS(o))}</p>}
+          {o.status !== 'cancelada' && !osComSaldo(o) && pagoOS(o) > 0 && pagoOS(o) < totalOS(o) && <p className="text-xs tabular-nums text-slate-500">sinal {fmt.moeda(pagoOS(o))}</p>}
+        </div>
+      )
+    },
     {
       chave: 'status',
       titulo: 'Status',
@@ -328,6 +349,7 @@ export default function OrdensServico() {
   const opcoesFiltro = [
     { value: 'andamento', label: `Em andamento (${contagem.andamento})` },
     { value: 'atrasadas', label: `Atrasadas (${contagem.atrasadas})` },
+    { value: 'areceber', label: `Com valor a receber (${contagem.aReceber})` },
     ...(Object.keys(rotuloStatusOS) as StatusOS[]).map((s) => ({ value: s, label: rotuloStatusOS[s] }))
   ]
 
@@ -371,7 +393,21 @@ export default function OrdensServico() {
       </div>
 
       <Filtros>
-        <SearchInput className="w-80" placeholder="Número, cliente, equipamento, série/IMEI..." value={busca} onChange={(e) => setBusca(e.target.value)} />
+        <SearchInput
+          className="w-80"
+          placeholder="Número, cliente, equipamento, série/IMEI..."
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          onKeyDown={(e) => {
+            // Leitor de código (etiqueta da OS) ou número digitado + Enter: abre a ficha direto.
+            if (e.key !== 'Enter') return
+            const achada = ordensServico.find((o) => o.numero.toLowerCase() === busca.trim().toLowerCase())
+            if (achada) {
+              setFichaId(achada.id)
+              setBusca('')
+            }
+          }}
+        />
         <Select className="w-56" aria-label="Filtrar por status" placeholder="Todos os status" opcoes={opcoesFiltro} value={filtro} onChange={(e) => setFiltro(e.target.value)} />
         <span className="ml-auto text-sm text-slate-500">
           {lista.length} OS · {fmt.moeda(lista.filter((o) => o.status !== 'cancelada').reduce((s, o) => s + totalOS(o), 0))}
@@ -450,6 +486,7 @@ export default function OrdensServico() {
               <Input label="Acessórios entregues" wrapperClassName="col-span-2" placeholder="Carregador, capa, cartão de memória..." {...form.bind('acessorios')} />
               <Input label="Estado físico" wrapperClassName="col-span-2" placeholder="Riscos, trincas, amassados..." {...form.bind('estadoFisico')} />
             </div>
+            <HistoricoAparelho lista={osDoMesmoAparelho(ordensServico, form.values.equipSerie, editando?.id)} nomeCliente={nomeCliente} />
           </Secao>
 
           <Secao titulo="Senha do equipamento">
@@ -604,7 +641,14 @@ export default function OrdensServico() {
         </div>
       </Modal>
 
-      {ficha && <FichaOS os={ficha} onFechar={() => setFichaId(null)} onEditar={pode('osEditar') && osEmAndamento(ficha.status) ? () => abrir(ficha) : undefined} />}
+      {ficha && (
+        <FichaOS
+          os={ficha}
+          onFechar={() => setFichaId(null)}
+          onAbrir={setFichaId}
+          onEditar={pode('osEditar') && osEmAndamento(ficha.status) ? () => abrir(ficha) : undefined}
+        />
+      )}
 
       <ConfirmDialog
         aberto={!!excluindo}
@@ -648,7 +692,7 @@ function proximoNatural(s: StatusOS): StatusOS | '' {
   return i >= 0 && i < ETAPAS_OS.length - 1 ? ETAPAS_OS[i + 1] : ''
 }
 
-function FichaOS({ os: o, onFechar, onEditar }: { os: OrdemServico; onFechar: () => void; onEditar?: () => void }) {
+function FichaOS({ os: o, onFechar, onEditar, onAbrir }: { os: OrdemServico; onFechar: () => void; onEditar?: () => void; onAbrir: (id: number) => void }) {
   const db = useDb()
   const { pode } = useAuth()
   const notificar = useToast()
@@ -656,12 +700,23 @@ function FichaOS({ os: o, onFechar, onEditar }: { os: OrdemServico; onFechar: ()
   const [obs, setObs] = useState('')
   const [erroObs, setErroObs] = useState('')
   const [enviando, setEnviando] = useState(false)
+  const [etiqueta, setEtiqueta] = useState(false)
+  // Entrega: o que o cliente paga agora (uma ou mais formas) e se pode levar com valor a receber.
+  const saldo = saldoOS(o)
+  const [linhasEntrega, setLinhasEntrega] = useState<LinhaPagamento[]>([])
+  const [entregarComSaldo, setEntregarComSaldo] = useState(false)
+  const [erroEntrega, setErroEntrega] = useState('')
 
   useEffect(() => {
     setNovo(proximoNatural(o.status))
     setObs('')
     setErroObs('')
   }, [o.status])
+  useEffect(() => {
+    setLinhasEntrega([novaLinhaPagamento(saldo > 0 ? String(saldo) : '')])
+    setEntregarComSaldo(false)
+    setErroEntrega('')
+  }, [novo, saldo])
 
   const cliente = db.clientes.find((c) => c.id === o.clienteId)
   const tecnico = o.tecnicoId ? db.usuarios.find((u) => u.id === o.tecnicoId)?.nome : undefined
@@ -679,7 +734,17 @@ function FichaOS({ os: o, onFechar, onEditar }: { os: OrdemServico; onFechar: ()
   async function aplicar(): Promise<void> {
     if (!novo) return
     if (novo === 'cancelada' && obs.trim().length < 3) return setErroObs('Informe o motivo do cancelamento.')
-    await executar(() => alterar('os:status', o.id, novo, obs), { notificar, sucesso: `${o.numero}: ${rotuloStatusOS[novo].toLowerCase()}.${aviso ? ` ${aviso.replace('será baixada', 'foi baixada').replace('serão baixadas', 'foram baixadas').replace('voltam', 'voltaram').replace('volta para', 'voltou para')}` : ''}` })
+    let opcoes: { pagamentos: { forma: FormaPagamento; valor: number }[]; entregarComSaldo: boolean } | undefined
+    if (novo === 'entregue' && saldo > 0) {
+      const r = lerPagamentos(linhasEntrega, saldo)
+      if (r.erro) return setErroEntrega(r.erro)
+      const recebido = r.pagamentos.reduce((s, p) => s + p.valor, 0)
+      if (recebido < saldo - 0.005 && !entregarComSaldo) {
+        return setErroEntrega(`Faltam ${fmt.moeda(saldo - recebido)}. Receba o restante ou marque "Entregar com valor a receber".`)
+      }
+      opcoes = { pagamentos: r.pagamentos, entregarComSaldo }
+    }
+    await executar(() => alterar('os:status', o.id, novo, obs, opcoes), { notificar, sucesso: `${o.numero}: ${rotuloStatusOS[novo].toLowerCase()}.${aviso ? ` ${aviso.replace('será baixada', 'foi baixada').replace('serão baixadas', 'foram baixadas').replace('voltam', 'voltaram').replace('volta para', 'voltou para')}` : ''}` })
   }
 
   const saida = {
@@ -702,6 +767,9 @@ function FichaOS({ os: o, onFechar, onEditar }: { os: OrdemServico; onFechar: ()
               Editar
             </Button>
           )}
+          <Button variante="secundario" icone={<Tag size={16} />} onClick={() => setEtiqueta(true)}>
+            Etiqueta
+          </Button>
           <Button variante="secundario" icone={<Send size={16} />} onClick={() => setEnviando(true)}>
             Enviar ao cliente
           </Button>
@@ -756,6 +824,7 @@ function FichaOS({ os: o, onFechar, onEditar }: { os: OrdemServico; onFechar: ()
               {o.acessorios && <Par rotulo="Acessórios" valor={o.acessorios} />}
               {o.estadoFisico && <Par rotulo="Estado físico" valor={o.estadoFisico} />}
             </dl>
+            <HistoricoAparelho lista={osDoMesmoAparelho(db.ordensServico, o.equipSerie, o.id)} nomeCliente={(id) => db.clientes.find((c) => c.id === id)?.nome ?? '—'} onAbrir={onAbrir} />
           </div>
 
           <div className="grid gap-3 text-sm sm:grid-cols-3">
@@ -816,6 +885,7 @@ function FichaOS({ os: o, onFechar, onEditar }: { os: OrdemServico; onFechar: ()
             <p className="text-xs text-slate-500">{o.estoqueBaixado ? 'As peças já foram baixadas do estoque.' : 'As peças saem do estoque quando a OS ficar pronta.'}</p>
           )}
           {o.observacao && <p className="text-sm text-slate-600">Observações: {o.observacao}</p>}
+          <PainelPagamentos os={o} />
         </div>
 
         <aside className="space-y-4">
@@ -845,6 +915,31 @@ function FichaOS({ os: o, onFechar, onEditar }: { os: OrdemServico; onFechar: ()
                   }}
                 />
                 {erroObs && <p className="text-xs text-red-600">{erroObs}</p>}
+                {novo === 'entregue' && saldo > 0 && (
+                  <div className="space-y-2 rounded-lg border border-amber-200 bg-superficie p-2">
+                    <p className="text-xs font-medium text-slate-700">Receber na entrega: falta {fmt.moeda(saldo)}</p>
+                    <LinhasPagamento
+                      linhas={linhasEntrega}
+                      saldo={saldo}
+                      onChange={(l) => {
+                        setLinhasEntrega(l)
+                        setErroEntrega('')
+                      }}
+                    />
+                    <Checkbox
+                      label="Entregar com valor a receber (o cliente paga depois)"
+                      checked={entregarComSaldo}
+                      onChange={(v) => {
+                        setEntregarComSaldo(v)
+                        setErroEntrega('')
+                      }}
+                    />
+                    {erroEntrega && <p className="text-xs text-red-600">{erroEntrega}</p>}
+                  </div>
+                )}
+                {novo === 'cancelada' && pagoOS(o) > 0 && (
+                  <p className="text-xs text-red-700">Esta OS tem {fmt.moeda(pagoOS(o))} recebidos: devolva ao cliente e estorne os pagamentos.</p>
+                )}
                 {aviso && <p className="text-xs text-amber-800">{aviso}</p>}
                 {(novo === 'entregue' || novo === 'cancelada') && o.senhaTipo !== 'nenhuma' && db.configuracoes.apagarSenhaOs && (
                   <p className="text-xs text-slate-600">A senha do equipamento será apagada (o aparelho volta para o cliente).</p>
@@ -883,6 +978,7 @@ function FichaOS({ os: o, onFechar, onEditar }: { os: OrdemServico; onFechar: ()
         </aside>
       </div>
       {enviando && <EnviarClienteOS os={o} onFechar={() => setEnviando(false)} />}
+      {etiqueta && <EtiquetaOSModal os={o} onFechar={() => setEtiqueta(false)} />}
     </Modal>
   )
 }
@@ -913,6 +1009,42 @@ function Texto({ rotulo, valor }: { rotulo: string; valor: string }) {
     <div className="rounded-lg bg-slate-50 p-3">
       <p className="text-xs font-medium text-slate-500">{rotulo}</p>
       <p className="mt-0.5 whitespace-pre-wrap text-slate-800">{valor || <span className="text-slate-400">—</span>}</p>
+    </div>
+  )
+}
+
+/** Outras OS do mesmo aparelho (pelo nº de série/IMEI), com aviso de garantia ainda valendo. */
+function HistoricoAparelho({ lista, nomeCliente, onAbrir }: { lista: OrdemServico[]; nomeCliente: (id: number) => string; onAbrir?: (id: number) => void }) {
+  if (!lista.length) return null
+  const garantia = lista.find((o) => emGarantia(o))
+  return (
+    <div className={`mt-3 rounded-lg border p-3 text-sm ${garantia ? 'border-emerald-300 bg-emerald-50/60' : 'border-amber-200 bg-amber-50/60'}`} aria-label="Histórico deste aparelho">
+      {garantia ? (
+        <p className="flex items-start gap-1.5 font-medium text-emerald-800">
+          <ShieldCheck size={16} className="mt-0.5 shrink-0" />
+          Em garantia até {fmt.data(fimGarantia(garantia)!)} pela OS {garantia.numero}. Se for o mesmo defeito, o serviço pode estar coberto.
+        </p>
+      ) : (
+        <p className="font-medium text-amber-900">Este aparelho já passou pela assistência ({lista.length} OS).</p>
+      )}
+      <ul className="mt-2 space-y-1">
+        {lista.slice(0, 5).map((o) => (
+          <li key={o.id} className="flex flex-wrap items-center gap-x-2 text-slate-700">
+            {onAbrir ? (
+              <button className="font-medium text-blue-700 hover:underline" onClick={() => onAbrir(o.id)}>
+                {o.numero}
+              </button>
+            ) : (
+              <span className="font-medium">{o.numero}</span>
+            )}
+            <span className="text-xs text-slate-500">{fmt.data(o.dataEntrada)}</span>
+            <Badge cor={corStatusOS[o.status]}>{rotuloStatusOS[o.status]}</Badge>
+            <span className="truncate text-xs text-slate-600">
+              {nomeCliente(o.clienteId)} · {o.laudo || o.defeito}
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }

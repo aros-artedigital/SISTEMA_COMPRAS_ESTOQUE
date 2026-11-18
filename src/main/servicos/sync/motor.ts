@@ -331,6 +331,7 @@ async function substituirPeloServidor(cfg: ConfigSync, token: string): Promise<v
     db.prepare('DELETE FROM vendas').run()
     db.prepare('DELETE FROM os_itens').run()
     db.prepare('DELETE FROM os_historico').run()
+    db.prepare('DELETE FROM os_pagamentos').run()
     db.prepare('DELETE FROM ordens_servico').run()
     for (const t of [...TABELAS_SYNC].reverse()) db.prepare(`DELETE FROM ${t}`).run()
     db.prepare('DELETE FROM recuperacao').run()

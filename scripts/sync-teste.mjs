@@ -309,6 +309,7 @@ try {
   })
   verificar(osB.numero.startsWith('OS-B'), `número da OS inclui o terminal (${osB.numero})`)
   await B.ok('os:status', osB.id, 'pronta', 'Tela trocada')
+  await B.ok('os:receber', osB.id, [{ forma: 'pix', valor: 60 }])
   await B.sync()
   await A.sync()
   dA = await A.dados()
@@ -319,12 +320,14 @@ try {
   )
   verificar(dA.movimentacoes.some((m) => m.osId === osEmA?.id && m.tipo === 'saida'), 'em A, a baixa da peça fica ligada à OS')
   verificar((await A.ok('os:verSenha', osEmA.id)).valor === '7-4-1-2-3', 'a senha do equipamento cadastrada em B pode ser vista em A')
-  await A.ok('os:status', osEmA.id, 'entregue', '')
+  verificar(osEmA.pagamentos.length === 1 && osEmA.pagamentos[0].valor === 60, 'o pagamento recebido em B chega em A')
+  await A.ok('os:status', osEmA.id, 'entregue', '', { pagamentos: [{ forma: 'dinheiro', valor: 100 }] })
   await A.sync()
   await B.sync()
   dB = await B.dados()
   verificar(dB.ordensServico.find((o) => o.id === osB.id).status === 'entregue' && cabo(dB).estoque === osAntes - 2, 'entrega registrada em A aparece em B (sem baixar a peça de novo)')
   verificar((await B.ok('os:verSenha', osB.id)).tipo === 'nenhuma', 'senha apagada na entrega em A também some de B')
+  verificar(dB.ordensServico.find((o) => o.id === osB.id).pagamentos.reduce((s, p) => s + p.valor, 0) === 160, 'em B, a OS aparece paga por completo (60 + 100)')
   verificar(saldoBate(dA) && saldoBate(dB), 'saldos continuam batendo com as movimentações')
 
   // ---------- Recuperação de acesso entre terminais ----------
