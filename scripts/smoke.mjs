@@ -948,6 +948,38 @@ try {
   await aoSalvar(join(pasta, 'os.pdf'))
   await fichaOs.getByRole('button', { name: 'PDF' }).click()
   verificar((await esperarArquivo(join(pasta, 'os.pdf'))) && ehPdf(join(pasta, 'os.pdf')), 'OS salva em PDF (folha para o cliente assinar)')
+  // Enviar ao cliente (sem servidor): arquivo .html + WhatsApp com a mensagem pronta
+  // (as mudanças acima foram feitas direto pelo IPC: recarrega a tela para a ficha mostrar a OS entregue)
+  await page.reload()
+  await page.waitForSelector('input[placeholder="seu.login"]')
+  await entrar(page, 'admin', 'admin123')
+  await page.getByText('Olá, Administrador').waitFor()
+  await page.keyboard.press('Control+0')
+  await page.getByRole('row', { name: /OS-0001/ }).getByRole('button', { name: 'Ficha' }).click()
+  await fichaOs.getByRole('button', { name: 'Enviar ao cliente' }).click()
+  const envio = page.getByRole('dialog', { name: 'Enviar a OS OS-0001 ao cliente' })
+  await aoSalvar(join(pasta, 'os-cliente.html'))
+  await envio.getByRole('button', { name: 'Salvar arquivo' }).click()
+  await esperarArquivo(join(pasta, 'os-cliente.html'))
+  const paginaCliente = readFileSync(join(pasta, 'os-cliente.html'), 'utf8')
+  verificar(
+    paginaCliente.includes('OS-0001') && paginaCliente.includes('Entregue') && paginaCliente.includes('Garantia de 90 dias, válida até') && paginaCliente.includes('Troca do conector de carga') && paginaCliente.includes('124,90'),
+    'arquivo da OS para o cliente: número, situação, serviços, total e garantia'
+  )
+  verificar(!/<script/i.test(paginaCliente) && !paginaCliente.includes('1-2-3-6-9') && !paginaCliente.includes('Conector trocado e testado'), 'o arquivo não tem scripts, senha nem observações internas do andamento')
+  if (saida) copyFileSync(join(pasta, 'os-cliente.html'), join(saida, 'os-cliente.html'))
+  await app.evaluate(({ shell }) => {
+    globalThis.linksAbertos = []
+    shell.openExternal = async (u) => void globalThis.linksAbertos.push(u)
+  })
+  await envio.getByRole('button', { name: /^Abrir WhatsApp/ }).click()
+  await page.waitForTimeout(500)
+  const linkZap = (await app.evaluate(() => globalThis.linksAbertos))[0] ?? ''
+  verificar(linkZap.startsWith('https://wa.me/5511987654321?text=') && decodeURIComponent(linkZap).includes('*OS-0001*'), `WhatsApp abre no número do cliente com a mensagem pronta (${linkZap.slice(0, 40)}...)`)
+  await foto(page, '23-os-enviar-cliente')
+  aud = (await ipc(page, 'auditoria:listar', { acao: 'Arquivo para o cliente' })).dados
+  verificar(aud.itens[0]?.descricao.includes('OS-0001'), 'gerar o arquivo para o cliente fica na auditoria')
+  await envio.getByRole('button', { name: 'Concluir' }).click()
   await page.keyboard.press('Escape')
 
   // Peça sem saldo: a OS não fica pronta e nada muda

@@ -103,6 +103,13 @@ Usuários de demonstração (só em desenvolvimento):
   assinaturas, quadros de "em andamento", "prontas" e "atrasadas", avisos no sino (OS atrasada, pronta há 7 dias sem
   retirada), Excel, exclusão em lote, auditoria e sincronização entre terminais (número OS-A0001 por terminal).
   Permissões próprias: ver, cadastrar e editar (inclui mudar o status), excluir e ver a senha do equipamento.
+- **Enviar a OS ao cliente** (botão na ficha da OS, sem precisar de servidor na internet): salva uma página `.html`
+  única — abre no celular mesmo sem internet, nas cores da empresa, com modo escuro — mostrando a situação explicada em
+  linguagem simples, as etapas com datas, o equipamento, o defeito/diagnóstico/serviço, o orçamento, a garantia (com a
+  data em que termina) e os contatos (botão "Falar no WhatsApp" com o telefone da empresa). Não leva a senha do
+  equipamento, o técnico nem as observações internas do andamento, e não tem scripts. Em seguida o botão "Abrir
+  WhatsApp" abre a conversa com o celular do cliente e a mensagem pronta (editável); o arquivo é anexado na conversa.
+  Cada arquivo gerado fica na auditoria.
 - **Senha do equipamento na OS**: desenho (grade 3×3 como no celular — arrastando o mouse ou clicando nos pontos;
   passar por cima de um ponto o inclui, como no Android), PIN ou senha em texto. A senha não vem junto com os dados
   das telas: só quem tem a permissão "Ver senha do equipamento" (administrador e gerente; no Personalizado, quem for

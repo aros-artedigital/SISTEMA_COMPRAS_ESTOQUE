@@ -107,6 +107,8 @@ export interface Canais {
 
   'os:salvar': Canal<[id: number | null, dados: Entrada<typeof osEntradaSchema>], OrdemServico>
   'os:excluir': Canal<[id: number], void>
+  /** Salva a página da OS para o cliente (.html); null se o usuário cancelar. */
+  'os:salvarArquivoCliente': Canal<[id: number, html: string], string | null>
   /** Lê a senha do equipamento (permissão "Ver senha do equipamento"; cada leitura vai para a auditoria). */
   'os:verSenha': Canal<[id: number], SenhaOS>
   /** Muda o status (registra no histórico). Pronta/entregue dá baixa nas peças; reabrir ou cancelar devolve. */
@@ -141,6 +143,8 @@ export interface Canais {
   'backupExterno:fazerAgora': Canal<[], EstadoBackupExterno>
   'backupExterno:desativar': Canal<[], EstadoBackupExterno>
   'arquivo:mostrar': Canal<[caminho: string], void>
+  /** Abre um arquivo .html ou .pdf no programa padrão (navegador, leitor de PDF). */
+  'arquivo:abrir': Canal<[caminho: string], void>
 
   'sync:estado': Canal<[], EstadoSync>
   'sync:conectar': Canal<[dados: DadosConexao], { estado: EstadoSync; precisaEntrar: boolean }>

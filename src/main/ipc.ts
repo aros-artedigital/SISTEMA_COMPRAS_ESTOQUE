@@ -6,6 +6,7 @@ import { editar as permEditar, excluir as permExcluir, type Area, type Recurso }
 import * as s from '@shared/schemas'
 import { banco, caminhoBanco } from './db/conexao'
 import { basename } from 'path'
+import { writeFileSync } from 'fs'
 import { ErroNegocio, ErroPermissao, serializarErro } from './erros'
 import * as auditoria from './servicos/auditoria'
 import * as cep from './servicos/cep'
@@ -278,6 +279,16 @@ export function registrarCanais(): void {
   const ordem = crud('os', 'ordens_servico', ordens.salvar, ordens.excluir, s.osEntradaSchema)
   canal('os:salvar', ordem.salvar as Handler<'os:salvar'>)
   canal('os:excluir', ordem.excluir)
+  canal('os:salvarArquivoCliente', async (i, h) => {
+    const u = exigir('os')
+    const o = ordens.buscar(id(i))
+    const conteudo = z.string().min(1).max(5_000_000).parse(h)
+    const destino = await escolherDestino('Salvar arquivo para o cliente', `OS-${o.numero}.html`, [{ name: 'Página (HTML)', extensions: ['html'] }])
+    if (!destino) return null
+    writeFileSync(destino, conteudo, 'utf8')
+    auditoria.registrar({ usuario: u, acao: 'Arquivo para o cliente', entidade: 'Ordem de serviço', entidadeId: o.id, descricao: `Gerou o arquivo da OS ${o.numero} para o cliente (${basename(destino)})` })
+    return destino
+  })
   canal('os:verSenha', (i) => {
     const u = exigir('osSenha')
     const idOs = id(i)
@@ -565,6 +576,12 @@ export function registrarCanais(): void {
   canal('backup:abrirPasta', async () => {
     exigir('configuracoes')
     await shell.openPath(backup.pastaDeBackups())
+  })
+  canal('arquivo:abrir', async (caminho) => {
+    usuarioLogado()
+    const c = z.string().min(1).regex(/\.(html|pdf)$/i, 'Só arquivos .html ou .pdf').parse(caminho)
+    const erro = await shell.openPath(c)
+    if (erro) throw new ErroNegocio(`Não foi possível abrir o arquivo: ${erro}`)
   })
   canal('arquivo:mostrar', (caminho) => {
     usuarioLogado()

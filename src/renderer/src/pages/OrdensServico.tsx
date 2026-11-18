@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Check, FileDown, FileSpreadsheet, History, KeyRound, Lock, Pencil, Plus, Printer, Trash2, Wrench } from 'lucide-react'
+import { Check, FileDown, FileSpreadsheet, History, KeyRound, Lock, Pencil, Plus, Printer, Send, Trash2, Wrench } from 'lucide-react'
 import { alterar, useDb } from '@/data/store'
 import { useToast } from '@/contexts/ToastContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -12,6 +12,7 @@ import { InputMoeda } from '@/components/InputMoeda'
 import { LeitorCodigo } from '@/components/LeitorCodigo'
 import { AcoesLote } from '@/components/AcoesLote'
 import { EditorSenha, erroSenha, VerSenha } from '@/components/SenhaEquipamento'
+import { EnviarClienteOS } from '@/components/EnviarClienteOS'
 import {
   corStatusOS,
   descreverEquipamento,
@@ -654,6 +655,7 @@ function FichaOS({ os: o, onFechar, onEditar }: { os: OrdemServico; onFechar: ()
   const [novo, setNovo] = useState<StatusOS | ''>(proximoNatural(o.status))
   const [obs, setObs] = useState('')
   const [erroObs, setErroObs] = useState('')
+  const [enviando, setEnviando] = useState(false)
 
   useEffect(() => {
     setNovo(proximoNatural(o.status))
@@ -700,6 +702,9 @@ function FichaOS({ os: o, onFechar, onEditar }: { os: OrdemServico; onFechar: ()
               Editar
             </Button>
           )}
+          <Button variante="secundario" icone={<Send size={16} />} onClick={() => setEnviando(true)}>
+            Enviar ao cliente
+          </Button>
           <Button variante="secundario" icone={<FileDown size={16} />} onClick={() => void saida.pdf()}>
             PDF
           </Button>
@@ -877,6 +882,7 @@ function FichaOS({ os: o, onFechar, onEditar }: { os: OrdemServico; onFechar: ()
           </div>
         </aside>
       </div>
+      {enviando && <EnviarClienteOS os={o} onFechar={() => setEnviando(false)} />}
     </Modal>
   )
 }
