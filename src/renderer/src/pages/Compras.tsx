@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { FileSpreadsheet, PackageCheck, PackageX, Plus, Tags, Trash2 } from 'lucide-react'
+import { FileSpreadsheet, Lightbulb, PackageCheck, PackageX, Plus, Tags, Trash2 } from 'lucide-react'
 import { alterar, useDb } from '@/data/store'
 import { useToast } from '@/contexts/ToastContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -17,6 +17,7 @@ import { AcoesLote } from '@/components/AcoesLote'
 import { useLote } from '@/lib/lote'
 import { EtiquetasModal, type ItemEtiqueta } from '@/components/EtiquetasModal'
 import { LeitorCodigo } from '@/components/LeitorCodigo'
+import { SugestaoCompraModal } from '@/components/SugestaoCompraModal'
 import * as fmt from '@shared/format'
 import type { Compra, ItemCompra, StatusCompra } from '@shared/tipos'
 
@@ -47,6 +48,7 @@ export default function Compras() {
   const [excluindo, setExcluindo] = useState<Compra | null>(null)
   const [recebendo, setRecebendo] = useState<Compra | null>(null)
   const [etiquetas, setEtiquetas] = useState<{ numero: string; itens: ItemEtiqueta[] } | null>(null)
+  const [sugerindo, setSugerindo] = useState(false)
   const form = useForm({ fornecedorId: '', data: fmt.hojeIso(), observacao: '' }, compraSchema)
 
   const nomeFornecedor = (id: number): string => fornecedores.find((f) => f.id === id)?.nomeFantasia || fornecedores.find((f) => f.id === id)?.razaoSocial || '—'
@@ -238,6 +240,11 @@ export default function Compras() {
             <Button variante="secundario" icone={<FileSpreadsheet size={16} />} onClick={() => exportar()}>
               Excel
             </Button>
+            {pode('comprasEditar') && (
+              <Button variante="secundario" icone={<Lightbulb size={16} />} onClick={() => setSugerindo(true)}>
+                Sugerir compra
+              </Button>
+            )}
             {pode('comprasEditar') && <Button data-atalho="novo" icone={<Plus size={16} />} onClick={() => abrir(null)}>Nova Compra</Button>}
           </>
         }
@@ -418,6 +425,7 @@ export default function Compras() {
       />
 
       <ReceberCompraModal compra={recebendo} onFechar={() => setRecebendo(null)} />
+      {sugerindo && <SugestaoCompraModal onFechar={() => setSugerindo(false)} />}
 
       <ConfirmDialog
         aberto={!!excluindo}

@@ -19,6 +19,7 @@ import {
   recebidaEmParte,
   rotuloFormaPagamento, rotuloStatusCompra, rotuloTipoMov, situacaoEstoque, subtotalVenda, totalCompra, totalVenda } from '@shared/dominio'
 import * as fmt from '@shared/format'
+import { calcularSugestao } from '@shared/sugestaoCompra'
 import type { FormaPagamento, OrdemServico, StatusCompra, TipoMovimentacao } from '@shared/tipos'
 
 type Aba = 'vendas' | 'os' | 'estoque' | 'reposicao' | 'compras' | 'movimentacoes'
@@ -194,72 +195,79 @@ function PosicaoEstoque() {
 // ---------- Sugestão de compra ----------
 
 function SugestaoCompra() {
-  const { produtos, compras, fornecedores, unidades } = useDb()
-  const [fator, setFator] = useState('2')
+  const db = useDb()
+  const { fornecedores, unidades } = db
+  const [diasConsumo, setDiasConsumo] = useState('90')
+  const [diasCobertura, setDiasCobertura] = useState('30')
 
   const relatorio = useMemo<Relatorio>(() => {
-    const multiplicador = Math.max(1, Number(fator) || 2)
-    // Última compra (não cancelada) de cada produto: fornecedor e custo de referência.
-    const ultima = new Map<number, { fornecedorId: number; valor: number; data: string }>()
-    for (const c of [...compras].filter((c) => c.status !== 'cancelada').sort((a, b) => a.data.localeCompare(b.data))) {
-      for (const i of c.itens) ultima.set(i.produtoId, { fornecedorId: c.fornecedorId, valor: i.valorUnitario, data: c.data })
-    }
-    const lista = produtos
-      .filter((p) => p.ativo && situacaoEstoque(p) !== 'ok')
-      .map((p) => {
-        const u = ultima.get(p.id)
-        const sugerido = Math.max(1, p.estoqueMinimo * multiplicador - p.estoque)
-        const custo = u?.valor ?? p.precoCusto
-        return { p, u, sugerido, custo }
-      })
-      .sort((a, b) => a.p.estoque - a.p.estoqueMinimo - (b.p.estoque - b.p.estoqueMinimo))
-    const forn = (id?: number): string => (id ? (fornecedores.find((f) => f.id === id)?.nomeFantasia || fornecedores.find((f) => f.id === id)?.razaoSocial || '') : '')
+    const lista = calcularSugestao(db, { diasConsumo: Number(diasConsumo), diasCobertura: Number(diasCobertura), somenteAbaixoMinimo: true })
+    const forn = (id: number | null): string => (id ? (fornecedores.find((f) => f.id === id)?.nomeFantasia || fornecedores.find((f) => f.id === id)?.razaoSocial || '') : '')
     const total = lista.reduce((s, x) => s + x.sugerido * x.custo, 0)
     return {
       titulo: 'Sugestão de compra',
-      filtros: [`Repor até ${multiplicador}× o estoque mínimo`, 'Custo de referência: última compra (ou custo cadastrado)'],
+      filtros: [
+        `Consumo dos últimos ${diasConsumo} dias, compra para ${diasCobertura} dias`,
+        'Comprar = mínimo + consumo × dias − estoque − já pedido',
+        'Custo de referência: última compra (ou custo cadastrado)'
+      ],
       colunas: [
         { titulo: 'Código', peso: 0.8 },
         { titulo: 'Produto', peso: 2.2 },
         { titulo: 'Un.', peso: 0.5 },
         { titulo: 'Estoque', formato: 'numero', peso: 0.8 },
         { titulo: 'Mínimo', formato: 'numero', peso: 0.8 },
+        { titulo: 'Consumo/dia', formato: 'numero', peso: 0.9 },
+        { titulo: 'Já pedido', formato: 'numero', peso: 0.8 },
         { titulo: 'Comprar', formato: 'numero', peso: 0.9 },
         { titulo: 'Custo ref.', formato: 'moeda', peso: 1 },
         { titulo: 'Subtotal', formato: 'moeda', peso: 1.1 },
         { titulo: 'Último fornecedor', peso: 1.5 }
       ],
-      linhas: lista.map(({ p, u, sugerido, custo }) => [
-        p.codigo,
-        p.nome,
-        unidades.find((x) => x.id === p.unidadeId)?.sigla ?? '',
-        p.estoque,
-        p.estoqueMinimo,
-        sugerido,
-        custo,
-        sugerido * custo,
-        forn(u?.fornecedorId)
+      linhas: lista.map((x) => [
+        x.produto.codigo,
+        x.produto.nome,
+        unidades.find((u) => u.id === x.produto.unidadeId)?.sigla ?? '',
+        x.produto.estoque,
+        x.produto.estoqueMinimo,
+        x.consumoDiario,
+        x.aCaminho,
+        x.sugerido,
+        x.custo,
+        x.sugerido * x.custo,
+        forn(x.fornecedorId)
       ]),
-      totais: ['Total', null, null, null, null, lista.reduce((s, x) => s + x.sugerido, 0), null, total, null],
+      totais: ['Total', null, null, null, null, null, null, lista.reduce((s, x) => s + x.sugerido, 0), null, total, null],
       resumo: [
         { rotulo: 'Produtos a repor', valor: fmt.numero(lista.length) },
-        { rotulo: 'Sem estoque', valor: fmt.numero(lista.filter((x) => x.p.estoque <= 0).length) },
-        { rotulo: 'Investimento estimado', valor: fmt.moeda(total) }
+        { rotulo: 'Sem estoque', valor: fmt.numero(lista.filter((x) => x.produto.estoque <= 0).length) },
+        { rotulo: 'Investimento estimado', valor: fmt.moeda(total) },
+        { rotulo: 'Para gerar os pedidos', valor: 'Compras → Sugerir compra' }
       ]
     }
-  }, [produtos, compras, fornecedores, unidades, fator])
+  }, [db, fornecedores, unidades, diasConsumo, diasCobertura])
 
   return (
     <Visualizacao
       relatorio={relatorio}
       arquivo="sugestao-compra"
       filtros={
-        <Select
-          className="w-64"
-          opcoes={[1.5, 2, 3, 4].map((n) => ({ value: n, label: `Repor até ${String(n).replace('.', ',')}× o mínimo` }))}
-          value={fator}
-          onChange={(e) => setFator(e.target.value)}
-        />
+        <>
+          <Select
+            className="w-56"
+            aria-label="Período de consumo"
+            opcoes={[30, 60, 90, 180].map((n) => ({ value: n, label: `Consumo de ${n} dias` }))}
+            value={diasConsumo}
+            onChange={(e) => setDiasConsumo(e.target.value)}
+          />
+          <Select
+            className="w-48"
+            aria-label="Dias de cobertura"
+            opcoes={[15, 30, 45, 60, 90].map((n) => ({ value: n, label: `Comprar para ${n} dias` }))}
+            value={diasCobertura}
+            onChange={(e) => setDiasCobertura(e.target.value)}
+          />
+        </>
       }
     />
   )

@@ -94,6 +94,12 @@ Usuários de demonstração (só em desenvolvimento):
   deixa vender sem saldo. Recibo em cupom de 80 mm (impressão ou PDF, sem valor fiscal). Uma venda não é editada:
   o cancelamento devolve os itens ao estoque e fica registrado com o motivo. Atalho **F2** abre uma nova venda.
   Relatório de vendas por venda, por cliente ou por produto; total comprado por cliente na tela de Clientes.
+- **Sugestão de compra automática** (Compras → "Sugerir compra"): calcula quanto comprar pelo consumo real —
+  estoque mínimo + média de saídas por dia (dos últimos 30/60/90/180 dias, descontando devoluções) × dias de cobertura
+  (15 a 90) − estoque atual − o que já foi pedido e não chegou. Fornecedor e custo vêm da última compra de cada produto
+  (produto nunca comprado pede a escolha do fornecedor). Dá para desmarcar itens, mudar quantidades e fornecedores, e
+  exportar para o Excel. "Gerar pedidos" cria um pedido em rascunho por fornecedor, de uma vez (se um falhar, nenhum é
+  criado). O relatório "Sugestão de compra" usa o mesmo cálculo.
 - **Ordens de Serviço** (assistência técnica; menu ou `Ctrl+0`): entrada do equipamento (tipo, marca, modelo, nº de
   série/IMEI, acessórios e estado físico), defeito relatado, diagnóstico e laudo, técnico responsável, previsão de
   entrega e garantia. Orçamento com peças do estoque (inclusive pelo leitor de código de barras) e serviços de mão de

@@ -863,6 +863,68 @@ try {
   verificar(mudPerm?.para.includes('Relatórios') && !mudPerm.de.includes('Relatórios'), 'mudança de permissões fica na auditoria (com os nomes das telas)')
   await ipc(page, 'usuarios:excluir', estoquista.id)
 
+  // ---------- Sugestão de compra automática ----------
+  console.log('Sugestão de compra')
+  dados = (await ipc(page, 'dados:carregar')).dados
+  const prodSug = (codigo, nome, estoque, minimo) => ({ codigo, codigoBarras: '', nome, categoriaId: dados.categorias[0].id, unidadeId: dados.unidades[0].id, precoCusto: 9, precoVenda: 20, estoque, estoqueMinimo: minimo, ativo: true })
+  const sug1 = (await ipc(page, 'produtos:salvar', null, prodSug('SUG01', 'Sug Cabo Lightning', 30, 5))).dados
+  const sug2 = (await ipc(page, 'produtos:salvar', null, prodSug('SUG02', 'Sug Película Nova', 0, 3))).dados
+  // Consumo: 30 saídas nos últimos 90 dias → 0,33/dia → para 30 dias: 10 + mínimo 5 = 15. Já pedido: 4 → comprar 11.
+  await ipc(page, 'estoque:movimentar', { produtoId: sug1.id, tipo: 'saida', quantidade: 30, motivo: 'Consumo de teste' })
+  await ipc(page, 'compras:salvar', null, { fornecedorId: 1, data: '2026-11-10', observacao: '', status: 'pedido', itens: [{ produtoId: sug1.id, quantidade: 4, valorUnitario: 12.5 }] })
+  await page.reload()
+  await page.waitForSelector('input[placeholder="seu.login"]')
+  await entrar(page, 'admin', 'admin123')
+  await page.getByText('Olá, Administrador').waitFor()
+  await page.keyboard.press('Control+6')
+  await page.getByRole('button', { name: 'Sugerir compra' }).click()
+  const janelaSug = page.getByRole('dialog', { name: 'Sugestão de compra' })
+  await janelaSug.getByLabel('Quantidade a comprar de Sug Cabo Lightning').waitFor()
+  verificar(
+    (await janelaSug.getByLabel('Quantidade a comprar de Sug Cabo Lightning').inputValue()) === '11',
+    'sugestão pelo consumo real: mínimo 5 + 0,33/dia × 30 dias − estoque 0 − 4 já pedidos = 11'
+  )
+  verificar((await janelaSug.getByLabel('Quantidade a comprar de Sug Película Nova').inputValue()) === '3', 'produto sem consumo e sem estoque: repõe até o mínimo (3)')
+  // Só os dois produtos do teste
+  await janelaSug.getByLabel('Marcar todos').uncheck()
+  await janelaSug.getByLabel('Comprar Sug Cabo Lightning').check()
+  await janelaSug.getByLabel('Comprar Sug Película Nova').check()
+  await janelaSug.getByRole('button', { name: /^Gerar/ }).click()
+  await janelaSug.getByText('Escolha o fornecedor dos produtos marcados que estão "Sem fornecedor".').waitFor()
+  verificar(true, 'produto nunca comprado pede a escolha do fornecedor antes de gerar')
+  await escolher(janelaSug.getByLabel('Fornecedor de Sug Película Nova'), 'TechDist')
+  await janelaSug.getByLabel('Quantidade a comprar de Sug Película Nova').fill('5')
+  await foto(page, '26-sugestao-compra')
+  await janelaSug.getByRole('button', { name: 'Gerar 1 pedido' }).click()
+  await page.getByText(/1 pedido gerado como rascunho/).waitFor()
+  dados = (await ipc(page, 'dados:carregar')).dados
+  const pedidoSug = dados.compras.filter((c) => c.status === 'rascunho' && c.observacao.includes('sugestão de compra')).at(-1)
+  verificar(
+    pedidoSug?.fornecedorId === 1 &&
+      pedidoSug.itens.length === 2 &&
+      pedidoSug.itens.find((i) => i.produtoId === sug1.id)?.quantidade === 11 &&
+      pedidoSug.itens.find((i) => i.produtoId === sug1.id)?.valorUnitario === 12.5 &&
+      pedidoSug.itens.find((i) => i.produtoId === sug2.id)?.quantidade === 5,
+    'gera um pedido (rascunho) por fornecedor, com a quantidade ajustada e o custo da última compra'
+  )
+  await page.getByRole('button', { name: 'Sugerir compra' }).click()
+  await janelaSug.waitFor()
+  verificar((await janelaSug.getByLabel('Comprar Sug Cabo Lightning').count()) === 0, 'o que já foi pedido não aparece de novo na sugestão')
+  await janelaSug.getByRole('button', { name: 'Cancelar' }).click()
+  // Tudo ou nada: um fornecedor inativo impede todos os pedidos
+  const fornInativo = (await ipc(page, 'fornecedores:salvar', null, { razaoSocial: 'Fornecedor Parado Ltda', nomeFantasia: '', cnpj: '11.222.333/0001-81', telefone: '', email: '', cidade: '', uf: '', ativo: false })).dados
+  const qtdCompras = dados.compras.length
+  r = await ipc(page, 'compras:gerarPedidos', [
+    { fornecedorId: 1, observacao: 'x', itens: [{ produtoId: sug2.id, quantidade: 1, valorUnitario: 9 }] },
+    { fornecedorId: fornInativo.id, observacao: 'x', itens: [{ produtoId: sug2.id, quantidade: 1, valorUnitario: 9 }] }
+  ])
+  dados = (await ipc(page, 'dados:carregar')).dados
+  verificar(!r.ok && r.erro.mensagem.includes('inativo') && dados.compras.length === qtdCompras, 'se um pedido não pode ser criado, nenhum é criado')
+  await ipc(page, 'compras:excluir', pedidoSug.id)
+  await ipc(page, 'fornecedores:excluir', fornInativo.id)
+  await ipc(page, 'produtos:excluir', sug2.id)
+  // (SUG01 fica: tem movimentações; por isso as contagens de produtos abaixo têm 1 a mais)
+
   // ---------- Ordens de serviço ----------
   console.log('Ordens de serviço')
   dados = (await ipc(page, 'dados:carregar')).dados
@@ -1200,7 +1262,7 @@ try {
   await esperarArquivo(arq('produtos.xlsx'))
   const wbExp = new ExcelJS.Workbook()
   await wbExp.xlsx.readFile(arq('produtos.xlsx'))
-  verificar(wbExp.worksheets[0].rowCount === 12, `Excel exportado com cabeçalho + 11 produtos (${wbExp.worksheets[0].rowCount} linhas)`)
+  verificar(wbExp.worksheets[0].rowCount === 13, `Excel exportado com cabeçalho + 12 produtos (${wbExp.worksheets[0].rowCount} linhas)`)
 
   await aoSalvar(arq('modelo.xlsx'))
   r = await ipc(page, 'excel:modelo', 'produtos')
@@ -1287,7 +1349,7 @@ try {
   dados = (await ipc(page, 'dados:carregar')).dados
   verificar(dados.produtos.some((p) => p.nome === 'Hub USB 4 portas'), 'produto criado continua após reiniciar')
   verificar(dados.compras.find((c) => c.id === 6)?.status === 'recebida', 'compra recebida continua recebida')
-  verificar(dados.produtos.length === 12, 'seed não roda de novo em banco existente')
+  verificar(dados.produtos.length === 13, 'seed não roda de novo em banco existente')
   await page.getByRole('link', { name: 'Movimentações' }).click()
   await page.getByPlaceholder('Produto, código ou motivo...').fill('C-0006')
   await page.getByText('Compra C-0006').first().waitFor()

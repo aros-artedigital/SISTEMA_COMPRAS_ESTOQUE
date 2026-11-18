@@ -381,6 +381,20 @@ export function registrarCanais(): void {
     }
     return resultado
   })
+  canal('compras:gerarPedidos', (lista) => {
+    exigir('comprasEditar')
+    const pedidos = z
+      .array(z.object({ fornecedorId: s.idSchema, observacao: z.string().trim().max(500), itens: s.compraEntradaSchema.shape.itens }))
+      .min(1, 'Nenhum pedido para gerar')
+      .max(100)
+      .parse(lista)
+    const hoje = new Date()
+    const data = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`
+    // Uma transação para todos: se um pedido falhar (ex.: fornecedor inativo), nenhum é criado.
+    return banco().transaction(() =>
+      pedidos.map((p) => comp.salvar(null, { fornecedorId: p.fornecedorId, data, observacao: p.observacao, status: 'rascunho', itens: p.itens }) as ReturnType<typeof compras.salvar>)
+    )()
+  })
   canal('compras:receber', (i, itens) => {
     const u = exigir('comprasEditar')
     const idCompra = id(i)

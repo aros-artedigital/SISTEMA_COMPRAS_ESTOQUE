@@ -99,6 +99,8 @@ export interface Canais {
   /** Sem itens: recebe tudo o que falta. Com itens: recebe só essas quantidades (recebimento parcial). */
   'compras:receber': Canal<[id: number, itens?: { produtoId: number; quantidade: number }[]], AlteracaoCusto[]>
   'compras:encerrar': Canal<[id: number], void>
+  /** Cria um pedido (rascunho) por fornecedor a partir da sugestão de compra. Tudo ou nada. */
+  'compras:gerarPedidos': Canal<[pedidos: { fornecedorId: number; observacao: string; itens: { produtoId: number; quantidade: number; valorUnitario: number }[] }[]], Compra[]>
 
   'estoque:movimentar': Canal<[dados: Entrada<typeof movimentacaoSchema>], void>
   'estoque:estornar': Canal<[id: number, motivo: string], void>
