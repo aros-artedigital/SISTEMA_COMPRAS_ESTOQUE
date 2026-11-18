@@ -142,6 +142,13 @@ Usuários de demonstração (só em desenvolvimento):
   impressão/PDF, no Excel nem no texto da auditoria. Ao editar a OS, a senha atual é mantida (há "Trocar" e
   "Remover"). Por padrão é apagada quando a OS é entregue ou cancelada (Configurações → Segurança). Com sincronização,
   a senha vai para o servidor junto com a OS, para o técnico de outro terminal poder vê-la.
+- **Fluxo de caixa** (Financeiro → Fluxo de caixa): entradas e saídas **realizadas** (vendas à vista, recebimentos de OS,
+  recebimentos e pagamentos de contas com juros/desconto e, opcionalmente, compras recebidas sem conta a pagar) e
+  **previstas** (contas a receber e a pagar em aberto pelo vencimento e OS entregues com saldo; o que venceu e não foi
+  pago entra "em atraso" na data de hoje). Períodos prontos (este mês, próximos 30/90 dias, últimos 30 dias, este ano)
+  ou personalizado, agrupado por dia, semana ou mês, com saldo inicial e saldo acumulado; quadros de resumo, gráfico
+  de entradas × saídas, tabela por período e lista de movimentos com filtros; PDF, impressão e Excel. Vendas a prazo
+  entram quando as parcelas são recebidas; sangrias e suprimentos não entram (é dinheiro mudando de lugar).
 - **Contas a receber e a pagar** (menu Financeiro): cada parcela é uma conta, com vencimento, situação (a vencer,
   vence hoje, vencida, paga, cancelada), quadros de em aberto / vencidas / vencem em 7 dias / recebido ou pago no mês,
   filtros, Excel e detalhes. **A receber:** vendas **a prazo** (nova forma de pagamento na venda: cliente obrigatório,

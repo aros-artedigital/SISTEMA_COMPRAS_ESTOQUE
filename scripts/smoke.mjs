@@ -59,6 +59,7 @@ const aoAbrir = (caminho) =>
     dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [c] })
   }, caminho)
 const fmt = (n) => new Intl.NumberFormat('pt-BR').format(n)
+const fmtIso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
 function ehPdf(caminho) {
   const ok = existsSync(caminho) && readFileSync(caminho).subarray(0, 4).toString() === '%PDF'
@@ -1259,7 +1260,7 @@ try {
   // ---------- Caixa do dia ----------
   console.log('Caixa do dia')
   verificar((await ipc(page, 'caixa:estado')).dados === null, 'começa com o caixa fechado (vendas antigas não entram em caixa nenhum)')
-  await page.getByRole('link', { name: 'Caixa' }).click()
+  await page.getByRole('link', { name: 'Caixa', exact: true }).click()
   await page.getByRole('heading', { name: 'Caixa', exact: true }).waitFor()
   await page.getByLabel('Troco inicial').fill('100')
   await page.getByRole('button', { name: 'Abrir caixa' }).click()
@@ -1285,7 +1286,7 @@ try {
   await page.waitForSelector('input[placeholder="seu.login"]')
   await entrar(page, 'admin', 'admin123')
   await page.getByText('Olá, Administrador').waitFor()
-  await page.getByRole('link', { name: 'Caixa' }).click()
+  await page.getByRole('link', { name: 'Caixa', exact: true }).click()
   await page.getByRole('button', { name: 'Sangria' }).click()
   const janelaSangria = page.getByRole('dialog', { name: /^Sangria/ })
   await janelaSangria.getByLabel('Valor').fill('50')
@@ -1296,7 +1297,7 @@ try {
   await page.waitForSelector('input[placeholder="seu.login"]')
   await entrar(page, 'admin', 'admin123')
   await page.getByText('Olá, Administrador').waitFor()
-  await page.getByRole('link', { name: 'Caixa' }).click()
+  await page.getByRole('link', { name: 'Caixa', exact: true }).click()
   await page.getByText('Dinheiro na gaveta').waitFor()
   await foto(page, '28-caixa-aberto')
   verificar((await ipc(page, 'caixa:estado')).dados.esperado.dinheiro === 130, 'sangria e suprimento mexem só no dinheiro (100 + 50 + 20 − 50 + 10 = 130)')
@@ -1446,6 +1447,53 @@ try {
   aud = (await ipc(page, 'auditoria:listar', { entidade: 'Conta' })).dados
   verificar(['Inclusão', 'Recebimento', 'Pagamento', 'Estorno de pagamento', 'Cancelamento'].every((a) => aud.itens.some((x) => x.acao === a)), 'lançamentos, recebimentos, pagamentos, estornos e cancelamentos ficam na auditoria')
   await ipc(page, 'contas:cancelar', contaCompra.id, 'Fim do teste')
+
+  // ---------- Fluxo de caixa ----------
+  console.log('Fluxo de caixa')
+  const valorCartao = async (nome) => {
+    const texto = await page.getByRole('group', { name: nome, exact: true }).locator('p').nth(1).textContent()
+    return Number(texto.replace(/[^\d,-]/g, '').replace(',', '.'))
+  }
+  // Previsto: período futuro só com as contas do teste
+  const cRec = (await ipc(page, 'contas:salvar', null, { tipo: 'receber', descricao: 'Fluxo receber', categoria: '', clienteId: 1, fornecedorId: null, compraId: null, valor: 500, vencimento: '2030-01-10', parcelas: 1, observacao: '' })).dados[0]
+  const cPag = (await ipc(page, 'contas:salvar', null, { tipo: 'pagar', descricao: 'Fluxo pagar', categoria: '', clienteId: null, fornecedorId: null, compraId: null, valor: 200, vencimento: '2030-01-15', parcelas: 1, observacao: '' })).dados[0]
+  const cAtraso = (await ipc(page, 'contas:salvar', null, { tipo: 'receber', descricao: 'Fluxo atrasada', categoria: '', clienteId: 1, fornecedorId: null, compraId: null, valor: 70, vencimento: '2026-01-05', parcelas: 1, observacao: '' })).dados[0]
+  await recarregarTela()
+  await page.getByRole('link', { name: 'Fluxo de caixa' }).click()
+  await page.getByRole('heading', { name: 'Fluxo de caixa', exact: true }).waitFor()
+  const E0 = await valorCartao('Entradas realizadas')
+  const S0 = await valorCartao('Saídas realizadas')
+  await page.getByLabel('De', { exact: true }).fill('2030-01-01')
+  await page.getByLabel('Até', { exact: true }).fill('2030-01-31')
+  await page.getByLabel('Saldo inicial').fill('1000')
+  await page.getByLabel('Saldo inicial').press('Tab')
+  await page.getByRole('cell', { name: '10/01', exact: true }).waitFor()
+  verificar(
+    (await valorCartao('A receber / a pagar (previsto)')) === 300 && (await valorCartao('Saldo final previsto')) === 1300,
+    'previsto no período: + R$ 500 a receber − R$ 200 a pagar, com saldo inicial de R$ 1.000 → saldo final R$ 1.300'
+  )
+  await escolher(page.getByLabel('Agrupar por'), 'Por mês')
+  await page.getByRole('cell', { name: 'jan/30', exact: true }).waitFor()
+  verificar(true, 'agrupa por mês')
+  await foto(page, '33-fluxo-previsto')
+  // Realizado: uma venda à vista e uma conta paga neste mês mudam os quadros
+  await ipc(page, 'vendas:registrar', { clienteId: null, formaPagamento: 'dinheiro', desconto: 0, observacao: '', itens: [{ produtoId: 2, quantidade: 1, valorUnitario: 25 }] })
+  const cHoje = (await ipc(page, 'contas:salvar', null, { tipo: 'pagar', descricao: 'Fluxo paga hoje', categoria: '', clienteId: null, fornecedorId: null, compraId: null, valor: 15, vencimento: fmtIso(new Date()), parcelas: 1, observacao: '' })).dados[0]
+  await ipc(page, 'contas:baixar', cHoje.id, { valor: 15, juros: 0, desconto: 0, forma: 'pix' })
+  await recarregarTela()
+  await page.getByRole('link', { name: 'Fluxo de caixa' }).click()
+  await page.getByRole('heading', { name: 'Fluxo de caixa', exact: true }).waitFor()
+  const E1 = await valorCartao('Entradas realizadas')
+  const S1 = await valorCartao('Saídas realizadas')
+  verificar(Math.abs(E1 - E0 - 25) < 0.01 && Math.abs(S1 - S0 + 15) < 0.01, `venda à vista entra e conta paga sai no realizado do mês (entradas +${(E1 - E0).toFixed(2)}, saídas ${(S1 - S0).toFixed(2)})`)
+  await escolher(page.getByLabel('Filtrar movimentos'), 'Em atraso')
+  await page.getByText('(venceu 05/01/2026)').first().waitFor()
+  verificar(true, 'conta vencida e não recebida aparece como "Em atraso" na data de hoje')
+  await foto(page, '34-fluxo-mes')
+  await aoSalvar(join(pasta, 'fluxo.pdf'))
+  await page.getByRole('button', { name: 'PDF' }).first().click()
+  verificar((await esperarArquivo(join(pasta, 'fluxo.pdf'))) && ehPdf(join(pasta, 'fluxo.pdf')), 'fluxo de caixa salvo em PDF')
+  for (const c of [cRec, cPag, cAtraso]) await ipc(page, 'contas:cancelar', c.id, 'Fim do teste do fluxo')
 
   // ---------- Backup externo ----------
   console.log('Backup fora do computador')

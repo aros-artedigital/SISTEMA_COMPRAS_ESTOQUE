@@ -59,6 +59,8 @@ export function GraficoBarras({ series, dados, formatar, formatarEixo = formatar
   const grupo = areaL / Math.max(1, dados.length)
   const larguraBarra = Math.min(28, (grupo * 0.6) / series.length)
   const gap = 2
+  // Muitos grupos (ex.: 31 dias): mostra só um rótulo a cada N para não encavalar (o tooltip mostra todos).
+  const aCada = Math.max(1, Math.ceil(dados.length / Math.max(1, Math.floor(areaL / 46))))
 
   if (vazio) {
     return (
@@ -81,7 +83,7 @@ export function GraficoBarras({ series, dados, formatar, formatarEixo = formatar
       </div>
       )}
       <div ref={ref} className="relative">
-        <svg width={largura} height={altura} className="block max-w-full" role="img" aria-label="Gráfico de movimentações por mês">
+        <svg width={largura} height={altura} className="block max-w-full" role="img" aria-label="Gráfico de barras">
           {ticks.map((t) => (
             <g key={t}>
               <line x1={M.esquerda} x2={largura - M.direita} y1={y(t)} y2={y(t)} style={{ stroke: t === 0 ? 'rgb(var(--c-slate-300))' : 'rgb(var(--c-slate-200))' }} strokeWidth={1} />
@@ -108,9 +110,11 @@ export function GraficoBarras({ series, dados, formatar, formatarEixo = formatar
                       : `M${x},${y(0)} V${y(v) + r} Q${x},${y(v)} ${x + r},${y(v)} H${x + larguraBarra - r} Q${x + larguraBarra},${y(v)} ${x + larguraBarra},${y(v) + r} V${y(0)} Z`
                   return path && <path key={s} d={path} fill={series[s].cor} />
                 })}
-                <text x={x0 + grupo / 2} y={altura - 8} textAnchor="middle" fontSize={11} style={{ fill: 'rgb(var(--c-slate-600))' }}>
-                  {d.rotulo}
-                </text>
+                {i % aCada === 0 && (
+                  <text x={x0 + grupo / 2} y={altura - 8} textAnchor="middle" fontSize={11} style={{ fill: 'rgb(var(--c-slate-600))' }}>
+                    {d.rotulo}
+                  </text>
+                )}
                 {/* Área de hover maior que as barras */}
                 <rect
                   x={x0}

@@ -11,6 +11,7 @@ import {
   Settings,
   ShieldCheck,
   ShoppingCart,
+  TrendingUp,
   Tags,
   Truck,
   UserCircle,
@@ -47,7 +48,8 @@ export const menu: GrupoMenu[] = [
     itens: [
       { caminho: '/caixa', titulo: 'Caixa', icone: Wallet, recurso: 'caixa' },
       { caminho: '/financeiro/receber', titulo: 'Contas a receber', icone: HandCoins, recurso: 'financeiro' },
-      { caminho: '/financeiro/pagar', titulo: 'Contas a pagar', icone: Landmark, recurso: 'financeiro' }
+      { caminho: '/financeiro/pagar', titulo: 'Contas a pagar', icone: Landmark, recurso: 'financeiro' },
+      { caminho: '/financeiro/fluxo', titulo: 'Fluxo de caixa', icone: TrendingUp, recurso: 'financeiro' }
     ]
   },
   {
