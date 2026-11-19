@@ -16,6 +16,19 @@ npm run dist         # gera o instalador Windows em dist/ (Gestor-Estoque-Compra
 npm run icone        # regenera build/icon.png a partir de build/icon.svg
 ```
 
+### Demonstração (dados fictícios)
+
+`npm run demo` cria um **banco de demonstração separado** (`%APPDATA%\gestor-estoque-compras\demonstracao`) — o
+banco real não é tocado — com 10 cadastros de cada tipo (categorias, unidades, fornecedores, clientes, usuários,
+produtos) e cerca de 6 meses de movimento: ~190 vendas (à vista e a prazo, 2 canceladas), 10 compras (recebidas,
+parcial, em pedido, rascunho), 10 ordens de serviço em todas as etapas (com senha, sinal, assinaturas, uma com valor
+a receber), contas a pagar e a receber (pagas, vencidas e a vencer), 10 caixas fechados e o de hoje aberto,
+movimentações e um inventário. Tudo passa pelas regras do sistema; o relógio do processo principal é ajustado para
+a data de cada operação, para os gráficos terem histórico. Também cria o atalho **"Gestor - Demonstração"** na área
+de trabalho (programa instalado + banco e perfil da demonstração). Entrar com `admin` / `admin123` (os outros
+usuários fictícios usam a senha `demo123`). Rodar de novo recria a demonstração (a anterior vira
+`estoque-demo.anterior.sqlite`).
+
 ### Instalador Windows
 
 `npm run dist` gera um instalador NSIS em `dist/`: escolhe a pasta de instalação, cria atalhos na área de

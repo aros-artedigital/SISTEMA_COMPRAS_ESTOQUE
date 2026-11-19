@@ -15,6 +15,7 @@
     "dist": "npm run build && electron-builder --win --x64",
     "icone": "node scripts/gerar-icone.mjs",
     "test:api": "node scripts/api-teste.mjs",
+    "demo": "node scripts/demo-dados.mjs && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/demo-atalho.ps1",
     "test:sync": "electron-vite build && node scripts/sync-teste.mjs"
   },
   "dependencies": {
